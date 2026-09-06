@@ -1,0 +1,1 @@
+ALTER TABLE `business` ADD `custom_invoice_fields` text;

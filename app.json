@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Invora Invoice",
+    "slug": "invora-invoice",
+    "scheme": "invora",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.invora.invoice"
+    },
+    "android": {
+      "package": "com.invora.invoice",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Invora to access your photos so you can set your business logo."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d6233ef1-d731-4f05-b755-91ccea329399"
+      }
+    }
+  }
+}

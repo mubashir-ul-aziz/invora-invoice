@@ -1,0 +1,46 @@
+import React from 'react';
+import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+
+import { colors } from '@/theme/colors';
+
+interface Props extends TextInputProps {
+  label: string;
+  error?: string;
+  testID?: string;
+}
+
+export function FormField({ label, error, testID, style, ...inputProps }: Props) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        {...inputProps}
+        testID={testID}
+        placeholderTextColor={colors.placeholder}
+        style={[styles.input, !!error && styles.inputError, style]}
+      />
+      {!!error && (
+        <Text style={styles.error} testID={testID ? `${testID}-error` : undefined}>
+          {error}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { gap: 6 },
+  label: { fontSize: 13, fontWeight: '600', color: colors.text },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
+  inputError: { borderColor: colors.danger },
+  error: { fontSize: 12, color: colors.danger },
+});
