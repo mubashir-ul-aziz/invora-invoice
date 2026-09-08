@@ -28,8 +28,16 @@ export const business = sqliteTable('business', {
   defaultTaxRate: real('default_tax_rate'),
   /** Days until due; 0 = due on receipt; null = no default. */
   defaultPaymentTermsDays: integer('default_payment_terms_days'),
+  /**
+   * Phase 9 renamed the third option from "minimal" to "compact" (no schema
+   * change needed — this `enum` is a Drizzle/TypeScript-level annotation
+   * only, the column itself is plain SQLite TEXT). A pre-Phase-9 install
+   * that already saved `'minimal'` is normalized back to `'compact'` on read
+   * — see `toSettings()` in `SqliteBusinessRepository.ts` — instead of
+   * requiring a migration.
+   */
   defaultInvoiceTemplate: text('default_invoice_template', {
-    enum: ['classic', 'modern', 'minimal'],
+    enum: ['classic', 'modern', 'compact'],
   })
     .notNull()
     .default('classic'),
@@ -236,7 +244,125 @@ export const invoiceItem = sqliteTable(
   }),
 );
 
-export const schema = { business, socialLink, item, customer, invoice, invoiceItem };
+/**
+ * Payments (Phase 7). A **separate, additive record** against one invoice —
+ * never a mutable `amountPaid` column on `invoice` — see the "IMPORTANT
+ * PAYMENT RULE" in `MVP_BUILD_PLAN.md` §6.3 and the doc comment on `Payment`
+ * in `domain/payment/types.ts`. `invoiceId` cascades: deleting an invoice
+ * deletes its payment history with it (there's nothing left to have paid).
+ * `customerId` mirrors `invoice.customerId` (no `onDelete` clause — a
+ * customer with payments necessarily has invoices, which already block
+ * deletion via their own FK). `invoiceNumber`/`customerName` are light,
+ * additive snapshots, same reasoning as `invoice.customerName`.
+ */
+export const payment = sqliteTable(
+  'payment',
+  {
+    id: text('id').primaryKey(),
+    invoiceId: text('invoice_id')
+      .notNull()
+      .references(() => invoice.id, { onDelete: 'cascade' }),
+    invoiceNumber: text('invoice_number').notNull(),
+    customerId: text('customer_id')
+      .notNull()
+      .references(() => customer.id),
+    customerName: text('customer_name').notNull(),
+    amount: real('amount').notNull(),
+    /** ISO calendar date, `YYYY-MM-DD`. */
+    paymentDate: text('payment_date').notNull(),
+    method: text('method', {
+      enum: ['cash', 'bank_transfer', 'card', 'paypal', 'other'],
+    }).notNull(),
+    reference: text('reference'),
+    notes: text('notes'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (table) => ({
+    invoiceIdx: index('payment_invoice_idx').on(table.invoiceId),
+    customerIdx: index('payment_customer_idx').on(table.customerId),
+    dateIdx: index('payment_date_idx').on(table.paymentDate),
+  }),
+);
+
+/**
+ * App-level settings that aren't tied to the business profile (Phase 10 —
+ * Settings). Singleton-per-device, same `id = 'default'` convention as
+ * `business` (Phase 1). Kept as its own table rather than more columns on
+ * `business` because these are device/app settings (e.g. whether *this*
+ * installed app requires unlocking), not business data — `MVP_BUILD_PLAN.md`
+ * §6.1 lists `AppSettings` as its own entity for exactly this reason.
+ */
+export const appSettings = sqliteTable('app_settings', {
+  id: text('id').primaryKey(),
+  /** Whether opening/resuming the app requires authenticating first. */
+  appLockEnabled: integer('app_lock_enabled').notNull().default(0),
+  /** Whether the App Lock screen offers biometric auth (Face ID/fingerprint) in addition to the device passcode — only meaningful on a device that actually supports it (see `BiometricService.isSupported()`). */
+  biometricUnlockEnabled: integer('biometric_unlock_enabled').notNull().default(0),
+  // --- Phase 11 (Google Drive Backup) additions ---
+  /** Whether the app should opportunistically run a backup on its own (see `AutoBackupRunner`) — never a true OS background job, see IMPLEMENTATION_STATUS.md. */
+  autoBackupEnabled: integer('auto_backup_enabled').notNull().default(0),
+  /** Epoch ms of the most recent *successful* backup, across manual and automatic triggers. Null until the first one succeeds. */
+  lastBackupAt: integer('last_backup_at'),
+  /** Outcome of the most recent backup *attempt* (success or failure), regardless of whether it updated `lastBackupAt`. Null until a backup has ever been attempted. */
+  lastBackupStatus: text('last_backup_status', { enum: ['success', 'failure'] }),
+  /** Human-readable reason for the most recent failed attempt; null when the last attempt succeeded or none has run yet. */
+  lastBackupError: text('last_backup_error'),
+  // --- Phase 12 (Optional Cloud Backup) additions ---
+  /** Whether cloud backup is turned on for this device — the cloud-backup equivalent of `autoBackupEnabled`, but also gates manual cloud backups/restores (see `CloudBackupService`). */
+  cloudBackupEnabled: integer('cloud_backup_enabled').notNull().default(0),
+  /** The storage plan (`domain/cloudBackup/types.ts`'s `CloudStoragePlanId`) this device was last known to be on — null until the first successful `CloudBackupService.getStorageUsage()` call. */
+  cloudBackupPlanId: text('cloud_backup_plan_id'),
+  /** Epoch ms of the most recent *successful* cloud backup. Null until the first one succeeds. */
+  lastCloudBackupAt: integer('last_cloud_backup_at'),
+  /** Outcome of the most recent cloud backup *attempt*, regardless of whether it updated `lastCloudBackupAt`. */
+  lastCloudBackupStatus: text('last_cloud_backup_status', { enum: ['success', 'failure'] }),
+  /** Human-readable reason for the most recent failed cloud backup attempt. */
+  lastCloudBackupError: text('last_cloud_backup_error'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * Backup/restore history (Phase 11). One row per attempt — manual or
+ * automatic, backup or restore — kept even on failure so the Backup History
+ * screen can show *why* something didn't work, not just the successes. Never
+ * mutated after `finishedAt` is set; a new attempt is always a new row.
+ */
+export const backupLog = sqliteTable(
+  'backup_log',
+  {
+    id: text('id').primaryKey(),
+    direction: text('direction', { enum: ['backup', 'restore'] }).notNull(),
+    trigger: text('trigger', { enum: ['manual', 'automatic'] }).notNull(),
+    status: text('status', { enum: ['success', 'failure'] }).notNull(),
+    /** Where the backup content came from/went to: `'google_drive'` (Phase 11) or `'cloud'` (Phase 12) — kept as text (not a Drizzle-level enum) from the start specifically so this second destination was additive, not a migration. */
+    destination: text('destination').notNull().default('google_drive'),
+    startedAt: integer('started_at').notNull(),
+    finishedAt: integer('finished_at'),
+    /** The backup format version involved (see `domain/backup/types.ts`); null if the attempt failed before a payload could be built/read. */
+    formatVersion: integer('format_version'),
+    sizeBytes: integer('size_bytes'),
+    /** JSON-encoded `BackupCounts` (row counts per table) — a quick "what was in this backup" summary without re-parsing the full payload. */
+    itemCounts: text('item_counts'),
+    errorMessage: text('error_message'),
+  },
+  (table) => ({
+    startedAtIdx: index('backup_log_started_at_idx').on(table.startedAt),
+  }),
+);
+
+export const schema = {
+  business,
+  socialLink,
+  item,
+  customer,
+  invoice,
+  invoiceItem,
+  payment,
+  appSettings,
+  backupLog,
+};
 
 /**
  * Raw bootstrap SQL kept in lockstep with the schema above — see db/client.ts.
@@ -346,6 +472,53 @@ export const CREATE_TABLES_SQL = `
   );
   CREATE INDEX IF NOT EXISTS invoice_item_invoice_idx ON invoice_item (invoice_id);
   CREATE INDEX IF NOT EXISTS invoice_item_item_idx ON invoice_item (item_id);
+  CREATE TABLE IF NOT EXISTS payment (
+    id TEXT PRIMARY KEY NOT NULL,
+    invoice_id TEXT NOT NULL REFERENCES invoice(id) ON DELETE CASCADE,
+    invoice_number TEXT NOT NULL,
+    customer_id TEXT NOT NULL REFERENCES customer(id),
+    customer_name TEXT NOT NULL,
+    amount REAL NOT NULL,
+    payment_date TEXT NOT NULL,
+    method TEXT NOT NULL,
+    reference TEXT,
+    notes TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS payment_invoice_idx ON payment (invoice_id);
+  CREATE INDEX IF NOT EXISTS payment_customer_idx ON payment (customer_id);
+  CREATE INDEX IF NOT EXISTS payment_date_idx ON payment (payment_date);
+  CREATE TABLE IF NOT EXISTS app_settings (
+    id TEXT PRIMARY KEY NOT NULL,
+    app_lock_enabled INTEGER NOT NULL DEFAULT 0,
+    biometric_unlock_enabled INTEGER NOT NULL DEFAULT 0,
+    auto_backup_enabled INTEGER NOT NULL DEFAULT 0,
+    last_backup_at INTEGER,
+    last_backup_status TEXT,
+    last_backup_error TEXT,
+    cloud_backup_enabled INTEGER NOT NULL DEFAULT 0,
+    cloud_backup_plan_id TEXT,
+    last_cloud_backup_at INTEGER,
+    last_cloud_backup_status TEXT,
+    last_cloud_backup_error TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS backup_log (
+    id TEXT PRIMARY KEY NOT NULL,
+    direction TEXT NOT NULL,
+    trigger TEXT NOT NULL,
+    status TEXT NOT NULL,
+    destination TEXT NOT NULL DEFAULT 'google_drive',
+    started_at INTEGER NOT NULL,
+    finished_at INTEGER,
+    format_version INTEGER,
+    size_bytes INTEGER,
+    item_counts TEXT,
+    error_message TEXT
+  );
+  CREATE INDEX IF NOT EXISTS backup_log_started_at_idx ON backup_log (started_at);
 `;
 
 /**
@@ -364,4 +537,24 @@ export const BUSINESS_COLUMN_UPGRADES: { column: string; definition: string }[] 
   { column: 'default_invoice_template', definition: "TEXT NOT NULL DEFAULT 'classic'" },
   { column: 'invoice_type', definition: "TEXT NOT NULL DEFAULT 'general'" },
   { column: 'custom_invoice_fields', definition: 'TEXT' },
+];
+
+/**
+ * Columns added to `app_settings` after its first release (Phase 10, which
+ * only had the two App Lock columns; Phase 11 added the four Google Drive
+ * backup-status columns; Phase 12 adds the five cloud-backup ones below).
+ * Same additive/idempotent `ALTER TABLE ... ADD COLUMN` mechanism as
+ * `BUSINESS_COLUMN_UPGRADES` above — see `ensureAppSettingsColumns()` in
+ * `db/client.ts`.
+ */
+export const APP_SETTINGS_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'auto_backup_enabled', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  { column: 'last_backup_at', definition: 'INTEGER' },
+  { column: 'last_backup_status', definition: 'TEXT' },
+  { column: 'last_backup_error', definition: 'TEXT' },
+  { column: 'cloud_backup_enabled', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  { column: 'cloud_backup_plan_id', definition: 'TEXT' },
+  { column: 'last_cloud_backup_at', definition: 'INTEGER' },
+  { column: 'last_cloud_backup_status', definition: 'TEXT' },
+  { column: 'last_cloud_backup_error', definition: 'TEXT' },
 ];

@@ -4,6 +4,7 @@ import type {
   BusinessProfileInput,
   InvoiceSettings,
   InvoiceSettingsInput,
+  InvoiceTemplate,
 } from './types';
 import { EMPTY_BUSINESS_PROFILE_INPUT, EMPTY_INVOICE_SETTINGS_INPUT } from './types';
 
@@ -66,5 +67,29 @@ export function formValuesToSettingsInput(
     defaultPaymentTermsDays: values.defaultPaymentTermsDays,
     defaultInvoiceTemplate: values.defaultInvoiceTemplate,
     invoiceType: values.invoiceType,
+  };
+}
+
+/**
+ * Merges a chosen template into the current invoice settings (or the
+ * empty-state defaults, if nothing was ever saved) — everything else passes
+ * through unchanged. Lets the dedicated Invoice Templates screen (Phase 10)
+ * save just the one field it owns through the same `saveInvoiceSettings()`
+ * the Invoice Settings form already uses, without needing its own repository
+ * method or clobbering prefix/numbering/currency/tax/terms.
+ */
+export function settingsWithTemplate(
+  settings: InvoiceSettings | null,
+  defaultInvoiceTemplate: InvoiceTemplate,
+): InvoiceSettingsInput {
+  const base = settings ?? EMPTY_INVOICE_SETTINGS_INPUT;
+  return {
+    invoicePrefix: base.invoicePrefix,
+    nextInvoiceNumber: base.nextInvoiceNumber,
+    currency: base.currency,
+    defaultTaxRate: base.defaultTaxRate,
+    defaultPaymentTermsDays: base.defaultPaymentTermsDays,
+    defaultInvoiceTemplate,
+    invoiceType: base.invoiceType,
   };
 }

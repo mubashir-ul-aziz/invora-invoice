@@ -3,6 +3,7 @@ import {
   formValuesToSettingsInput,
   profileToFormDefaults,
   settingsToFormDefaults,
+  settingsWithTemplate,
 } from '../formMapping';
 import type { BusinessProfile, InvoiceSettings } from '../types';
 
@@ -105,6 +106,46 @@ describe('settingsToFormDefaults / formValuesToSettingsInput', () => {
       defaultPaymentTermsDays: null,
       defaultInvoiceTemplate: 'classic',
       invoiceType: 'general',
+    });
+  });
+});
+
+describe('settingsWithTemplate', () => {
+  it('falls back to the empty-state defaults for a never-saved business, with just the chosen template', () => {
+    const input = settingsWithTemplate(null, 'modern');
+    expect(input).toEqual({
+      invoicePrefix: 'INV-',
+      nextInvoiceNumber: 1,
+      currency: 'USD',
+      defaultTaxRate: null,
+      defaultPaymentTermsDays: null,
+      defaultInvoiceTemplate: 'modern',
+      invoiceType: 'general',
+    });
+  });
+
+  it('changes only the template, carrying every other saved field through untouched', () => {
+    const settings: InvoiceSettings = {
+      invoicePrefix: 'ACM-',
+      nextInvoiceNumber: 42,
+      currency: 'EUR',
+      defaultTaxRate: 7.5,
+      defaultPaymentTermsDays: 30,
+      defaultInvoiceTemplate: 'classic',
+      invoiceType: 'weight',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    const input = settingsWithTemplate(settings, 'compact');
+
+    expect(input).toEqual({
+      invoicePrefix: 'ACM-',
+      nextInvoiceNumber: 42,
+      currency: 'EUR',
+      defaultTaxRate: 7.5,
+      defaultPaymentTermsDays: 30,
+      defaultInvoiceTemplate: 'compact',
+      invoiceType: 'weight',
     });
   });
 });

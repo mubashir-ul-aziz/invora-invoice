@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AutoBackupRunner } from '@/components/backup/AutoBackupRunner';
+import { AppLockGate } from '@/components/security/AppLockGate';
 import { getDatabase } from '@/data/db/client';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { colors } from '@/theme/colors';
@@ -32,7 +34,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <RootNavigator />
+        <AppLockGate>
+          <AutoBackupRunner>
+            <RootNavigator />
+          </AutoBackupRunner>
+        </AppLockGate>
       </NavigationContainer>
       <StatusBar style="auto" />
     </SafeAreaProvider>

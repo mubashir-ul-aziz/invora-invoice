@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CustomerSummaryCard } from '@/components/customer/CustomerSummaryCard';
@@ -22,13 +22,13 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
 
 /**
  * Customer Detail: contact info, the calculated balance summary (see
- * `CustomerSummaryCard`), and the actions the brief asks for. "Record
- * Payment" doesn't have a destination screen yet — Payments (Phase 7) isn't
- * built — so it still shows a "coming soon" alert, the same non-breaking
- * approach Phase 4 used for its own forward-looking hooks. "Create Invoice"
- * is real navigation now that Phase 6 exists: it seeds `invoiceDraftStore`
- * with this customer already selected and jumps straight to the items step,
- * skipping the customer-picker screen entirely.
+ * `CustomerSummaryCard`), and the actions the brief asks for. "Create
+ * Invoice" seeds `invoiceDraftStore` with this customer already selected and
+ * jumps straight to the items step, skipping the customer-picker screen
+ * entirely. "Record payment" (Phase 7) opens `InvoiceList` in picker mode,
+ * scoped to this customer's own invoices (a payment always belongs to one
+ * invoice, so it has to be picked first) — selecting one forwards into
+ * `RecordPayment` with that invoice fixed.
  */
 export function CustomerDetailScreen({ navigation, route }: Props) {
   const { customerId } = route.params;
@@ -101,9 +101,6 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const notBuiltYet = (feature: string) =>
-    Alert.alert('Coming soon', `${feature} will be available once that functionality is built.`);
-
   return (
     <ScrollView
       style={styles.screen}
@@ -155,7 +152,12 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
         />
         <ActionButton
           label="Record payment"
-          onPress={() => notBuiltYet('Recording payments')}
+          onPress={() =>
+            navigation.navigate('InvoiceList', {
+              customerId,
+              onSelectInvoice: (invoice) => navigation.navigate('RecordPayment', { invoiceId: invoice.id }),
+            })
+          }
           testID="action-record-payment"
         />
       </View>

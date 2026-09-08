@@ -51,6 +51,15 @@ export class SqliteBusinessCardRepository implements BusinessCardRepository {
     );
   }
 
+  /**
+   * The business row and its social-link rows are written in one
+   * `db.transaction()` (same synchronous, `.run()`-based pattern as
+   * `SqliteBackupRepository.restoreAll()` — see its doc comment for why the
+   * callback must stay sync). Without this, an interruption between the
+   * "delete every social link" step and the reinsert loop below would
+   * silently wipe every social link the card previously had — the
+   * "recovery from interrupted writes" failure mode Phase 13 audits for.
+   */
   async saveCard(input: BusinessCardInput): Promise<BusinessCard> {
     await getDatabase();
     const db = getDrizzle();
@@ -80,24 +89,28 @@ export class SqliteBusinessCardRepository implements BusinessCardRepository {
       updatedAt: now,
     };
 
-    if (existing[0]) {
-      await db.update(business).set(values).where(eq(business.id, BUSINESS_ID));
-    } else {
-      await db.insert(business).values(values);
-    }
+    db.transaction((tx) => {
+      if (existing[0]) {
+        tx.update(business).set(values).where(eq(business.id, BUSINESS_ID)).run();
+      } else {
+        tx.insert(business).values(values).run();
+      }
 
-    // Replace the social-link set wholesale — small, bounded (<=4 rows) and
-    // simpler/less error-prone than a diff for this data size.
-    await db.delete(socialLink).where(eq(socialLink.businessId, BUSINESS_ID));
-    for (const link of input.socialLinks) {
-      if (!link.value.trim()) continue;
-      await db.insert(socialLink).values({
-        id: generateLocalId('soc_'),
-        businessId: BUSINESS_ID,
-        platform: link.platform,
-        value: link.value,
-      });
-    }
+      // Replace the social-link set wholesale — small, bounded (<=4 rows) and
+      // simpler/less error-prone than a diff for this data size.
+      tx.delete(socialLink).where(eq(socialLink.businessId, BUSINESS_ID)).run();
+      for (const link of input.socialLinks) {
+        if (!link.value.trim()) continue;
+        tx.insert(socialLink)
+          .values({
+            id: generateLocalId('soc_'),
+            businessId: BUSINESS_ID,
+            platform: link.platform,
+            value: link.value,
+          })
+          .run();
+      }
+    });
 
     const saved = await this.getCard();
     if (!saved) {

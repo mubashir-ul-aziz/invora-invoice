@@ -42,6 +42,11 @@ function toProfile(row: typeof business.$inferSelect): BusinessProfile {
   };
 }
 
+/** Pre-Phase-9 installs may have persisted the old `'minimal'` template id — normalize it to `'compact'` rather than requiring a migration. */
+function toInvoiceTemplate(raw: string): InvoiceTemplate {
+  return raw === 'minimal' ? 'compact' : (raw as InvoiceTemplate);
+}
+
 function toSettings(row: typeof business.$inferSelect): InvoiceSettings {
   return {
     invoicePrefix: row.invoicePrefix,
@@ -49,7 +54,7 @@ function toSettings(row: typeof business.$inferSelect): InvoiceSettings {
     currency: row.currency,
     defaultTaxRate: row.defaultTaxRate,
     defaultPaymentTermsDays: row.defaultPaymentTermsDays,
-    defaultInvoiceTemplate: row.defaultInvoiceTemplate as InvoiceTemplate,
+    defaultInvoiceTemplate: toInvoiceTemplate(row.defaultInvoiceTemplate),
     invoiceType: row.invoiceType as InvoiceType,
     updatedAt: new Date(row.updatedAt).toISOString(),
   };

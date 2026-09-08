@@ -1,4 +1,3 @@
-import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
@@ -37,12 +36,12 @@ const navigation = { navigate: jest.fn(), goBack: jest.fn() };
 
 /** One render per file — see the note in `CustomerDetailScreen.test.tsx`. */
 describe('CustomerDetailScreen coming-soon actions', () => {
-  it('still shows "coming soon" for Record Payment (Phase 7 not built yet)', async () => {
+  it('Record Payment now navigates to the invoice picker (Phase 7) instead of alerting', async () => {
     mockActivityStore = createCustomerActivityStore(new InMemoryCustomerActivityRepository());
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const repo = new InMemoryCustomerRepository();
     const created = await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
     mockCustomerStore = createCustomerStore(repo);
+    navigation.navigate.mockClear();
 
     const view = await render(
       <CustomerDetailScreen
@@ -54,8 +53,10 @@ describe('CustomerDetailScreen coming-soon actions', () => {
     await waitFor(() => expect(view.getByTestId('action-record-payment')).toBeTruthy());
     fireEvent.press(view.getByTestId('action-record-payment'));
 
-    expect(alertSpy).toHaveBeenCalledTimes(1);
-    alertSpy.mockRestore();
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      'InvoiceList',
+      expect.objectContaining({ customerId: created.id, onSelectInvoice: expect.any(Function) }),
+    );
   });
 
   it('Create Invoice now navigates for real (Phase 6) instead of alerting', async () => {

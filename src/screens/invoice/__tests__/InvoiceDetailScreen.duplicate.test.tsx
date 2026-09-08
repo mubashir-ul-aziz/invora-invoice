@@ -4,15 +4,18 @@ import React from 'react';
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
 import { InMemoryInvoiceRepository } from '@/data/invoice/InMemoryInvoiceRepository';
+import { InMemoryPaymentRepository } from '@/data/payment/InMemoryPaymentRepository';
 import { ZeroPaymentTotalsRepository } from '@/data/paymentTotals/ZeroPaymentTotalsRepository';
 import { EMPTY_CUSTOMER_INPUT } from '@/domain/customer/types';
 import { EMPTY_INVOICE_ITEM_INPUT, type InvoiceInput } from '@/domain/invoice/types';
 import { createCustomerStore } from '@/state/customerStore';
 import { createInvoiceStore } from '@/state/invoiceStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
+import { createPaymentStore } from '@/state/paymentStore';
 
 let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 let mockCustomerStore: ReturnType<typeof createCustomerStore>;
+let mockPaymentStore: ReturnType<typeof createPaymentStore>;
 
 jest.mock('@/state/invoiceStore', () => {
   const actual = jest.requireActual('@/state/invoiceStore');
@@ -29,6 +32,15 @@ jest.mock('@/state/customerStore', () => {
     ...actual,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useCustomerStore: (...args: unknown[]) => (mockCustomerStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/paymentStore', () => {
+  const actual = jest.requireActual('@/state/paymentStore');
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    usePaymentStore: (...args: unknown[]) => (mockPaymentStore as any)(...args),
   };
 });
 
@@ -54,6 +66,7 @@ describe('InvoiceDetailScreen duplicate', () => {
   beforeEach(() => {
     (navigation.navigate as jest.Mock).mockClear();
     useInvoiceDraftStore.getState().reset();
+    mockPaymentStore = createPaymentStore(new InMemoryPaymentRepository());
   });
 
   it('seeds the draft from the invoice and its real customer, then opens Review', async () => {

@@ -1,4 +1,4 @@
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { act, render, waitFor, fireEvent } from '@testing-library/react-native';
 import React from 'react';
 
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
@@ -59,8 +59,8 @@ function makeInput(overrides: Partial<InvoiceInput> = {}): InvoiceInput {
   };
 }
 
-function renderScreen() {
-  return render(<InvoiceListScreen navigation={navigation as never} route={{} as never} />);
+function renderScreen(params?: Record<string, unknown>) {
+  return render(<InvoiceListScreen navigation={navigation as never} route={{ params } as never} />);
 }
 
 describe('InvoiceListScreen', () => {
@@ -132,5 +132,38 @@ describe('InvoiceListScreen', () => {
     await waitFor(() => expect(view.getByTestId(`invoice-row-${created.id}`)).toBeTruthy());
     fireEvent.press(view.getByTestId(`invoice-row-${created.id}`));
     expect(navigation.navigate).toHaveBeenCalledWith('InvoiceDetail', { invoiceId: created.id });
+  });
+
+  it('picker mode (Phase 7): calls onSelectInvoice and goes back instead of opening Invoice Detail', async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    const created = await invoices.create('INV-1', makeInput());
+    mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+    const onSelectInvoice = jest.fn();
+    const view = await renderScreen({ onSelectInvoice });
+
+    await waitFor(() => expect(view.getByTestId(`invoice-row-${created.id}`)).toBeTruthy());
+    fireEvent.press(view.getByTestId(`invoice-row-${created.id}`));
+
+    expect(onSelectInvoice).toHaveBeenCalledWith(expect.objectContaining({ id: created.id }));
+    expect(navigation.goBack).toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalledWith('InvoiceDetail', expect.anything());
+  });
+
+  it('scopes the list to one customer via route.params.customerId, and clears the scope on unmount', async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    await invoices.create('INV-1', makeInput({ customerId: 'cust_1', customerName: 'Acme Co' }));
+    await invoices.create('INV-2', makeInput({ customerId: 'cust_2', customerName: 'Globex' }));
+    mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+
+    const view = await renderScreen({ customerId: 'cust_1' });
+
+    await waitFor(() => expect(view.getByText('INV-1')).toBeTruthy());
+    expect(view.queryByText('INV-2')).toBeNull();
+    expect(mockInvoiceStore.getState().filter.customerId).toBe('cust_1');
+
+    await act(async () => {
+      view.unmount();
+    });
+    await waitFor(() => expect(mockInvoiceStore.getState().filter.customerId).toBeUndefined());
   });
 });

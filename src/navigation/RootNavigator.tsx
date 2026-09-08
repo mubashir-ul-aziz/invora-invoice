@@ -14,6 +14,7 @@ import { CustomerDetailScreen } from '@/screens/customer/CustomerDetailScreen';
 import { CustomerHistoryScreen } from '@/screens/customer/CustomerHistoryScreen';
 import { CustomerListScreen } from '@/screens/customer/CustomerListScreen';
 import { EditCustomerScreen } from '@/screens/customer/EditCustomerScreen';
+import { DashboardScreen } from '@/screens/dashboard/DashboardScreen';
 import { CreateInvoiceItemsScreen } from '@/screens/invoice/CreateInvoiceItemsScreen';
 import { EditInvoiceScreen } from '@/screens/invoice/EditInvoiceScreen';
 import { EditInvoiceLineScreen } from '@/screens/invoice/EditInvoiceLineScreen';
@@ -25,6 +26,19 @@ import { InvoiceTypeSelectionScreen } from '@/screens/invoiceType/InvoiceTypeSel
 import { CreateItemScreen } from '@/screens/item/CreateItemScreen';
 import { EditItemScreen } from '@/screens/item/EditItemScreen';
 import { ItemListScreen } from '@/screens/item/ItemListScreen';
+import { EditPaymentScreen } from '@/screens/payment/EditPaymentScreen';
+import { PaymentHistoryScreen } from '@/screens/payment/PaymentHistoryScreen';
+import { RecordPaymentScreen } from '@/screens/payment/RecordPaymentScreen';
+import { InvoicePdfPreviewScreen } from '@/screens/pdf/InvoicePdfPreviewScreen';
+import { BackupHistoryScreen } from '@/screens/backup/BackupHistoryScreen';
+import { BackupScreen } from '@/screens/backup/BackupScreen';
+import { CloudBackupHistoryScreen } from '@/screens/cloudBackup/CloudBackupHistoryScreen';
+import { CloudBackupScreen } from '@/screens/cloudBackup/CloudBackupScreen';
+import { UpgradeStorageScreen } from '@/screens/cloudBackup/UpgradeStorageScreen';
+import { AccountScreen } from '@/screens/settings/AccountScreen';
+import { InvoiceTemplatesScreen } from '@/screens/settings/InvoiceTemplatesScreen';
+import { SecurityScreen } from '@/screens/settings/SecurityScreen';
+import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 
 import type { RootStackParamList } from './types';
 
@@ -32,7 +46,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   return (
-    <Stack.Navigator initialRouteName="DigitalCard">
+    <Stack.Navigator initialRouteName="Dashboard">
+      <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
       <Stack.Screen
         name="DigitalCard"
         component={DigitalCardScreen}
@@ -117,6 +132,47 @@ export function RootNavigator() {
       <Stack.Screen name="InvoiceReview" component={InvoiceReviewScreen} options={{ title: 'Review Invoice' }} />
       <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} options={{ title: 'Invoice' }} />
       <Stack.Screen name="EditInvoice" component={EditInvoiceScreen} options={{ title: 'Edit Invoice' }} />
+      <Stack.Screen
+        name="RecordPayment"
+        component={RecordPaymentScreen}
+        options={{ title: 'Record Payment' }}
+      />
+      <Stack.Screen name="EditPayment" component={EditPaymentScreen} options={{ title: 'Edit Payment' }} />
+      <Stack.Screen
+        name="PaymentHistory"
+        component={PaymentHistoryScreen}
+        options={{ title: 'Payments' }}
+      />
+      <Stack.Screen
+        name="InvoicePdfPreview"
+        component={InvoicePdfPreviewScreen}
+        options={{ title: 'Invoice PDF' }}
+      />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <Stack.Screen
+        name="InvoiceTemplates"
+        component={InvoiceTemplatesScreen}
+        options={{ title: 'Invoice Templates' }}
+      />
+      <Stack.Screen name="Security" component={SecurityScreen} options={{ title: 'Security' }} />
+      <Stack.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
+      <Stack.Screen name="Backup" component={BackupScreen} options={{ title: 'Backup & Restore' }} />
+      <Stack.Screen
+        name="BackupHistory"
+        component={BackupHistoryScreen}
+        options={{ title: 'Backup History' }}
+      />
+      <Stack.Screen name="CloudBackup" component={CloudBackupScreen} options={{ title: 'Cloud Backup' }} />
+      <Stack.Screen
+        name="CloudBackupHistory"
+        component={CloudBackupHistoryScreen}
+        options={{ title: 'Cloud Backup History' }}
+      />
+      <Stack.Screen
+        name="UpgradeStorage"
+        component={UpgradeStorageScreen}
+        options={{ title: 'Upgrade Storage' }}
+      />
     </Stack.Navigator>
   );
 }

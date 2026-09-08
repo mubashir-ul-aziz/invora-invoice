@@ -83,7 +83,7 @@ export const invoiceSettingsFormSchema = z.object({
     )
     .transform((value) => (value === null ? null : Number(value))),
   defaultPaymentTermsDays: z.number().int().min(0).nullable(),
-  defaultInvoiceTemplate: z.enum(['classic', 'modern', 'minimal']),
+  defaultInvoiceTemplate: z.enum(['classic', 'modern', 'compact']),
   invoiceType: z.enum(['general', 'quantity', 'weight', 'dimension', 'custom']),
 });
 

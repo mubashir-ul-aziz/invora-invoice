@@ -43,6 +43,34 @@
       "when": 1788672077062,
       "tag": "0005_plain_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788685151475,
+      "tag": "0006_dashing_umar",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788775587113,
+      "tag": "0007_clear_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788799682595,
+      "tag": "0008_milky_maggott",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788805767433,
+      "tag": "0009_motionless_masked_marvel",
+      "breakpoints": true
     }
   ]
 }

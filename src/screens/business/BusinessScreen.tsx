@@ -81,6 +81,11 @@ export function BusinessScreen({ navigation }: Props) {
           testID="action-business-settings"
         />
         <ActionButton
+          label="Dashboard"
+          onPress={() => navigation.navigate('Dashboard')}
+          testID="action-dashboard"
+        />
+        <ActionButton
           label="Business card"
           onPress={() => navigation.navigate('DigitalCard')}
           testID="action-digital-card"
@@ -99,6 +104,16 @@ export function BusinessScreen({ navigation }: Props) {
           label="Invoices"
           onPress={() => navigation.navigate('InvoiceList')}
           testID="action-invoices"
+        />
+        <ActionButton
+          label="Payments"
+          onPress={() => navigation.navigate('PaymentHistory')}
+          testID="action-payments"
+        />
+        <ActionButton
+          label="Settings"
+          onPress={() => navigation.navigate('Settings')}
+          testID="action-settings"
         />
       </View>
     </ScrollView>

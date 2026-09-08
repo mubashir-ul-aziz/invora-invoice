@@ -1,17 +1,19 @@
-import { Alert } from 'react-native';
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import React from 'react';
 
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
 import { InMemoryInvoiceRepository } from '@/data/invoice/InMemoryInvoiceRepository';
+import { InMemoryPaymentRepository } from '@/data/payment/InMemoryPaymentRepository';
 import { ZeroPaymentTotalsRepository } from '@/data/paymentTotals/ZeroPaymentTotalsRepository';
 import { createCustomerStore } from '@/state/customerStore';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
 import { EMPTY_INVOICE_ITEM_INPUT, type InvoiceInput } from '@/domain/invoice/types';
 import { createInvoiceStore } from '@/state/invoiceStore';
+import { createPaymentStore } from '@/state/paymentStore';
 
 let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 let mockCustomerStore: ReturnType<typeof createCustomerStore>;
+let mockPaymentStore: ReturnType<typeof createPaymentStore>;
 
 jest.mock('@/state/invoiceStore', () => {
   const actual = jest.requireActual('@/state/invoiceStore');
@@ -28,6 +30,15 @@ jest.mock('@/state/customerStore', () => {
     ...actual,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useCustomerStore: (...args: unknown[]) => (mockCustomerStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/paymentStore', () => {
+  const actual = jest.requireActual('@/state/paymentStore');
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    usePaymentStore: (...args: unknown[]) => (mockPaymentStore as any)(...args),
   };
 });
 
@@ -60,6 +71,7 @@ describe('InvoiceDetailScreen', () => {
     (navigation.navigate as jest.Mock).mockClear();
     (navigation.goBack as jest.Mock).mockClear();
     mockCustomerStore = createCustomerStore(new InMemoryCustomerRepository());
+    mockPaymentStore = createPaymentStore(new InMemoryPaymentRepository());
   });
 
   it('shows a not-found state for a missing invoice', async () => {
@@ -98,8 +110,19 @@ describe('InvoiceDetailScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('EditInvoice', { invoiceId: created.id });
   });
 
-  it('still shows "coming soon" for Record Payment and Share/PDF (Phase 7/9 not built yet)', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  it('Share / PDF now navigates to the Invoice PDF Preview screen (Phase 9)', async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    const created = await invoices.create('INV-1', makeInput());
+    mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+
+    const view = await renderScreen(created.id);
+    await waitFor(() => expect(view.getByTestId('action-share')).toBeTruthy());
+    fireEvent.press(view.getByTestId('action-share'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('InvoicePdfPreview', { invoiceId: created.id });
+  });
+
+  it('Record Payment now navigates for real (Phase 7) instead of alerting', async () => {
     const invoices = new InMemoryInvoiceRepository();
     const created = await invoices.create('INV-1', makeInput());
     mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
@@ -107,9 +130,18 @@ describe('InvoiceDetailScreen', () => {
     const view = await renderScreen(created.id);
     await waitFor(() => expect(view.getByTestId('action-record-payment')).toBeTruthy());
     fireEvent.press(view.getByTestId('action-record-payment'));
-    fireEvent.press(view.getByTestId('action-share'));
 
-    expect(alertSpy).toHaveBeenCalledTimes(2);
-    alertSpy.mockRestore();
+    expect(navigation.navigate).toHaveBeenCalledWith('RecordPayment', { invoiceId: created.id });
+  });
+
+  it('shows an "invoice payment summary" section with no payments recorded yet', async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    const created = await invoices.create('INV-1', makeInput());
+    mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+
+    const view = await renderScreen(created.id);
+    await waitFor(() => expect(view.getByTestId('invoice-detail-payment-summary')).toBeTruthy());
+    expect(view.getByTestId('invoice-detail-no-payments')).toBeTruthy();
+    expect(view.getByTestId('payment-summary-remaining')).toBeTruthy();
   });
 });

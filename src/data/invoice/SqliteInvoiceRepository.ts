@@ -18,6 +18,9 @@ import { getDatabase, getDrizzle } from '../db/client';
 import { invoice, invoiceItem } from '../db/schema';
 import type { InvoiceRepository } from './InvoiceRepository';
 
+/** The transaction handle `db.transaction()`'s callback receives, extracted from `getDrizzle()`'s own type rather than re-declared (and risking drift). */
+type Tx = Parameters<Parameters<ReturnType<typeof getDrizzle>['transaction']>[0]>[0];
+
 function toLineSnapshot(row: typeof invoiceItem.$inferSelect): InvoiceItemSnapshot {
   return {
     id: row.id,
@@ -113,27 +116,41 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
     return toInvoice(row, lineRows.map(toLineSnapshot));
   }
 
+  /**
+   * Header + line rows are written in one `db.transaction()` (same
+   * synchronous, `.run()`-based pattern as `SqliteBackupRepository.restoreAll()`
+   * — see its doc comment for why the callback must stay sync). Without this,
+   * an app kill/crash/storage-full error between the header insert and the
+   * line inserts would leave a permanently orphaned invoice with zero items —
+   * exactly the "recovery from interrupted writes" failure mode Phase 13
+   * audits for. Wrapped, a write either lands whole or not at all.
+   */
   async create(invoiceNumber: string, input: InvoiceInput): Promise<Invoice> {
     await getDatabase();
     const db = getDrizzle();
 
     const now = Date.now();
     const id = generateLocalId('inv_');
-    await db.insert(invoice).values({
-      id,
-      invoiceNumber,
-      customerId: input.customerId,
-      customerName: input.customerName,
-      invoiceType: input.invoiceTypeId,
-      issueDate: input.issueDate,
-      dueDate: input.dueDate,
-      notes: input.notes,
-      terms: input.terms,
-      createdAt: now,
-      updatedAt: now,
-    });
 
-    await this.insertLines(id, input.items);
+    db.transaction((tx) => {
+      tx.insert(invoice)
+        .values({
+          id,
+          invoiceNumber,
+          customerId: input.customerId,
+          customerName: input.customerName,
+          invoiceType: input.invoiceTypeId,
+          issueDate: input.issueDate,
+          dueDate: input.dueDate,
+          notes: input.notes,
+          terms: input.terms,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      insertLineRows(tx, id, input.items);
+    });
 
     const created = await this.getById(id);
     if (!created) {
@@ -142,26 +159,37 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
     return created;
   }
 
+  /**
+   * Same atomicity concern as `create()`, sharper here: the line-item
+   * replace-wholesale strategy first deletes every existing line, then
+   * reinserts the new set. Split across separate statements, an interruption
+   * between the delete and the reinsert would silently wipe an existing
+   * invoice's items for good. One `db.transaction()` makes that impossible —
+   * either the whole update lands, or the invoice is left exactly as it was.
+   */
   async update(id: string, input: InvoiceUpdateInput): Promise<Invoice> {
     await getDatabase();
     const db = getDrizzle();
 
     const now = Date.now();
-    await db
-      .update(invoice)
-      .set({
-        issueDate: input.issueDate,
-        dueDate: input.dueDate,
-        notes: input.notes,
-        terms: input.terms,
-        updatedAt: now,
-      })
-      .where(eq(invoice.id, id));
 
-    // Replace the line-item set wholesale — simpler and less error-prone
-    // than diffing for the line counts a small business invoice realistically has.
-    await db.delete(invoiceItem).where(eq(invoiceItem.invoiceId, id));
-    await this.insertLines(id, input.items);
+    db.transaction((tx) => {
+      tx.update(invoice)
+        .set({
+          issueDate: input.issueDate,
+          dueDate: input.dueDate,
+          notes: input.notes,
+          terms: input.terms,
+          updatedAt: now,
+        })
+        .where(eq(invoice.id, id))
+        .run();
+
+      // Replace the line-item set wholesale — simpler and less error-prone
+      // than diffing for the line counts a small business invoice realistically has.
+      tx.delete(invoiceItem).where(eq(invoiceItem.invoiceId, id)).run();
+      insertLineRows(tx, id, input.items);
+    });
 
     const updated = await this.getById(id);
     if (!updated) {
@@ -176,13 +204,20 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
     // `invoice_item` rows cascade-delete via the FK's `onDelete: 'cascade'`.
     await db.delete(invoice).where(eq(invoice.id, id));
   }
+}
 
-  private async insertLines(invoiceId: string, lines: InvoiceItemInput[]): Promise<void> {
-    if (lines.length === 0) {
-      return;
-    }
-    const db = getDrizzle();
-    await db.insert(invoiceItem).values(
+/**
+ * Shared by `create()`/`update()`, both of which call this from inside their
+ * own `db.transaction()` callback — so this takes the transaction handle
+ * (`tx`), not the top-level `db`, and stays a plain sync function using
+ * `.run()` throughout (see the `create()` doc comment on why that matters).
+ */
+function insertLineRows(tx: Tx, invoiceId: string, lines: InvoiceItemInput[]): void {
+  if (lines.length === 0) {
+    return;
+  }
+  tx.insert(invoiceItem)
+    .values(
       lines.map((line, index) => {
         const calc = calculateLineTotal({
           quantity: line.quantity,
@@ -213,8 +248,8 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
           lineTotal: calc.lineTotal,
         };
       }),
-    );
-  }
+    )
+    .run();
 }
 
 function groupLinesByInvoiceId(

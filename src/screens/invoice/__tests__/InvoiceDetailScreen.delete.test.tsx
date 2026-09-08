@@ -5,13 +5,16 @@ import React from 'react';
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
 import { InMemoryInvoiceRepository } from '@/data/invoice/InMemoryInvoiceRepository';
+import { InMemoryPaymentRepository } from '@/data/payment/InMemoryPaymentRepository';
 import { ZeroPaymentTotalsRepository } from '@/data/paymentTotals/ZeroPaymentTotalsRepository';
 import { EMPTY_INVOICE_ITEM_INPUT, type InvoiceInput } from '@/domain/invoice/types';
 import { createCustomerStore } from '@/state/customerStore';
 import { createInvoiceStore } from '@/state/invoiceStore';
+import { createPaymentStore } from '@/state/paymentStore';
 
 let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 let mockCustomerStore: ReturnType<typeof createCustomerStore>;
+let mockPaymentStore: ReturnType<typeof createPaymentStore>;
 
 jest.mock('@/state/invoiceStore', () => {
   const actual = jest.requireActual('@/state/invoiceStore');
@@ -28,6 +31,15 @@ jest.mock('@/state/customerStore', () => {
     ...actual,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useCustomerStore: (...args: unknown[]) => (mockCustomerStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/paymentStore', () => {
+  const actual = jest.requireActual('@/state/paymentStore');
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    usePaymentStore: (...args: unknown[]) => (mockPaymentStore as any)(...args),
   };
 });
 
@@ -55,6 +67,7 @@ describe('InvoiceDetailScreen delete', () => {
       buttons?.find((b) => b.style === 'destructive')?.onPress?.();
     });
     mockCustomerStore = createCustomerStore(new InMemoryCustomerRepository());
+    mockPaymentStore = createPaymentStore(new InMemoryPaymentRepository());
     const invoices = new InMemoryInvoiceRepository();
     const created = await invoices.create('INV-1', makeInput());
     mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());

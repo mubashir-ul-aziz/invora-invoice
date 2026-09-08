@@ -8,7 +8,7 @@
  * row for the Digital Business Card screens.
  */
 
-export type InvoiceTemplate = 'classic' | 'modern' | 'minimal';
+export type InvoiceTemplate = 'classic' | 'modern' | 'compact';
 
 /**
  * The invoice type/domain that determines which item fields appear on an
@@ -76,10 +76,29 @@ export const EMPTY_INVOICE_SETTINGS_INPUT: InvoiceSettingsInput = {
   invoiceType: 'general',
 };
 
-export const INVOICE_TEMPLATE_OPTIONS: { value: InvoiceTemplate; label: string }[] = [
-  { value: 'classic', label: 'Classic' },
-  { value: 'modern', label: 'Modern' },
-  { value: 'minimal', label: 'Minimal' },
+/**
+ * `description` is only rendered by the dedicated Invoice Templates screen
+ * (Phase 10) — `InvoiceSettingsScreen`'s chip-picker only reads `label`, so
+ * adding it here doesn't touch that existing usage. Wording matches what
+ * `renderInvoiceHtml()` (Phase 9) actually produces for each template, not
+ * an aspirational description.
+ */
+export const INVOICE_TEMPLATE_OPTIONS: { value: InvoiceTemplate; label: string; description: string }[] = [
+  {
+    value: 'classic',
+    label: 'Classic',
+    description: 'A plain, bordered black-and-white layout.',
+  },
+  {
+    value: 'modern',
+    label: 'Modern',
+    description: 'A colored header band with accent-colored totals.',
+  },
+  {
+    value: 'compact',
+    label: 'Compact',
+    description: 'Tighter spacing and smaller text for a denser, shorter document.',
+  },
 ];
 
 export const INVOICE_TYPE_OPTIONS: { value: InvoiceType; label: string }[] = [

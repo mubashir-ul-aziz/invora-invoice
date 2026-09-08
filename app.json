@@ -29,17 +29,28 @@
     },
     "plugins": [
       "expo-sqlite",
+      "expo-mail-composer",
       [
         "expo-image-picker",
         {
           "photosPermission": "Allow Invora to access your photos so you can set your business logo."
         }
-      ]
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Invora to use Face ID to unlock the app."
+        }
+      ],
+      "expo-web-browser",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
         "projectId": "d6233ef1-d731-4f05-b755-91ccea329399"
-      }
+      },
+      "googleDriveClientId": "",
+      "cloudBackupApiUrl": ""
     }
   }
 }

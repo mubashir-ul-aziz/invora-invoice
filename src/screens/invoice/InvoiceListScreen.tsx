@@ -22,20 +22,45 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceList'>;
  * separate screen here — starting a new invoice seeds `invoiceDraftStore`
  * and opens `CustomerList` in picker mode (built for exactly this in Phase
  * 5), then forwards into `CreateInvoiceItems` once a customer is chosen.
+ *
+ * Doubles as an invoice **picker** (Phase 7) when `route.params.onSelectInvoice`
+ * is provided — Customer Detail's "Record payment" action needs the
+ * customer's own invoice picked first, and reuses this screen instead of a
+ * second, near-duplicate list, mirroring `ItemListScreen`/`CustomerListScreen`'s
+ * picker mode. `route.params.customerId`, when set, scopes the list to that
+ * customer for as long as this screen instance is mounted — applied on mount
+ * and cleared again on unmount, so it never leaks into the global filter the
+ * plain "Invoices" tab shares.
  */
-export function InvoiceListScreen({ navigation }: Props) {
+export function InvoiceListScreen({ navigation, route }: Props) {
+  const onSelectInvoice = route.params?.onSelectInvoice;
+  const scopedCustomerId = route.params?.customerId;
   const { status, entries, filter, error, load, setFilter } = useInvoiceStore();
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
 
   useEffect(() => {
-    load();
+    if (scopedCustomerId) {
+      setFilter({ customerId: scopedCustomerId });
+    } else {
+      load();
+    }
     loadInvoiceType();
     loadInvoiceSettings();
+    return () => {
+      if (scopedCustomerId) {
+        setFilter({ customerId: undefined });
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [scopedCustomerId]);
 
   const handleOpenInvoice = (entry: InvoiceWithStatus) => {
+    if (onSelectInvoice) {
+      onSelectInvoice(entry.invoice);
+      navigation.goBack();
+      return;
+    }
     navigation.navigate('InvoiceDetail', { invoiceId: entry.invoice.id });
   };
 

@@ -6,13 +6,18 @@ import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceStatusBadge } from '@/components/invoice/InvoiceStatusBadge';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
+import { PaymentListRow } from '@/components/payment/PaymentListRow';
+import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import type { Customer } from '@/domain/customer/types';
 import type { Invoice } from '@/domain/invoice/types';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
+import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
+import type { Payment } from '@/domain/payment/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerStore } from '@/state/customerStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
+import { usePaymentStore } from '@/state/paymentStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceDetail'>;
@@ -37,8 +42,11 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const { invoiceId } = route.params;
   const { getDetail, remove } = useInvoiceStore();
   const { getById: getCustomerById } = useCustomerStore();
+  const { listByInvoice } = usePaymentStore();
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [detail, setDetail] = useState<InvoiceWithStatus | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentSummary, setPaymentSummary] = useState<InvoicePaymentSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +61,13 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
           setStatus('not-found');
           return;
         }
+        const invoicePayments = await listByInvoice(invoiceId);
+        if (cancelled) {
+          return;
+        }
         setDetail(result);
+        setPayments(invoicePayments);
+        setPaymentSummary(summarizeInvoicePayments(result.totals.grandTotal, invoicePayments));
         setStatus('ready');
       } catch {
         if (!cancelled) {
@@ -66,9 +80,6 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
-
-  const notBuiltYet = (feature: string) =>
-    Alert.alert('Coming soon', `${feature} will be available once that functionality is built.`);
 
   const handleDuplicate = async () => {
     if (!detail) {
@@ -162,6 +173,27 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
 
       <InvoiceTotalsSummary totals={totals} testID="invoice-detail-totals" />
 
+      {!!paymentSummary && (
+        <View style={styles.itemsSection}>
+          <Text style={styles.sectionTitle}>Invoice payment summary</Text>
+          <PaymentSummaryCard summary={paymentSummary} testID="invoice-detail-payment-summary" />
+          {payments.length === 0 && (
+            <Text style={styles.emptyPaymentsText} testID="invoice-detail-no-payments">
+              No payments recorded yet.
+            </Text>
+          )}
+          {payments.map((paymentRow) => (
+            <PaymentListRow
+              key={paymentRow.id}
+              payment={paymentRow}
+              showInvoiceAndCustomer={false}
+              onPress={() => navigation.navigate('EditPayment', { paymentId: paymentRow.id })}
+              testID={`invoice-detail-payment-${paymentRow.id}`}
+            />
+          ))}
+        </View>
+      )}
+
       {!!invoice.notes && (
         <View style={styles.textCard}>
           <Text style={styles.textLabel}>Notes</Text>
@@ -187,10 +219,14 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
       <View style={styles.row}>
         <ActionButton
           label="Record payment"
-          onPress={() => notBuiltYet('Recording payments')}
+          onPress={() => navigation.navigate('RecordPayment', { invoiceId })}
           testID="action-record-payment"
         />
-        <ActionButton label="Share / PDF" onPress={() => notBuiltYet('Invoice PDF sharing')} testID="action-share" />
+        <ActionButton
+          label="Share / PDF"
+          onPress={() => navigation.navigate('InvoicePdfPreview', { invoiceId })}
+          testID="action-share"
+        />
       </View>
       <ActionButton label="Delete invoice" onPress={handleDelete} testID="action-delete-invoice" />
     </ScrollView>
@@ -233,6 +269,7 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 13, color: colors.text, flexShrink: 1, textAlign: 'right' },
   itemsSection: { gap: 10 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  emptyPaymentsText: { color: colors.textMuted, fontSize: 13 },
   textCard: {
     backgroundColor: colors.surface,
     borderRadius: 12,

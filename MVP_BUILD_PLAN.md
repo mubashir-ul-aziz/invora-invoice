@@ -1,7 +1,7 @@
 # MVP Build Plan — Invora Invoice
 
-Status: Phase 6 — Invoices complete (see IMPLEMENTATION_STATUS.md)
-Last updated: 2026-09-06
+Status: Phase 12 — Optional Cloud Backup complete (see IMPLEMENTATION_STATUS.md)
+Last updated: 2026-09-07
 
 This document is the single source of truth for what we are building and how.
 It is a planning/architecture contract only. No application code is written
@@ -320,15 +320,30 @@ Working code is never overwritten without first understanding it.
 
 These are flagged now, not decided now, so Phase 0 stays documentation-only:
 
-- **Optional cloud backup backend** (Phase 11/12): needs a small REST
-  service + storage + auth once we get there (e.g. a lightweight
-  Node.js/Express API, or a managed backend-as-a-service). No choice is
-  locked in yet — will be proposed and confirmed at the start of Phase 11.
+- **Optional cloud backup backend** (Phase 11/12): still **not built or
+  chosen** (e.g. a lightweight Node.js/Express API, or a managed
+  backend-as-a-service) — Phase 12 built the complete mobile-side
+  architecture (encryption, versioning, storage-limit handling, the
+  `CloudBackupApi` REST contract) against this still-undeployed backend, the
+  same way Phase 11 built Google Drive's real integration against a real,
+  already-existing API. `RestCloudBackupApi` throws a clear
+  `CloudBackupNotConfiguredError` until `expo.extra.cloudBackupApiUrl` is
+  set — see `IMPLEMENTATION_STATUS.md`'s Phase 12 notes.
 - **Subscription/payment provider** for the paid cloud tier (Phase 12):
-  not selected yet (e.g. Stripe/RevenueCat) — flagged for that phase.
-- **Server-hosted share links** (Module 9/1): whether the digital-card and
-  invoice share links are static device-generated links/QR payloads only,
-  or require a small hosted redirect service — to confirm before Phase 9.
+  still **not selected** (e.g. Stripe/RevenueCat/native IAP) — Phase 12 kept
+  this a deliberately isolated seam (`CloudUpgradeService`), with only a
+  placeholder implementation (`PlaceholderCloudUpgradeService`) behind it,
+  per the explicit "do not implement a complicated billing system" scope
+  limit. Cloud backup itself works independently of whether this is ever
+  filled in.
+- ~~**Server-hosted share links** (Module 9/1)~~ — **resolved in Phase 9**:
+  both the digital-card and invoice share links stay static, device-
+  generated `invora://` deep links (`LocalShareLinkService`/
+  `LocalInvoiceShareLinkService`), with no hosted redirect service. Revisit
+  only if a real cross-device/web-viewable share link is explicitly
+  requested later (that would need a small hosted service — see
+  `IMPLEMENTATION_STATUS.md`'s Phase 9 notes for the documented future
+  `RemoteInvoiceShareLinkService` contract).
 
 ---
 

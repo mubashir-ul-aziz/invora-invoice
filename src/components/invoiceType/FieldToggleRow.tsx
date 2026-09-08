@@ -7,17 +7,28 @@ interface Props {
   label: string;
   checked: boolean;
   disabled?: boolean;
+  /** Text shown next to a disabled row explaining why. Defaults to the Custom Invoice Type builder's own wording; Phase 10's Security screen passes its own (e.g. "Not supported on this device"). */
+  disabledHint?: string;
   onToggle: () => void;
   testID?: string;
 }
 
 /**
- * One row in the Custom Invoice Type field builder: a label plus a
- * checkbox-style toggle. `disabled` is used for the always-included fields
- * (Item Name, Unit Price) — shown checked and non-interactive rather than
- * hidden, so it's clear they're part of every invoice.
+ * A label plus a checkbox-style toggle — originally built for the Custom
+ * Invoice Type field builder (`disabled` there marks the always-included
+ * fields, Item Name/Unit Price, shown checked and non-interactive rather
+ * than hidden) and reused as-is by the Phase 10 Security screen's App
+ * Lock / Biometric Unlock toggles, per "reuse over near-duplicate
+ * components".
  */
-export function FieldToggleRow({ label, checked, disabled, onToggle, testID }: Props) {
+export function FieldToggleRow({
+  label,
+  checked,
+  disabled,
+  disabledHint = 'Always included',
+  onToggle,
+  testID,
+}: Props) {
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -37,7 +48,7 @@ export function FieldToggleRow({ label, checked, disabled, onToggle, testID }: P
         {checked && <Text style={styles.check}>✓</Text>}
       </View>
       <Text style={styles.label}>{label}</Text>
-      {!!disabled && <Text style={styles.lockedHint}>Always included</Text>}
+      {!!disabled && <Text style={styles.lockedHint}>{disabledHint}</Text>}
     </Pressable>
   );
 }

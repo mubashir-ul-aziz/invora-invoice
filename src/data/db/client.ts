@@ -1,7 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 import { drizzle, type ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 
-import { BUSINESS_COLUMN_UPGRADES, CREATE_TABLES_SQL, schema } from './schema';
+import {
+  APP_SETTINGS_COLUMN_UPGRADES,
+  BUSINESS_COLUMN_UPGRADES,
+  CREATE_TABLES_SQL,
+  schema,
+} from './schema';
 
 const DATABASE_NAME = 'invora.db';
 
@@ -32,6 +37,7 @@ export function getDatabase(): Promise<void> {
       await sqliteConnection.execAsync('PRAGMA foreign_keys = ON;');
       await sqliteConnection.execAsync(CREATE_TABLES_SQL);
       await ensureBusinessColumns(sqliteConnection);
+      await ensureAppSettingsColumns(sqliteConnection);
       drizzleDb = drizzle(sqliteConnection, { schema });
     })();
   }
@@ -51,6 +57,24 @@ async function ensureBusinessColumns(db: SQLite.SQLiteDatabase): Promise<void> {
   for (const { column, definition } of BUSINESS_COLUMN_UPGRADES) {
     if (!existingNames.has(column)) {
       await db.execAsync(`ALTER TABLE business ADD COLUMN ${column} ${definition};`);
+    }
+  }
+}
+
+/**
+ * Backfills `app_settings` columns added after its first release (Phase 10
+ * only shipped `app_lock_enabled`/`biometric_unlock_enabled`; Phase 11 added
+ * the backup-status columns). Same idempotent `PRAGMA table_info` check as
+ * `ensureBusinessColumns()` — a no-op on a fresh install.
+ */
+async function ensureAppSettingsColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const existingColumns = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(app_settings);',
+  );
+  const existingNames = new Set(existingColumns.map((col) => col.name));
+  for (const { column, definition } of APP_SETTINGS_COLUMN_UPGRADES) {
+    if (!existingNames.has(column)) {
+      await db.execAsync(`ALTER TABLE app_settings ADD COLUMN ${column} ${definition};`);
     }
   }
 }

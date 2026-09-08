@@ -76,5 +76,14 @@ describe('BusinessScreen', () => {
 
     fireEvent.press(view.getByTestId('action-invoices'));
     expect(navigation.navigate).toHaveBeenCalledWith('InvoiceList');
+
+    fireEvent.press(view.getByTestId('action-payments'));
+    expect(navigation.navigate).toHaveBeenCalledWith('PaymentHistory');
+
+    fireEvent.press(view.getByTestId('action-dashboard'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Dashboard');
+
+    fireEvent.press(view.getByTestId('action-settings'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Settings');
   });
 });
