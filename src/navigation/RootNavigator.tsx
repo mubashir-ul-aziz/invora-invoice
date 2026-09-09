@@ -6,7 +6,6 @@ import { BusinessSettingsScreen } from '@/screens/business/BusinessSettingsScree
 import { EditBusinessScreen } from '@/screens/business/EditBusinessScreen';
 import { InvoiceSettingsScreen } from '@/screens/business/InvoiceSettingsScreen';
 import { DigitalCardScreen } from '@/screens/businessCard/DigitalCardScreen';
-import { EditBusinessCardScreen } from '@/screens/businessCard/EditBusinessCardScreen';
 import { QRCodeScreen } from '@/screens/businessCard/QRCodeScreen';
 import { ShareCardScreen } from '@/screens/businessCard/ShareCardScreen';
 import { CreateCustomerScreen } from '@/screens/customer/CreateCustomerScreen';
@@ -53,16 +52,24 @@ export function RootNavigator() {
         component={DigitalCardScreen}
         options={{ title: 'Business Card' }}
       />
-      <Stack.Screen
-        name="EditBusinessCard"
-        component={EditBusinessCardScreen}
-        options={{ title: 'Edit Business Card' }}
-      />
       <Stack.Screen name="QRCode" component={QRCodeScreen} options={{ title: 'QR Code' }} />
       <Stack.Screen name="ShareCard" component={ShareCardScreen} options={{ title: 'Share Card' }} />
       <Stack.Screen name="Business" component={BusinessScreen} options={{ title: 'Business' }} />
+      {/*
+        `EditBusiness` and `EditBusinessCard` are two entry points into the
+        same merged form (business info + digital card info, one Save) — see
+        `EditBusinessScreen`'s doc comment. Both routes point at the same
+        component rather than collapsing to one route name, so neither the
+        Business screen's nor the Digital Card screen's existing
+        `navigation.navigate` calls need to change.
+      */}
       <Stack.Screen
         name="EditBusiness"
+        component={EditBusinessScreen}
+        options={{ title: 'Edit Business' }}
+      />
+      <Stack.Screen
+        name="EditBusinessCard"
         component={EditBusinessScreen}
         options={{ title: 'Edit Business' }}
       />

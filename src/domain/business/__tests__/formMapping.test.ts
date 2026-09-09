@@ -27,6 +27,7 @@ describe('profileToFormDefaults / formValuesToProfileInput', () => {
       website: 'https://acme.com',
       currency: 'EUR',
       taxId: 'VAT123',
+      businessCode: '483920',
       invoicePrefix: 'ACM-',
       nextInvoiceNumber: 12,
       updatedAt: '2026-01-01T00:00:00.000Z',
@@ -74,6 +75,7 @@ describe('settingsToFormDefaults / formValuesToSettingsInput', () => {
 
   it('formats a saved tax rate back into a string for the text field', () => {
     const settings: InvoiceSettings = {
+      businessCode: '483920',
       invoicePrefix: 'INV-',
       nextInvoiceNumber: 3,
       currency: 'USD',
@@ -126,6 +128,7 @@ describe('settingsWithTemplate', () => {
 
   it('changes only the template, carrying every other saved field through untouched', () => {
     const settings: InvoiceSettings = {
+      businessCode: '483920',
       invoicePrefix: 'ACM-',
       nextInvoiceNumber: 42,
       currency: 'EUR',

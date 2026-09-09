@@ -3,12 +3,17 @@ import React from 'react';
 
 import { createCustomerStore } from '@/state/customerStore';
 import { createCustomerActivityStore } from '@/state/customerActivityStore';
+import { createInvoiceStore } from '@/state/invoiceStore';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
 import { InMemoryCustomerActivityRepository } from '@/data/customerActivity/InMemoryCustomerActivityRepository';
+import { InMemoryInvoiceRepository } from '@/data/invoice/InMemoryInvoiceRepository';
+import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
+import { ZeroPaymentTotalsRepository } from '@/data/paymentTotals/ZeroPaymentTotalsRepository';
 import { EMPTY_CUSTOMER_INPUT } from '@/domain/customer/types';
 
 let mockCustomerStore: ReturnType<typeof createCustomerStore>;
 let mockActivityStore: ReturnType<typeof createCustomerActivityStore>;
+let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 
 jest.mock('@/state/customerStore', () => {
   const actual = jest.requireActual('@/state/customerStore');
@@ -30,6 +35,16 @@ jest.mock('@/state/customerActivityStore', () => {
   };
 });
 
+jest.mock('@/state/invoiceStore', () => {
+  const actual = jest.requireActual('@/state/invoiceStore');
+  return {
+    ...actual,
+    useInvoiceStore: (...args: unknown[]) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockInvoiceStore as any)(...args),
+  };
+});
+
 import { CustomerDetailScreen } from '../CustomerDetailScreen';
 
 const navigation = { navigate: jest.fn(), goBack: jest.fn() };
@@ -38,6 +53,11 @@ const navigation = { navigate: jest.fn(), goBack: jest.fn() };
 describe('CustomerDetailScreen coming-soon actions', () => {
   it('Record Payment now navigates to the invoice picker (Phase 7) instead of alerting', async () => {
     mockActivityStore = createCustomerActivityStore(new InMemoryCustomerActivityRepository());
+    mockInvoiceStore = createInvoiceStore(
+      new InMemoryInvoiceRepository(),
+      new InMemoryBusinessRepository(),
+      new ZeroPaymentTotalsRepository(),
+    );
     const repo = new InMemoryCustomerRepository();
     const created = await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
     mockCustomerStore = createCustomerStore(repo);
@@ -61,6 +81,11 @@ describe('CustomerDetailScreen coming-soon actions', () => {
 
   it('Create Invoice now navigates for real (Phase 6) instead of alerting', async () => {
     mockActivityStore = createCustomerActivityStore(new InMemoryCustomerActivityRepository());
+    mockInvoiceStore = createInvoiceStore(
+      new InMemoryInvoiceRepository(),
+      new InMemoryBusinessRepository(),
+      new ZeroPaymentTotalsRepository(),
+    );
     const repo = new InMemoryCustomerRepository();
     const created = await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
     mockCustomerStore = createCustomerStore(repo);

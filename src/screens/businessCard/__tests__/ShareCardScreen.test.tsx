@@ -25,8 +25,10 @@ jest.mock('@/state/businessCardStore', () => {
 
 import { ShareCardScreen } from '../ShareCardScreen';
 
+const navigation = { navigate: jest.fn(), goBack: jest.fn() };
+
 function renderScreen() {
-  return render(<ShareCardScreen navigation={{} as never} route={{} as never} />);
+  return render(<ShareCardScreen navigation={navigation as never} route={{} as never} />);
 }
 
 describe('ShareCardScreen', () => {
@@ -58,5 +60,22 @@ describe('ShareCardScreen', () => {
         title: 'Acme Co',
       }),
     );
+  });
+
+  it('navigates to the QR code screen', async () => {
+    const repo = new InMemoryBusinessCardRepository();
+    await repo.saveCard({
+      ...EMPTY_BUSINESS_CARD_INPUT,
+      businessName: 'Acme Co',
+      phone: '+15551234567',
+    });
+    mockStore = createBusinessCardStore(repo, fakeShareLinkService);
+    await mockStore.getState().load();
+
+    const view = await renderScreen();
+    await waitFor(() => expect(view.getByTestId('share-qr-button')).toBeTruthy());
+    fireEvent.press(view.getByTestId('share-qr-button'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('QRCode');
   });
 });

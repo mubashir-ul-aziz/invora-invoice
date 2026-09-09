@@ -48,12 +48,16 @@ describe('invoiceStore', () => {
 
   it('create reserves an invoice number from the business repository, then creates', async () => {
     const business = new InMemoryBusinessRepository();
-    await business.saveProfile({ ...EMPTY_BUSINESS_PROFILE_INPUT, invoicePrefix: 'ACM-', nextInvoiceNumber: 5 });
+    const savedProfile = await business.saveProfile({
+      ...EMPTY_BUSINESS_PROFILE_INPUT,
+      invoicePrefix: 'ACM-',
+      nextInvoiceNumber: 5,
+    });
     const store = createInvoiceStore(new InMemoryInvoiceRepository(), business, new ZeroPaymentTotalsRepository());
 
     const created = await store.getState().create(makeInput());
 
-    expect(created.invoiceNumber).toBe('ACM-5');
+    expect(created.invoiceNumber).toBe(`ACM-${savedProfile.businessCode}-5`);
     expect(store.getState().entries).toHaveLength(1);
     expect(store.getState().entries[0].totals.grandTotal).toBe(100);
     expect(store.getState().entries[0].status).toBe('unpaid');
@@ -88,6 +92,21 @@ describe('invoiceStore', () => {
     expect(detail?.invoice.id).toBe(created.id);
     expect(detail?.amountPaid).toBe(0);
     expect(detail?.totals.grandTotal).toBe(100);
+  });
+
+  it('listForCustomer returns only that customer\'s invoices without touching filter/entries', async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    const store = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+
+    const created = await store.getState().create(makeInput({ customerId: 'cust_1' }));
+    await store.getState().create(makeInput({ customerId: 'cust_2', customerName: 'Other Co' }));
+
+    const result = await store.getState().listForCustomer('cust_1');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].invoice.id).toBe(created.id);
+    // Side-effect-free: the shared filter/entries used by the Invoice List screen are untouched.
+    expect(store.getState().filter.customerId).toBeUndefined();
   });
 
   it('update and remove both reload the list', async () => {

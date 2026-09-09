@@ -12,7 +12,7 @@ import { colors } from '@/theme/colors';
 type Props = NativeStackScreenProps<RootStackParamList, 'ShareCard'>;
 
 /** Uses the native share sheet — works with or without internet; no backend involved. */
-export function ShareCardScreen({}: Props) {
+export function ShareCardScreen({ navigation }: Props) {
   const { card, getShareLink } = useBusinessCardStore();
   const shareLink = getShareLink();
 
@@ -42,7 +42,14 @@ export function ShareCardScreen({}: Props) {
       <Text style={styles.link} testID="share-link-text">
         {shareLink}
       </Text>
-      <ActionButton label="Share business card" variant="primary" onPress={onShare} testID="share-button" />
+      <View style={styles.row}>
+        <ActionButton label="Share business card" variant="primary" onPress={onShare} testID="share-button" />
+        <ActionButton
+          label="QR code"
+          onPress={() => navigation.navigate('QRCode')}
+          testID="share-qr-button"
+        />
+      </View>
     </View>
   );
 }
@@ -52,4 +59,5 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyText: { color: colors.textMuted, textAlign: 'center' },
   link: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 });

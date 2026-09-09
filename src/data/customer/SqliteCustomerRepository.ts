@@ -1,4 +1,4 @@
-import { and, eq, like, or } from 'drizzle-orm';
+import { and, desc, eq, like, or } from 'drizzle-orm';
 
 import { EMPTY_CUSTOMER_FILTER, type Customer, type CustomerFilter, type CustomerInput } from '@/domain/customer/types';
 import { generateLocalId } from '@/lib/id';
@@ -13,6 +13,7 @@ function toCustomer(row: typeof customer.$inferSelect): Customer {
     name: row.name,
     phone: row.phone,
     email: row.email,
+    website: row.website,
     address: row.address,
     notes: row.notes,
     createdAt: new Date(row.createdAt).toISOString(),
@@ -46,7 +47,7 @@ export class SqliteCustomerRepository implements CustomerRepository {
       .select()
       .from(customer)
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(customer.name);
+      .orderBy(desc(customer.createdAt));
 
     return rows.map(toCustomer);
   }
@@ -69,6 +70,7 @@ export class SqliteCustomerRepository implements CustomerRepository {
       name: input.name,
       phone: input.phone,
       email: input.email,
+      website: input.website,
       address: input.address,
       notes: input.notes,
       createdAt: now,
@@ -94,6 +96,7 @@ export class SqliteCustomerRepository implements CustomerRepository {
         name: input.name,
         phone: input.phone,
         email: input.email,
+        website: input.website,
         address: input.address,
         notes: input.notes,
         updatedAt: now,

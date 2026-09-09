@@ -134,6 +134,30 @@ describe('InvoiceDetailScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('RecordPayment', { invoiceId: created.id });
   });
 
+  it('shows Call/Email/Website/Directions actions for the invoice’s customer', async () => {
+    const customers = new InMemoryCustomerRepository();
+    const customer = await customers.create({
+      name: 'Acme Co',
+      phone: '+15551234567',
+      email: 'ap@acme.test',
+      website: 'https://acme.test',
+      address: '1 Main St',
+      notes: null,
+    });
+    mockCustomerStore = createCustomerStore(customers);
+
+    const invoices = new InMemoryInvoiceRepository();
+    const created = await invoices.create('INV-1', makeInput({ customerId: customer.id }));
+    mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+
+    const view = await renderScreen(created.id);
+
+    await waitFor(() => expect(view.getByTestId('action-call')).toBeTruthy());
+    expect(view.getByTestId('action-email')).toBeTruthy();
+    expect(view.getByTestId('action-website')).toBeTruthy();
+    expect(view.getByTestId('action-directions')).toBeTruthy();
+  });
+
   it('shows an "invoice payment summary" section with no payments recorded yet', async () => {
     const invoices = new InMemoryInvoiceRepository();
     const created = await invoices.create('INV-1', makeInput());

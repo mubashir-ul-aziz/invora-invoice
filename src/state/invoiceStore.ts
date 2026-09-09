@@ -36,6 +36,13 @@ interface InvoiceState {
   getById: (id: string) => Promise<Invoice | null>;
   /** Same shape as a list entry, for the Invoice Detail screen. Null if the invoice no longer exists. */
   getDetail: (id: string) => Promise<InvoiceWithStatus | null>;
+  /**
+   * One customer's invoices, newest first — for Customer Detail's embedded
+   * invoice list. Side-effect-free (unlike `setFilter`): it never touches
+   * `filter`/`entries`, so it can't fight the Invoice List screen's own
+   * `customerId` scoping (see `InvoiceListScreen`'s mount/unmount effect).
+   */
+  listForCustomer: (customerId: string) => Promise<InvoiceWithStatus[]>;
   /** Reserves the next invoice number, then creates the invoice — see `BusinessRepository.reserveNextInvoiceNumber()`. */
   create: (input: InvoiceInput) => Promise<Invoice>;
   update: (id: string, input: InvoiceUpdateInput) => Promise<Invoice>;
@@ -102,6 +109,14 @@ export function createInvoiceStore(
       }
       const amountPaid = await paymentTotalsRepository.getTotalPaid(id);
       return withStatus(invoice, amountPaid);
+    },
+
+    listForCustomer: async (customerId) => {
+      const invoices = await invoiceRepository.list({ ...EMPTY_INVOICE_FILTER, customerId });
+      const amounts = await paymentTotalsRepository.getTotalPaidForInvoices(
+        invoices.map((invoice) => invoice.id),
+      );
+      return invoices.map((invoice) => withStatus(invoice, amounts[invoice.id] ?? 0));
     },
 
     create: async (input) => {

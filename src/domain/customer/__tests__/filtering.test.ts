@@ -7,6 +7,7 @@ function makeCustomer(overrides: Partial<Customer>): Customer {
     name: 'Acme Co',
     phone: null,
     email: null,
+    website: null,
     address: null,
     notes: null,
     createdAt: 'now',
@@ -45,11 +46,14 @@ describe('customerMatchesFilter', () => {
 });
 
 describe('sortCustomers', () => {
-  it('sorts alphabetically by name without mutating the input', () => {
-    const input = [makeCustomer({ id: 'b', name: 'Zebra Inc' }), makeCustomer({ id: 'a', name: 'Acme Co' })];
+  it('sorts newest-created first, without mutating the input', () => {
+    const input = [
+      makeCustomer({ id: 'a', name: 'Acme Co', createdAt: '2026-01-01T00:00:00.000Z' }),
+      makeCustomer({ id: 'b', name: 'Zebra Inc', createdAt: '2026-06-01T00:00:00.000Z' }),
+    ];
     const sorted = sortCustomers(input);
 
-    expect(sorted.map((c) => c.name)).toEqual(['Acme Co', 'Zebra Inc']);
-    expect(input.map((c) => c.name)).toEqual(['Zebra Inc', 'Acme Co']);
+    expect(sorted.map((c) => c.id)).toEqual(['b', 'a']);
+    expect(input.map((c) => c.id)).toEqual(['a', 'b']);
   });
 });

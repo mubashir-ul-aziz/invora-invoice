@@ -4,15 +4,18 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CustomerSummaryCard } from '@/components/customer/CustomerSummaryCard';
+import { InvoiceListRow } from '@/components/invoice/InvoiceListRow';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { Customer } from '@/domain/customer/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
-import { openEmail, openPhone, openWhatsApp } from '@/lib/linking';
+import { formatTimestamp } from '@/domain/shared/formatting';
+import { openEmail, openGoogleMaps, openPhone, openWebsite, openWhatsApp } from '@/lib/linking';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerActivityStore } from '@/state/customerActivityStore';
 import { useCustomerStore } from '@/state/customerStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
+import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { colors } from '@/theme/colors';
 
@@ -34,10 +37,12 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
   const { customerId } = route.params;
   const { getById } = useCustomerStore();
   const { summary, load: loadActivity } = useCustomerActivityStore();
+  const { listForCustomer } = useInvoiceStore();
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [invoices, setInvoices] = useState<InvoiceWithStatus[]>([]);
 
   useEffect(() => {
     loadInvoiceType();
@@ -58,10 +63,14 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
           return;
         }
         setCustomer(found);
-        await loadActivity(customerId);
+        const [, customerInvoices] = await Promise.all([
+          loadActivity(customerId),
+          listForCustomer(customerId),
+        ]);
         if (cancelled) {
           return;
         }
+        setInvoices(customerInvoices);
         setStatus('ready');
       } catch {
         if (!cancelled) {
@@ -111,8 +120,10 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
         <Text style={styles.name}>{customer.name}</Text>
         {!!customer.phone && <SummaryRow label="Phone" value={customer.phone} />}
         {!!customer.email && <SummaryRow label="Email" value={customer.email} />}
+        {!!customer.website && <SummaryRow label="Website" value={customer.website} />}
         {!!customer.address && <SummaryRow label="Address" value={customer.address} />}
         {!!customer.notes && <SummaryRow label="Notes" value={customer.notes} />}
+        <SummaryRow label="Created" value={formatTimestamp(customer.createdAt)} />
       </View>
 
       <CustomerSummaryCard summary={summary} testID="customer-summary" />
@@ -130,6 +141,20 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
         )}
         {!!customer.email && (
           <ActionButton label="Email" onPress={() => openEmail(customer.email!)} testID="action-email" />
+        )}
+        {!!customer.website && (
+          <ActionButton
+            label="Website"
+            onPress={() => openWebsite(customer.website!)}
+            testID="action-website"
+          />
+        )}
+        {!!customer.address && (
+          <ActionButton
+            label="Directions"
+            onPress={() => openGoogleMaps({ address: customer.address })}
+            testID="action-directions"
+          />
         )}
       </View>
 
@@ -174,6 +199,24 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
           testID="action-view-history"
         />
       </View>
+
+      <View style={styles.invoicesSection} testID="customer-detail-invoices">
+        <Text style={styles.sectionTitle}>Invoices</Text>
+        {invoices.length === 0 ? (
+          <Text style={styles.emptyText}>No invoices yet.</Text>
+        ) : (
+          <View style={styles.invoicesList}>
+            {invoices.map((entry) => (
+              <InvoiceListRow
+                key={entry.invoice.id}
+                entry={entry}
+                onPress={() => navigation.navigate('InvoiceDetail', { invoiceId: entry.invoice.id })}
+                testID={`customer-invoice-row-${entry.invoice.id}`}
+              />
+            ))}
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -207,4 +250,8 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 13, color: colors.textMuted },
   summaryValue: { fontSize: 13, color: colors.text, flexShrink: 1, textAlign: 'right' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  invoicesSection: { gap: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  invoicesList: { gap: 10 },
+  emptyText: { fontSize: 13, color: colors.textMuted },
 });

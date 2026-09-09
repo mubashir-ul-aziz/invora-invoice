@@ -56,7 +56,7 @@ describe('itemMatchesFilter', () => {
   it('filters by invoice type', () => {
     const item = makeItem({ invoiceTypeId: 'weight' });
     expect(itemMatchesFilter(item, { ...EMPTY_ITEM_FILTER, invoiceTypeId: 'weight' })).toBe(true);
-    expect(itemMatchesFilter(item, { ...EMPTY_ITEM_FILTER, invoiceTypeId: 'dimension' })).toBe(false);
+    expect(itemMatchesFilter(item, { ...EMPTY_ITEM_FILTER, invoiceTypeId: 'volume' })).toBe(false);
     expect(itemMatchesFilter(item, { ...EMPTY_ITEM_FILTER, invoiceTypeId: 'all' })).toBe(true);
   });
 
@@ -66,7 +66,7 @@ describe('itemMatchesFilter', () => {
       itemMatchesFilter(item, { searchText: 'steel', invoiceTypeId: 'weight' }),
     ).toBe(true);
     expect(
-      itemMatchesFilter(item, { searchText: 'steel', invoiceTypeId: 'dimension' }),
+      itemMatchesFilter(item, { searchText: 'steel', invoiceTypeId: 'volume' }),
     ).toBe(false);
   });
 });

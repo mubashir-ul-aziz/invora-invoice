@@ -58,7 +58,7 @@ async function setUp(overrides: Partial<InvoiceInput> = {}) {
   mockPdfStore = createPdfStore({
     invoiceRepository: invoices,
     customerRepository: new InMemoryCustomerRepository([
-      { id: 'cust_1', name: 'Acme Co', phone: '555-1111', email: 'acme@test.com', address: null, notes: null, createdAt: '', updatedAt: '' },
+      { id: 'cust_1', name: 'Acme Co', phone: '555-1111', email: 'acme@test.com', website: null, address: null, notes: null, createdAt: '', updatedAt: '' },
     ]),
     businessRepository,
     paymentRepository: new InMemoryPaymentRepository(),

@@ -1,13 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { ActivityIndicator, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { InvoiceListRow } from '@/components/invoice/InvoiceListRow';
+import { DateSectionHeader } from '@/components/shared/DateSectionHeader';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
 import { INVOICE_STATUS_OPTIONS } from '@/domain/invoice/status';
+import { groupByDateSection } from '@/domain/shared/dateSections';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
@@ -38,6 +40,14 @@ export function InvoiceListScreen({ navigation, route }: Props) {
   const { status, entries, filter, error, load, setFilter } = useInvoiceStore();
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
+
+  // Invoices are already sorted newest-issue-date first (`sortInvoices`), so
+  // consecutive same-day entries collapse into one "Today"/"Yesterday"/date
+  // section — the WhatsApp-style separator, per `DateSectionHeader`.
+  const sections = useMemo(
+    () => groupByDateSection(entries, (entry) => entry.invoice.issueDate),
+    [entries],
+  );
 
   useEffect(() => {
     if (scopedCustomerId) {
@@ -130,11 +140,12 @@ export function InvoiceListScreen({ navigation, route }: Props) {
       )}
 
       {status === 'ready' && entries.length > 0 && (
-        <FlatList
+        <SectionList
           testID="invoice-list"
-          data={entries}
+          sections={sections}
           keyExtractor={(entry) => entry.invoice.id}
           contentContainerStyle={styles.listContent}
+          renderSectionHeader={({ section }) => <DateSectionHeader label={section.title} />}
           renderItem={({ item: entry }) => (
             <InvoiceListRow
               entry={entry}

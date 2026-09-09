@@ -17,13 +17,26 @@ describe('InMemoryCustomerRepository', () => {
     expect(created.updatedAt).toBeTruthy();
   });
 
-  it('lists created customers sorted by name', async () => {
-    const repo = new InMemoryCustomerRepository();
-    await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Zebra Inc' });
-    await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
+  it('lists customers newest-created first', async () => {
+    const repo = new InMemoryCustomerRepository([
+      {
+        id: 'old',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        ...EMPTY_CUSTOMER_INPUT,
+        name: 'Acme Co',
+      },
+      {
+        id: 'new',
+        createdAt: '2026-06-01T00:00:00.000Z',
+        updatedAt: '2026-06-01T00:00:00.000Z',
+        ...EMPTY_CUSTOMER_INPUT,
+        name: 'Zebra Inc',
+      },
+    ]);
 
     const customers = await repo.list();
-    expect(customers.map((c) => c.name)).toEqual(['Acme Co', 'Zebra Inc']);
+    expect(customers.map((c) => c.name)).toEqual(['Zebra Inc', 'Acme Co']);
   });
 
   it('reads a single customer by id, and null for an unknown id', async () => {

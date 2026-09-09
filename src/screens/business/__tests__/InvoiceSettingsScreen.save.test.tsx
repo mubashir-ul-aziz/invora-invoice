@@ -31,7 +31,6 @@ describe('InvoiceSettingsScreen — save', () => {
     await waitFor(() => expect(view.getByTestId('field-invoicePrefix')).toBeTruthy());
 
     fireEvent.changeText(view.getByTestId('field-invoicePrefix'), 'ACM-');
-    fireEvent.changeText(view.getByTestId('field-nextInvoiceNumber'), '20');
     fireEvent.changeText(view.getByTestId('field-defaultTaxRate'), '7.5');
     fireEvent.press(view.getByTestId('field-defaultPaymentTermsDays-30'));
     fireEvent.press(view.getByTestId('field-defaultInvoiceTemplate-modern'));
@@ -43,7 +42,9 @@ describe('InvoiceSettingsScreen — save', () => {
 
     const saved = mockStore.getState().settings;
     expect(saved?.invoicePrefix).toBe('ACM-');
-    expect(saved?.nextInvoiceNumber).toBe(20);
+    // "Next invoice number" is read-only — saving never changes it from the
+    // empty-state default (1), since there's no input to type into.
+    expect(saved?.nextInvoiceNumber).toBe(1);
     expect(saved?.defaultTaxRate).toBe(7.5);
     expect(saved?.defaultPaymentTermsDays).toBe(30);
     expect(saved?.defaultInvoiceTemplate).toBe('modern');

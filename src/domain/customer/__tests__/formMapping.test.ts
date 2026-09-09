@@ -7,6 +7,7 @@ describe('customer formMapping', () => {
       name: '',
       phone: '',
       email: '',
+      website: '',
       address: '',
       notes: '',
     });
@@ -18,6 +19,7 @@ describe('customer formMapping', () => {
       name: 'Acme Co',
       phone: '+15551234567',
       email: 'ap@acme.test',
+      website: 'https://acme.test',
       address: '1 Main St',
       notes: 'Net 30',
       createdAt: 'now',
@@ -29,6 +31,7 @@ describe('customer formMapping', () => {
       name: 'Acme Co',
       phone: '+15551234567',
       email: 'ap@acme.test',
+      website: 'https://acme.test',
       address: '1 Main St',
       notes: 'Net 30',
     });
@@ -37,6 +40,7 @@ describe('customer formMapping', () => {
       name: 'Acme Co',
       phone: '+15551234567',
       email: 'ap@acme.test',
+      website: 'https://acme.test',
       address: '1 Main St',
       notes: 'Net 30',
     });
@@ -44,6 +48,7 @@ describe('customer formMapping', () => {
       name: 'Acme Co',
       phone: '+15551234567',
       email: 'ap@acme.test',
+      website: 'https://acme.test',
       address: '1 Main St',
       notes: 'Net 30',
     });
@@ -54,6 +59,7 @@ describe('customer formMapping', () => {
       name: 'Acme Co',
       phone: null,
       email: null,
+      website: null,
       address: null,
       notes: null,
     });
@@ -61,6 +67,7 @@ describe('customer formMapping', () => {
       name: 'Acme Co',
       phone: null,
       email: null,
+      website: null,
       address: null,
       notes: null,
     });

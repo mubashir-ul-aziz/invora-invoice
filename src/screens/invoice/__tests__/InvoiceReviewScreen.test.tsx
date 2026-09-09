@@ -41,6 +41,7 @@ const CUSTOMER: Customer = {
   name: 'Acme Co',
   phone: null,
   email: null,
+  website: null,
   address: null,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -64,7 +65,11 @@ describe('InvoiceReviewScreen', () => {
 
   it('shows the customer, invoice type, items and computed totals for a create-mode draft', async () => {
     const businessRepo = new InMemoryBusinessRepository();
-    await businessRepo.saveProfile({ ...EMPTY_BUSINESS_PROFILE_INPUT, invoicePrefix: 'ACM-', nextInvoiceNumber: 3 });
+    const savedProfile = await businessRepo.saveProfile({
+      ...EMPTY_BUSINESS_PROFILE_INPUT,
+      invoicePrefix: 'ACM-',
+      nextInvoiceNumber: 3,
+    });
     mockBusinessProfileStore = createBusinessProfileStore(businessRepo);
 
     useInvoiceDraftStore.getState().startCreate({ invoiceTypeId: 'general' });
@@ -78,7 +83,7 @@ describe('InvoiceReviewScreen', () => {
     await waitFor(() => expect(view.getByText('Acme Co')).toBeTruthy());
     expect(view.getByText('General')).toBeTruthy();
     expect(view.getByText('Widget')).toBeTruthy();
-    await waitFor(() => expect(view.getByText('ACM-3')).toBeTruthy());
+    await waitFor(() => expect(view.getByText(`ACM-${savedProfile.businessCode}-3`)).toBeTruthy());
   });
 
   it('"Edit items" navigates back to the items step', async () => {

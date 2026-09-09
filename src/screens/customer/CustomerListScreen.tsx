@@ -1,10 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { ActivityIndicator, Alert, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CustomerListRow } from '@/components/customer/CustomerListRow';
+import { DateSectionHeader } from '@/components/shared/DateSectionHeader';
 import type { Customer } from '@/domain/customer/types';
+import { groupByDateSection } from '@/domain/shared/dateSections';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerStore } from '@/state/customerStore';
 import { colors } from '@/theme/colors';
@@ -21,6 +23,14 @@ export function CustomerListScreen({ navigation, route }: Props) {
   const onSelectCustomer = route.params?.onSelectCustomer;
   const { status, customers, filter, error, load, setFilter, remove } = useCustomerStore();
 
+  // Customers are already sorted newest-created first (`sortCustomers`), so
+  // consecutive same-day rows collapse into one "Today"/"Yesterday"/date
+  // section — the WhatsApp-style separator, per `DateSectionHeader`.
+  const sections = useMemo(
+    () => groupByDateSection(customers, (customer) => customer.createdAt),
+    [customers],
+  );
+
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -33,6 +43,10 @@ export function CustomerListScreen({ navigation, route }: Props) {
       return;
     }
     navigation.navigate('CustomerDetail', { customerId: customer.id });
+  };
+
+  const handleEditCustomer = (customer: Customer) => {
+    navigation.navigate('EditCustomer', { customerId: customer.id });
   };
 
   const handleDeleteCustomer = (customer: Customer) => {
@@ -100,15 +114,17 @@ export function CustomerListScreen({ navigation, route }: Props) {
       )}
 
       {status === 'ready' && customers.length > 0 && (
-        <FlatList
+        <SectionList
           testID="customer-list"
-          data={customers}
+          sections={sections}
           keyExtractor={(customer) => customer.id}
           contentContainerStyle={styles.listContent}
+          renderSectionHeader={({ section }) => <DateSectionHeader label={section.title} />}
           renderItem={({ item: customer }) => (
             <CustomerListRow
               customer={customer}
               onPress={() => handlePressCustomer(customer)}
+              onEdit={() => handleEditCustomer(customer)}
               onDelete={() => handleDeleteCustomer(customer)}
               testID={`customer-row-${customer.id}`}
             />

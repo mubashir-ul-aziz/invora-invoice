@@ -56,6 +56,7 @@ function buildData(template: InvoiceTemplate) {
       website: 'https://acme.test',
       currency: 'USD',
       taxId: 'TAX-9',
+      businessCode: '483920',
       invoicePrefix: 'INV-',
       nextInvoiceNumber: 43,
       updatedAt: '',

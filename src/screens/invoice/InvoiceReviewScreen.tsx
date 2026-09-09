@@ -73,7 +73,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
     draft.mode === 'edit'
       ? existingInvoiceNumber
       : profile
-        ? formatNextInvoiceNumber(profile.invoicePrefix, profile.nextInvoiceNumber)
+        ? formatNextInvoiceNumber(profile.invoicePrefix, profile.businessCode, profile.nextInvoiceNumber)
         : null;
 
   const onSubmit = handleSubmit(async (values) => {

@@ -19,6 +19,7 @@ function customerFromInvoiceSnapshot(invoice: Invoice): Customer {
     name: invoice.customerName,
     phone: null,
     email: null,
+    website: null,
     address: null,
     notes: null,
     createdAt: invoice.createdAt,

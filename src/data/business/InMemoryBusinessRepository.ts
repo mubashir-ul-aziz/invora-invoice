@@ -13,7 +13,7 @@ import {
   type InvoiceTypeSelection,
   type InvoiceTypeSelectionInput,
 } from '@/domain/invoiceType/types';
-import { generateLocalId } from '@/lib/id';
+import { generateBusinessCode, generateLocalId } from '@/lib/id';
 
 import type { BusinessRepository } from './BusinessRepository';
 
@@ -28,6 +28,8 @@ interface Row {
   website: string | null;
   currency: string;
   taxId: string | null;
+  /** Generated once (`generateBusinessCode()`) when the row is first created; carried through unchanged on every later save. */
+  businessCode: string;
   invoicePrefix: string;
   nextInvoiceNumber: number;
   defaultTaxRate: number | null;
@@ -50,6 +52,7 @@ function toProfile(row: Row): BusinessProfile {
     website: row.website,
     currency: row.currency,
     taxId: row.taxId,
+    businessCode: row.businessCode,
     invoicePrefix: row.invoicePrefix,
     nextInvoiceNumber: row.nextInvoiceNumber,
     updatedAt: row.updatedAt,
@@ -58,6 +61,7 @@ function toProfile(row: Row): BusinessProfile {
 
 function toSettings(row: Row): InvoiceSettings {
   return {
+    businessCode: row.businessCode,
     invoicePrefix: row.invoicePrefix,
     nextInvoiceNumber: row.nextInvoiceNumber,
     currency: row.currency,
@@ -98,6 +102,7 @@ export class InMemoryBusinessRepository implements BusinessRepository {
     const now = new Date().toISOString();
     this.row = {
       id: this.row?.id ?? generateLocalId('biz_'),
+      businessCode: this.row?.businessCode ?? generateBusinessCode(),
       defaultTaxRate: this.row?.defaultTaxRate ?? null,
       defaultPaymentTermsDays: this.row?.defaultPaymentTermsDays ?? null,
       defaultInvoiceTemplate: this.row?.defaultInvoiceTemplate ?? 'classic',
@@ -117,6 +122,7 @@ export class InMemoryBusinessRepository implements BusinessRepository {
     const now = new Date().toISOString();
     this.row = {
       id: this.row?.id ?? generateLocalId('biz_'),
+      businessCode: this.row?.businessCode ?? generateBusinessCode(),
       businessName: this.row?.businessName ?? '',
       logoUri: this.row?.logoUri ?? null,
       address: this.row?.address ?? null,
@@ -139,6 +145,7 @@ export class InMemoryBusinessRepository implements BusinessRepository {
     const now = new Date().toISOString();
     this.row = {
       id: this.row?.id ?? generateLocalId('biz_'),
+      businessCode: this.row?.businessCode ?? generateBusinessCode(),
       businessName: this.row?.businessName ?? '',
       logoUri: this.row?.logoUri ?? null,
       address: this.row?.address ?? null,
@@ -162,11 +169,13 @@ export class InMemoryBusinessRepository implements BusinessRepository {
 
   async reserveNextInvoiceNumber(): Promise<string> {
     const now = new Date().toISOString();
+    const businessCode = this.row?.businessCode ?? generateBusinessCode();
     const invoicePrefix = this.row?.invoicePrefix ?? 'INV-';
     const nextInvoiceNumber = this.row?.nextInvoiceNumber ?? 1;
-    const invoiceNumber = formatNextInvoiceNumber(invoicePrefix, nextInvoiceNumber);
+    const invoiceNumber = formatNextInvoiceNumber(invoicePrefix, businessCode, nextInvoiceNumber);
     this.row = {
       id: this.row?.id ?? generateLocalId('biz_'),
+      businessCode,
       businessName: this.row?.businessName ?? '',
       logoUri: this.row?.logoUri ?? null,
       address: this.row?.address ?? null,

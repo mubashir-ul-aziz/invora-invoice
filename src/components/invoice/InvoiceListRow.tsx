@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { InvoiceStatusBadge } from '@/components/invoice/InvoiceStatusBadge';
+import { formatTimestamp } from '@/domain/shared/formatting';
 import type { InvoiceWithStatus } from '@/state/invoiceStore';
 import { colors } from '@/theme/colors';
 
@@ -30,6 +31,9 @@ export function InvoiceListRow({ entry, onPress, testID }: Props) {
           {invoice.customerName}
         </Text>
         <Text style={styles.date}>{formatDate(invoice.issueDate)}</Text>
+        <Text style={styles.created} testID={testID ? `${testID}-created` : undefined}>
+          Created {formatTimestamp(invoice.createdAt)}
+        </Text>
       </View>
       <View style={styles.trailing}>
         <Text style={styles.total}>{totals.grandTotal.toFixed(2)}</Text>
@@ -62,6 +66,7 @@ const styles = StyleSheet.create({
   number: { fontSize: 15, fontWeight: '700', color: colors.text },
   customer: { fontSize: 13, color: colors.text },
   date: { fontSize: 12, color: colors.textMuted },
+  created: { fontSize: 11, color: colors.textMuted },
   trailing: { alignItems: 'flex-end', gap: 6 },
   total: { fontSize: 14, fontWeight: '700', color: colors.text },
 });

@@ -109,6 +109,18 @@ describe('CustomerListScreen', () => {
     expect(view.getByText('Globex Inc')).toBeTruthy();
   });
 
+  it('navigates to Edit Customer when tapping the edit action', async () => {
+    const repo = new InMemoryCustomerRepository();
+    const created = await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
+    mockStore = createCustomerStore(repo);
+    const view = await renderScreen();
+
+    await waitFor(() => expect(view.getByTestId(`customer-row-${created.id}-edit`)).toBeTruthy());
+    fireEvent.press(view.getByTestId(`customer-row-${created.id}-edit`));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('EditCustomer', { customerId: created.id });
+  });
+
   it('deletes a customer after confirming', async () => {
     const alertSpy = jest
       .spyOn(Alert, 'alert')

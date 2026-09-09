@@ -40,6 +40,7 @@ const CUSTOMER: Customer = {
   name: 'Acme Co',
   phone: null,
   email: null,
+  website: null,
   address: null,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',

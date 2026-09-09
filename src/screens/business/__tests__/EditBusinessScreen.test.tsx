@@ -3,8 +3,16 @@ import React from 'react';
 
 import { createBusinessProfileStore } from '@/state/businessProfileStore';
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
+import { createBusinessCardStore } from '@/state/businessCardStore';
+import { InMemoryBusinessCardRepository } from '@/data/businessCard/InMemoryBusinessCardRepository';
+import type { ShareLinkService } from '@/data/shareLink/ShareLinkService';
 
-let mockStore: ReturnType<typeof createBusinessProfileStore>;
+const fakeShareLinkService: ShareLinkService = {
+  getShareLink: (card) => `invora://card/${card.shareSlug}`,
+};
+
+let mockProfileStore: ReturnType<typeof createBusinessProfileStore>;
+let mockCardStore: ReturnType<typeof createBusinessCardStore>;
 
 jest.mock('@/state/businessProfileStore', () => {
   const actual = jest.requireActual('@/state/businessProfileStore');
@@ -12,7 +20,17 @@ jest.mock('@/state/businessProfileStore', () => {
     ...actual,
     useBusinessProfileStore: (...args: unknown[]) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStore as any)(...args),
+      (mockProfileStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/businessCardStore', () => {
+  const actual = jest.requireActual('@/state/businessCardStore');
+  return {
+    ...actual,
+    useBusinessCardStore: (...args: unknown[]) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockCardStore as any)(...args),
   };
 });
 
@@ -29,13 +47,16 @@ function renderScreen() {
   return render(<EditBusinessScreen navigation={navigation as never} route={{} as never} />);
 }
 
-// Kept as its own describe block (this file only covers validation-rejection
-// paths) — see EditBusinessScreen.save.test.tsx for the successful-save
-// path. Splitting avoids the two flows sharing a module/render lifecycle
-// within one test file (same reasoning as EditBusinessCardScreen's split).
+// Kept as its own describe block (this file only covers the business-profile
+// half of validation) — see EditBusinessScreen.socialValidation.test.tsx for
+// the digital-card half, and EditBusinessScreen.save.test.tsx for the
+// successful-save path. "Next invoice number" has no validation case here
+// any more — it's a read-only display now (see EditBusinessScreen.tsx),
+// never a user-editable field, so there's nothing to reject.
 describe('EditBusinessScreen — validation', () => {
   beforeEach(() => {
-    mockStore = createBusinessProfileStore(new InMemoryBusinessRepository());
+    mockProfileStore = createBusinessProfileStore(new InMemoryBusinessRepository());
+    mockCardStore = createBusinessCardStore(new InMemoryBusinessCardRepository(), fakeShareLinkService);
     (navigation.goBack as jest.Mock).mockClear();
   });
 
@@ -49,15 +70,11 @@ describe('EditBusinessScreen — validation', () => {
     expect(navigation.goBack).not.toHaveBeenCalled();
   });
 
-  it('rejects an invalid next invoice number', async () => {
+  it('shows the next invoice number as a read-only display, not an editable field', async () => {
     const view = await renderScreen();
-    await waitFor(() => expect(view.getByTestId('field-businessName')).toBeTruthy());
+    await waitFor(() => expect(view.getByTestId('field-nextInvoiceNumber')).toBeTruthy());
 
-    fireEvent.changeText(view.getByTestId('field-businessName'), 'Acme Co');
-    fireEvent.changeText(view.getByTestId('field-nextInvoiceNumber'), '0');
-    fireEvent.press(view.getByTestId('save-business'));
-
-    await waitFor(() => expect(view.getByTestId('field-nextInvoiceNumber-error')).toBeTruthy());
-    expect(navigation.goBack).not.toHaveBeenCalled();
+    const field = view.getByTestId('field-nextInvoiceNumber');
+    expect(field.props.onChangeText).toBeUndefined();
   });
 });

@@ -9,6 +9,7 @@ import { FormField } from '@/components/businessCard/FormField';
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { formValuesToSettingsInput, settingsToFormDefaults } from '@/domain/business/formMapping';
 import {
+  formatNextInvoiceNumber,
   INVOICE_TEMPLATE_OPTIONS,
   INVOICE_TYPE_OPTIONS,
   PAYMENT_TERMS_OPTIONS,
@@ -78,21 +79,20 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
           />
         )}
       />
-      <Controller
-        control={control}
-        name="nextInvoiceNumber"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <FormField
-            label="Next invoice number"
-            value={String(value)}
-            onChangeText={onChange}
-            onBlur={onBlur}
-            keyboardType="numeric"
-            error={errors.nextInvoiceNumber?.message}
-            testID="field-nextInvoiceNumber"
-          />
+      {/*
+        Read-only, not an editable input: the invoice sequence is reserved
+        and advanced exclusively by `BusinessRepository.reserveNextInvoiceNumber()`
+        at invoice-creation time — nothing in the app is allowed to change it
+        by hand, so this is shown for visibility only, not as a form field.
+      */}
+      <Text style={styles.readOnlyLabel}>Next invoice number</Text>
+      <Text style={styles.readOnlyValue} testID="field-nextInvoiceNumber">
+        {formatNextInvoiceNumber(
+          settings?.invoicePrefix ?? 'INV-',
+          settings?.businessCode ?? '',
+          settings?.nextInvoiceNumber ?? 1,
         )}
-      />
+      </Text>
       <Controller
         control={control}
         name="currency"
@@ -192,4 +192,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   hint: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic' },
+  readOnlyLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: -10 },
+  readOnlyValue: { fontSize: 15, color: colors.textMuted },
 });

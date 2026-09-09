@@ -8,6 +8,7 @@ export function customerToFormDefaults(customer: Customer | null) {
     name: input.name,
     phone: input.phone ?? '',
     email: input.email ?? '',
+    website: input.website ?? '',
     address: input.address ?? '',
     notes: input.notes ?? '',
   };
@@ -19,6 +20,7 @@ export function formValuesToCustomerInput(values: CustomerFormOutput): CustomerI
     name: values.name,
     phone: values.phone,
     email: values.email,
+    website: values.website,
     address: values.address,
     notes: values.notes,
   };

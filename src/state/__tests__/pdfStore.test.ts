@@ -15,6 +15,7 @@ const customer: Customer = {
   name: 'Acme Corp',
   phone: '+1 555 0100',
   email: 'billing@acme.test',
+  website: null,
   address: '456 Side St',
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',

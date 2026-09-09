@@ -19,7 +19,11 @@ export function customerMatchesFilter(customer: Customer, filter: CustomerFilter
   return haystack.includes(query);
 }
 
-/** Canonical sort order for the Customer List screen: alphabetical by name. */
+/**
+ * Canonical sort order for the Customer List screen: newest-created first.
+ * Matches `sortInvoices`' newest-first ordering so both lists support the
+ * same "Today / Yesterday / date" grouping (`domain/shared/dateSections.ts`).
+ */
 export function sortCustomers(customers: Customer[]): Customer[] {
-  return [...customers].sort((a, b) => a.name.localeCompare(b.name));
+  return [...customers].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

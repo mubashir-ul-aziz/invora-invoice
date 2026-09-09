@@ -5,27 +5,27 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CardPreview } from '@/components/businessCard/CardPreview';
 import { socialLinkValue } from '@/domain/businessCard/types';
-import {
-  openEmail,
-  openFacebook,
-  openGoogleMaps,
-  openInstagram,
-  openPhone,
-  openWebsite,
-  openWhatsApp,
-} from '@/lib/linking';
+import { openFacebook, openInstagram, openWhatsApp } from '@/lib/linking';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessCardStore } from '@/state/businessCardStore';
+import { useBusinessProfileStore } from '@/state/businessProfileStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DigitalCard'>;
 
 export function DigitalCardScreen({ navigation }: Props) {
   const { status, card, error, load } = useBusinessCardStore();
+  // Also preloaded here (not just from the Business screen) so the merged
+  // "Business profile" form — reachable from this screen without ever
+  // visiting Business — has the invoice prefix/numbering ready as soon as it
+  // mounts, instead of loading them itself (see `EditBusinessScreen`'s doc
+  // comment for why it doesn't self-load).
+  const { load: loadProfile } = useBusinessProfileStore();
 
   useEffect(() => {
     load();
-  }, [load]);
+    loadProfile();
+  }, [load, loadProfile]);
 
   if (status === 'loading' || status === 'idle') {
     return (
@@ -48,7 +48,6 @@ export function DigitalCardScreen({ navigation }: Props) {
   const whatsapp = socialLinkValue(card, 'whatsapp');
   const facebook = socialLinkValue(card, 'facebook');
   const instagram = socialLinkValue(card, 'instagram');
-  const googleMapsUrl = socialLinkValue(card, 'googleMaps');
 
   return (
     <ScrollView
@@ -72,12 +71,6 @@ export function DigitalCardScreen({ navigation }: Props) {
           testID="action-edit"
         />
         <ActionButton
-          label="QR code"
-          onPress={() => navigation.navigate('QRCode')}
-          disabled={!card}
-          testID="action-qr"
-        />
-        <ActionButton
           label="Share"
           onPress={() => navigation.navigate('ShareCard')}
           disabled={!card}
@@ -90,21 +83,8 @@ export function DigitalCardScreen({ navigation }: Props) {
         />
       </View>
 
-      {!!card && (
+      {!!card && (whatsapp || facebook || instagram) && (
         <View style={styles.row}>
-          {!!card.phone && (
-            <ActionButton label="Call" onPress={() => openPhone(card.phone!)} testID="action-call" />
-          )}
-          {!!card.email && (
-            <ActionButton label="Email" onPress={() => openEmail(card.email!)} testID="action-email" />
-          )}
-          {!!card.website && (
-            <ActionButton
-              label="Website"
-              onPress={() => openWebsite(card.website!)}
-              testID="action-website"
-            />
-          )}
           {!!whatsapp && (
             <ActionButton
               label="WhatsApp"
@@ -124,13 +104,6 @@ export function DigitalCardScreen({ navigation }: Props) {
               label="Instagram"
               onPress={() => openInstagram(instagram)}
               testID="action-instagram"
-            />
-          )}
-          {(!!card.address || !!googleMapsUrl) && (
-            <ActionButton
-              label="Directions"
-              onPress={() => openGoogleMaps({ address: card.address, mapsUrl: googleMapsUrl })}
-              testID="action-maps"
             />
           )}
         </View>

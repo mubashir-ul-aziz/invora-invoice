@@ -3,8 +3,16 @@ import React from 'react';
 
 import { createBusinessProfileStore } from '@/state/businessProfileStore';
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
+import { createBusinessCardStore } from '@/state/businessCardStore';
+import { InMemoryBusinessCardRepository } from '@/data/businessCard/InMemoryBusinessCardRepository';
+import type { ShareLinkService } from '@/data/shareLink/ShareLinkService';
 
-let mockStore: ReturnType<typeof createBusinessProfileStore>;
+const fakeShareLinkService: ShareLinkService = {
+  getShareLink: (card) => `invora://card/${card.shareSlug}`,
+};
+
+let mockProfileStore: ReturnType<typeof createBusinessProfileStore>;
+let mockCardStore: ReturnType<typeof createBusinessCardStore>;
 
 jest.mock('@/state/businessProfileStore', () => {
   const actual = jest.requireActual('@/state/businessProfileStore');
@@ -12,7 +20,17 @@ jest.mock('@/state/businessProfileStore', () => {
     ...actual,
     useBusinessProfileStore: (...args: unknown[]) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mockStore as any)(...args),
+      (mockProfileStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/businessCardStore', () => {
+  const actual = jest.requireActual('@/state/businessCardStore');
+  return {
+    ...actual,
+    useBusinessCardStore: (...args: unknown[]) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockCardStore as any)(...args),
   };
 });
 
@@ -30,24 +48,35 @@ function renderScreen() {
 }
 
 describe('EditBusinessScreen — save', () => {
-  it('saves a complete, valid profile and navigates back', async () => {
-    mockStore = createBusinessProfileStore(new InMemoryBusinessRepository());
+  it('saves the business profile and the business card in one action, and navigates back', async () => {
+    mockProfileStore = createBusinessProfileStore(new InMemoryBusinessRepository());
+    mockCardStore = createBusinessCardStore(new InMemoryBusinessCardRepository(), fakeShareLinkService);
     const view = await renderScreen();
     await waitFor(() => expect(view.getByTestId('field-businessName')).toBeTruthy());
 
     fireEvent.changeText(view.getByTestId('field-businessName'), 'Acme Co');
-    fireEvent.changeText(view.getByTestId('field-taxId'), 'VAT123');
+    fireEvent.changeText(view.getByTestId('field-ownerName'), 'Jane Doe');
+    fireEvent.changeText(view.getByTestId('field-phone'), '+1 555 123 4567');
+    fireEvent.changeText(view.getByTestId('field-email'), 'jane@acme.com');
+    fireEvent.changeText(view.getByTestId('field-website'), 'acme.com');
     fireEvent.changeText(view.getByTestId('field-invoicePrefix'), 'ACM-');
-    fireEvent.changeText(view.getByTestId('field-nextInvoiceNumber'), '5');
+    fireEvent.changeText(view.getByTestId('field-whatsapp'), '+15551234567');
 
     fireEvent.press(view.getByTestId('save-business'));
 
     await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
 
-    const saved = mockStore.getState().profile;
-    expect(saved?.businessName).toBe('Acme Co');
-    expect(saved?.taxId).toBe('VAT123');
-    expect(saved?.invoicePrefix).toBe('ACM-');
-    expect(saved?.nextInvoiceNumber).toBe(5);
+    const savedProfile = mockProfileStore.getState().profile;
+    expect(savedProfile?.businessName).toBe('Acme Co');
+    expect(savedProfile?.website).toBe('https://acme.com');
+    expect(savedProfile?.invoicePrefix).toBe('ACM-');
+    // "Next invoice number" is read-only — saving never changes it from
+    // the empty-state default (1), since there's no input to type into.
+    expect(savedProfile?.nextInvoiceNumber).toBe(1);
+
+    const savedCard = mockCardStore.getState().card;
+    expect(savedCard?.businessName).toBe('Acme Co');
+    expect(savedCard?.ownerName).toBe('Jane Doe');
+    expect(savedCard?.socialLinks).toEqual([{ platform: 'whatsapp', value: '+15551234567' }]);
   });
 });

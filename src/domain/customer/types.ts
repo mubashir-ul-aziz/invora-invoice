@@ -15,6 +15,8 @@ export interface Customer {
   name: string;
   phone: string | null;
   email: string | null;
+  /** Normalized (`https://…`) via `domain/businessCard/validation.ts`'s `normalizeUrl`; used by the Call/Email/Website/Directions actions on Customer/Invoice Detail. */
+  website: string | null;
   address: string | null;
   notes: string | null;
   createdAt: string;
@@ -28,6 +30,7 @@ export const EMPTY_CUSTOMER_INPUT: CustomerInput = {
   name: '',
   phone: null,
   email: null,
+  website: null,
   address: null,
   notes: null,
 };

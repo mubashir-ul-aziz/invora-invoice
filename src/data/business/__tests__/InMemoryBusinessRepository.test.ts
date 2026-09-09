@@ -26,10 +26,13 @@ describe('InMemoryBusinessRepository', () => {
     expect(saved.businessName).toBe('Acme Co');
     expect(saved.invoicePrefix).toBe('ACM-');
     expect(saved.nextInvoiceNumber).toBe(42);
+    // A unique 6-digit business id is generated automatically — never typed
+    // by the caller (there's no such field on `BusinessProfileInput`).
+    expect(saved.businessCode).toMatch(/^\d{6}$/);
     await expect(repo.getProfile()).resolves.toEqual(saved);
   });
 
-  it('keeps the same id across repeated profile saves (update, not create)', async () => {
+  it('keeps the same id and business code across repeated profile saves (update, not create)', async () => {
     const repo = new InMemoryBusinessRepository();
     const first = await repo.saveProfile({ ...EMPTY_BUSINESS_PROFILE_INPUT, businessName: 'Acme' });
     const second = await repo.saveProfile({
@@ -38,6 +41,8 @@ describe('InMemoryBusinessRepository', () => {
     });
     expect(second.id).toBe(first.id);
     expect(second.businessName).toBe('Acme Ltd');
+    // The business code is assigned once and never regenerated on later saves.
+    expect(second.businessCode).toBe(first.businessCode);
   });
 
   it('saving a profile does not clobber previously saved invoice settings', async () => {
@@ -104,22 +109,28 @@ describe('InMemoryBusinessRepository', () => {
 
   it('reserveNextInvoiceNumber formats and atomically increments the counter', async () => {
     const repo = new InMemoryBusinessRepository();
-    await repo.saveProfile({ ...EMPTY_BUSINESS_PROFILE_INPUT, invoicePrefix: 'ACM-', nextInvoiceNumber: 5 });
+    const saved = await repo.saveProfile({
+      ...EMPTY_BUSINESS_PROFILE_INPUT,
+      invoicePrefix: 'ACM-',
+      nextInvoiceNumber: 5,
+    });
 
     const first = await repo.reserveNextInvoiceNumber();
-    expect(first).toBe('ACM-5');
+    expect(first).toBe(`ACM-${saved.businessCode}-5`);
 
     const second = await repo.reserveNextInvoiceNumber();
-    expect(second).toBe('ACM-6');
+    expect(second).toBe(`ACM-${saved.businessCode}-6`);
 
     const profile = await repo.getProfile();
     expect(profile?.nextInvoiceNumber).toBe(7);
+    // The business code is fixed at creation and never changes across saves.
+    expect(profile?.businessCode).toBe(saved.businessCode);
   });
 
-  it('reserveNextInvoiceNumber works even before a business profile was ever saved', async () => {
+  it('reserveNextInvoiceNumber works even before a business profile was ever saved, assigning a fresh business code', async () => {
     const repo = new InMemoryBusinessRepository();
     const first = await repo.reserveNextInvoiceNumber();
-    expect(first).toBe('INV-1');
+    expect(first).toMatch(/^INV-\d{6}-1$/);
   });
 
   it('reserveNextInvoiceNumber never clobbers other business fields', async () => {

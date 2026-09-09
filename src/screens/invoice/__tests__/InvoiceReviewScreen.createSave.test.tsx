@@ -40,6 +40,7 @@ const CUSTOMER: Customer = {
   name: 'Acme Co',
   phone: null,
   email: null,
+  website: null,
   address: null,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -71,7 +72,9 @@ describe('InvoiceReviewScreen save (create)', () => {
 
     const created = await invoiceRepo.list();
     expect(created).toHaveLength(1);
-    expect(created[0].invoiceNumber).toBe('INV-1');
+    // The business code is generated, not hardcoded — assert the shape
+    // (prefix + 6-digit business id + sequence) rather than a literal value.
+    expect(created[0].invoiceNumber).toMatch(/^INV-\d{6}-1$/);
     expect(created[0].items[0].lineTotal).toBe(50);
   });
 });

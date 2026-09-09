@@ -4,7 +4,7 @@ import type { Item } from '@/domain/item/types';
 import { blankInvoiceLine, invoiceLineFromItem, reconcileInvoiceLineWithFieldConfig } from '../snapshot';
 
 const GENERAL_CONFIG = resolveInvoiceFieldConfig({ invoiceTypeId: 'general', customFieldKeys: [] });
-const DIMENSION_CONFIG = resolveInvoiceFieldConfig({ invoiceTypeId: 'dimension', customFieldKeys: [] });
+const VOLUME_CONFIG = resolveInvoiceFieldConfig({ invoiceTypeId: 'volume', customFieldKeys: [] });
 
 const ITEM: Item = {
   id: 'item_1',
@@ -39,12 +39,12 @@ describe('invoiceLineFromItem', () => {
     expect(generalLine.weight).toBeNull();
     expect(generalLine.length).toBeNull();
 
-    const dimensionLine = invoiceLineFromItem(ITEM, DIMENSION_CONFIG);
-    expect(dimensionLine.length).toBe(100);
-    expect(dimensionLine.width).toBe(10);
-    expect(dimensionLine.height).toBe(10);
-    // Dimension's field list has no "unit" field.
-    expect(dimensionLine.unit).toBeNull();
+    const volumeLine = invoiceLineFromItem(ITEM, VOLUME_CONFIG);
+    expect(volumeLine.length).toBe(100);
+    expect(volumeLine.width).toBe(10);
+    expect(volumeLine.height).toBe(10);
+    // Volume's field list has no "unit" field.
+    expect(volumeLine.unit).toBeNull();
   });
 
   it('mutating the item afterwards never changes an already-built line', () => {
@@ -77,15 +77,15 @@ describe('blankInvoiceLine', () => {
 });
 
 describe('reconcileInvoiceLineWithFieldConfig', () => {
-  it('nulls out fields that are no longer part of the invoice type', () => {
-    const dimensionLine = invoiceLineFromItem(ITEM, DIMENSION_CONFIG);
-    expect(dimensionLine.length).toBe(100);
+  it('nulls out fields that are no longer part of the pricing method', () => {
+    const volumeLine = invoiceLineFromItem(ITEM, VOLUME_CONFIG);
+    expect(volumeLine.length).toBe(100);
 
-    const reconciled = reconcileInvoiceLineWithFieldConfig(dimensionLine, GENERAL_CONFIG);
+    const reconciled = reconcileInvoiceLineWithFieldConfig(volumeLine, GENERAL_CONFIG);
     expect(reconciled.length).toBeNull();
     expect(reconciled.width).toBeNull();
     expect(reconciled.height).toBeNull();
-    // General has "unit", which the dimension line never populated — reconciling doesn't invent a value.
+    // General has "unit", which the volume line never populated — reconciling doesn't invent a value.
     expect(reconciled.unit).toBeNull();
     // Fields both configs share are left untouched.
     expect(reconciled.itemName).toBe('Steel Pipe');
