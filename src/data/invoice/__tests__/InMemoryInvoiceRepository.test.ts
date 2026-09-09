@@ -136,4 +136,52 @@ describe('InMemoryInvoiceRepository', () => {
     await repo.create('INV-2', makeInput());
     expect(seed).toHaveLength(1);
   });
+
+  // §21-23 of the brief: the backend is the final authority on pricing-method
+  // integrity — it must reject an invoice whose lines don't match its own
+  // pricing method, even if a request somehow bypassed the UI's own guards.
+  describe('pricing-method integrity', () => {
+    it('rejects a create() whose line pricing method does not match the invoice', async () => {
+      const repo = new InMemoryInvoiceRepository();
+      await expect(
+        repo.create(
+          'INV-1',
+          makeInput({
+            invoiceTypeId: 'weight',
+            items: [
+              { ...EMPTY_INVOICE_ITEM_INPUT, itemName: 'Rice', weight: 25, unitPrice: 3, pricingMethodId: 'area' },
+            ],
+          }),
+        ),
+      ).rejects.toThrow(/pricing method/i);
+    });
+
+    it('accepts a line with no pricingMethodId set at all (inherits the invoice method)', async () => {
+      const repo = new InMemoryInvoiceRepository();
+      const created = await repo.create(
+        'INV-1',
+        makeInput({
+          invoiceTypeId: 'weight',
+          items: [{ ...EMPTY_INVOICE_ITEM_INPUT, itemName: 'Rice', weight: 25, unitPrice: 3 }],
+        }),
+      );
+      expect(created.items[0].subtotal).toBe(75); // 25kg × £3/kg, not quantity × price
+    });
+
+    it('rejects an update() whose line pricing method does not match the invoice\'s own (fixed) method', async () => {
+      const repo = new InMemoryInvoiceRepository();
+      const created = await repo.create('INV-1', makeInput({ invoiceTypeId: 'general' }));
+      await expect(
+        repo.update(created.id, {
+          issueDate: created.issueDate,
+          dueDate: created.dueDate,
+          notes: null,
+          terms: null,
+          items: [
+            { ...EMPTY_INVOICE_ITEM_INPUT, itemName: 'Mismatched', unitPrice: 10, pricingMethodId: 'weight' },
+          ],
+        }),
+      ).rejects.toThrow(/pricing method/i);
+    });
+  });
 });

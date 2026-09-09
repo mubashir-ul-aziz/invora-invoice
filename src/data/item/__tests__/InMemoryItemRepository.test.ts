@@ -74,11 +74,11 @@ describe('InMemoryItemRepository', () => {
   it('filters the list by search text and invoice type', async () => {
     const repo = new InMemoryItemRepository();
     await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Steel Pipe', sku: 'STL-1', invoiceTypeId: 'weight' });
-    await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Wood Plank', sku: 'WD-1', invoiceTypeId: 'dimension' });
+    await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Wood Plank', sku: 'WD-1', invoiceTypeId: 'volume' });
 
     await expect(repo.list({ searchText: 'steel', invoiceTypeId: 'all' })).resolves.toHaveLength(1);
-    await expect(repo.list({ searchText: '', invoiceTypeId: 'dimension' })).resolves.toHaveLength(1);
-    await expect(repo.list({ searchText: 'steel', invoiceTypeId: 'dimension' })).resolves.toHaveLength(0);
+    await expect(repo.list({ searchText: '', invoiceTypeId: 'volume' })).resolves.toHaveLength(1);
+    await expect(repo.list({ searchText: 'steel', invoiceTypeId: 'volume' })).resolves.toHaveLength(0);
   });
 
   it('starts from a seed array without sharing state with the caller', async () => {

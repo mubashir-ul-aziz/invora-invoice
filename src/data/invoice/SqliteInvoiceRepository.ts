@@ -2,6 +2,7 @@ import { asc, eq, inArray } from 'drizzle-orm';
 
 import { calculateLineTotal } from '@/domain/invoice/calculations';
 import { invoiceMatchesFilter, sortInvoices } from '@/domain/invoice/filtering';
+import { assertLinesMatchPricingMethod } from '@/domain/invoice/integrity';
 import {
   EMPTY_INVOICE_FILTER,
   type Invoice,
@@ -11,7 +12,7 @@ import {
   type InvoiceItemSnapshot,
   type InvoiceUpdateInput,
 } from '@/domain/invoice/types';
-import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+import { normalizeLegacyInvoiceTypeId, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { generateLocalId } from '@/lib/id';
 
 import { getDatabase, getDrizzle } from '../db/client';
@@ -25,15 +26,19 @@ function toLineSnapshot(row: typeof invoiceItem.$inferSelect): InvoiceItemSnapsh
   return {
     id: row.id,
     itemId: row.itemId,
+    pricingMethodId: row.pricingMethod ? normalizeLegacyInvoiceTypeId(row.pricingMethod) : undefined,
     itemName: row.itemName,
     description: row.description,
     sku: row.sku,
     quantity: row.quantity,
     unit: row.unit,
     weight: row.weight,
+    weightUnit: row.weightUnit,
     length: row.length,
     width: row.width,
     height: row.height,
+    lengthUnit: row.lengthUnit,
+    timeUnit: row.timeUnit,
     unitPrice: row.unitPrice,
     discountPercent: row.discountPercent,
     taxPercent: row.taxPercent,
@@ -50,7 +55,7 @@ function toInvoice(row: typeof invoice.$inferSelect, lines: InvoiceItemSnapshot[
     invoiceNumber: row.invoiceNumber,
     customerId: row.customerId,
     customerName: row.customerName,
-    invoiceTypeId: row.invoiceType as InvoiceTypeId,
+    invoiceTypeId: normalizeLegacyInvoiceTypeId(row.invoiceType),
     issueDate: row.issueDate,
     dueDate: row.dueDate,
     notes: row.notes,
@@ -149,7 +154,7 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
         })
         .run();
 
-      insertLineRows(tx, id, input.items);
+      insertLineRows(tx, id, input.items, input.invoiceTypeId);
     });
 
     const created = await this.getById(id);
@@ -173,6 +178,18 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
 
     const now = Date.now();
 
+    // The pricing method is fixed at creation (see `Invoice.invoiceTypeId`'s
+    // doc comment) and absent from `InvoiceUpdateInput` — read it back from
+    // the invoice's own row rather than trust a caller to supply it, so
+    // every line reinserted below is guarded against the *actual* stored
+    // method, not a possibly-stale one threaded through the UI.
+    const existingRows = await db.select({ invoiceType: invoice.invoiceType }).from(invoice).where(eq(invoice.id, id));
+    const existing = existingRows[0];
+    if (!existing) {
+      throw new Error(`Invoice not found: ${id}`);
+    }
+    const invoiceTypeId = normalizeLegacyInvoiceTypeId(existing.invoiceType);
+
     db.transaction((tx) => {
       tx.update(invoice)
         .set({
@@ -188,7 +205,7 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
       // Replace the line-item set wholesale — simpler and less error-prone
       // than diffing for the line counts a small business invoice realistically has.
       tx.delete(invoiceItem).where(eq(invoiceItem.invoiceId, id)).run();
-      insertLineRows(tx, id, input.items);
+      insertLineRows(tx, id, input.items, invoiceTypeId);
     });
 
     const updated = await this.getById(id);
@@ -212,23 +229,35 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
  * (`tx`), not the top-level `db`, and stays a plain sync function using
  * `.run()` throughout (see the `create()` doc comment on why that matters).
  */
-function insertLineRows(tx: Tx, invoiceId: string, lines: InvoiceItemInput[]): void {
+function insertLineRows(tx: Tx, invoiceId: string, lines: InvoiceItemInput[], invoiceTypeId: InvoiceTypeId): void {
   if (lines.length === 0) {
     return;
   }
+  // Backend-authority guard (§21-23 of the brief): reject the whole write
+  // rather than silently accept a line whose method doesn't match this
+  // invoice's — see `assertLinesMatchPricingMethod`'s doc comment.
+  assertLinesMatchPricingMethod(invoiceTypeId, lines);
   tx.insert(invoiceItem)
     .values(
       lines.map((line, index) => {
-        const calc = calculateLineTotal({
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-          discountPercent: line.discountPercent,
-          taxPercent: line.taxPercent,
-        });
+        const calc = calculateLineTotal(
+          {
+            quantity: line.quantity,
+            weight: line.weight,
+            length: line.length,
+            width: line.width,
+            height: line.height,
+            unitPrice: line.unitPrice,
+            discountPercent: line.discountPercent,
+            taxPercent: line.taxPercent,
+          },
+          invoiceTypeId,
+        );
         return {
           id: generateLocalId('line_'),
           invoiceId,
           itemId: line.itemId,
+          pricingMethod: invoiceTypeId,
           sortOrder: index,
           itemName: line.itemName,
           description: line.description,
@@ -236,9 +265,12 @@ function insertLineRows(tx: Tx, invoiceId: string, lines: InvoiceItemInput[]): v
           quantity: line.quantity,
           unit: line.unit,
           weight: line.weight,
+          weightUnit: line.weightUnit,
           length: line.length,
           width: line.width,
           height: line.height,
+          lengthUnit: line.lengthUnit,
+          timeUnit: line.timeUnit,
           unitPrice: line.unitPrice,
           discountPercent: line.discountPercent,
           taxPercent: line.taxPercent,

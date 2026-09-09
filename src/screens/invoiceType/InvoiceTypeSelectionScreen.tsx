@@ -35,7 +35,7 @@ export function InvoiceTypeSelectionScreen({ navigation }: Props) {
   if (status === 'error') {
     return (
       <View style={styles.centered} testID="invoice-type-selection-error">
-        <Text style={styles.errorText}>Couldn't load your invoice type.</Text>
+        <Text style={styles.errorText}>Couldn't load your pricing method.</Text>
         <Text style={styles.errorDetail}>{error}</Text>
         <ActionButton label="Try again" onPress={load} />
       </View>
@@ -49,7 +49,7 @@ export function InvoiceTypeSelectionScreen({ navigation }: Props) {
       await save({ invoiceTypeId: id, customFieldKeys: [] });
       navigation.goBack();
     } catch {
-      Alert.alert("Couldn't save", 'Your invoice type could not be saved. Please try again.');
+      Alert.alert("Couldn't save", 'Your pricing method could not be saved. Please try again.');
     }
   };
 
@@ -60,8 +60,8 @@ export function InvoiceTypeSelectionScreen({ navigation }: Props) {
       testID="invoice-type-selection-screen"
     >
       <Text style={styles.hint}>
-        Choose which fields appear on every invoice line item. This applies to every new invoice
-        you create.
+        Choose the default Pricing Method for a new invoice. Every line item on an invoice always
+        follows that invoice's own Pricing Method — chosen once per invoice, in Create Invoice.
       </Text>
 
       {INVOICE_TYPE_REGISTRY.map((def) => (

@@ -1,6 +1,6 @@
 import { and, eq, like, or } from 'drizzle-orm';
 
-import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+import { normalizeLegacyInvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { EMPTY_ITEM_FILTER, type Item, type ItemFilter, type ItemInput } from '@/domain/item/types';
 import { generateLocalId } from '@/lib/id';
 
@@ -18,10 +18,12 @@ function toItem(row: typeof item.$inferSelect): Item {
     defaultPrice: row.defaultPrice,
     taxRate: row.taxRate,
     weight: row.weight,
+    weightUnit: row.weightUnit,
     length: row.length,
     width: row.width,
     height: row.height,
-    invoiceTypeId: row.invoiceType as InvoiceTypeId,
+    lengthUnit: row.lengthUnit,
+    invoiceTypeId: normalizeLegacyInvoiceTypeId(row.invoiceType),
     createdAt: new Date(row.createdAt).toISOString(),
     updatedAt: new Date(row.updatedAt).toISOString(),
   };
@@ -83,9 +85,11 @@ export class SqliteItemRepository implements ItemRepository {
       defaultPrice: input.defaultPrice,
       taxRate: input.taxRate,
       weight: input.weight,
+      weightUnit: input.weightUnit,
       length: input.length,
       width: input.width,
       height: input.height,
+      lengthUnit: input.lengthUnit,
       invoiceType: input.invoiceTypeId,
       createdAt: now,
       updatedAt: now,
@@ -114,9 +118,11 @@ export class SqliteItemRepository implements ItemRepository {
         defaultPrice: input.defaultPrice,
         taxRate: input.taxRate,
         weight: input.weight,
+        weightUnit: input.weightUnit,
         length: input.length,
         width: input.width,
         height: input.height,
+        lengthUnit: input.lengthUnit,
         invoiceType: input.invoiceTypeId,
         updatedAt: now,
       })

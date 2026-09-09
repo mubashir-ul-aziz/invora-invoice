@@ -16,6 +16,7 @@ import {
   type InvoiceDetailsFormOutput,
   type InvoiceDetailsFormValues,
 } from '@/domain/invoice/validation';
+import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
@@ -57,10 +58,15 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   const totals = calculateInvoiceTotals(
     draft.items.map((line) => ({
       quantity: line.quantity,
+      weight: line.weight,
+      length: line.length,
+      width: line.width,
+      height: line.height,
       unitPrice: line.unitPrice,
       discountPercent: line.discountPercent,
       taxPercent: line.taxPercent,
     })),
+    draft.invoiceTypeId,
   );
 
   const invoiceNumberLabel =
@@ -102,7 +108,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
           <SummaryRow label="Invoice number" value={invoiceNumberLabel} testID="review-invoice-number" />
         )}
         <SummaryRow label="Customer" value={draft.customer?.name ?? '—'} />
-        <SummaryRow label="Invoice type" value={getInvoiceTypeDefinition(draft.invoiceTypeId).label} />
+        <SummaryRow label="Pricing Method" value={getInvoiceTypeDefinition(draft.invoiceTypeId).label} />
       </View>
 
       <InvoiceDetailsFormFields control={control} errors={errors} />
@@ -117,18 +123,26 @@ export function InvoiceReviewScreen({ navigation }: Props) {
           />
         </View>
         {draft.items.map((line, index) => {
-          const calc = calculateLineTotal({
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            discountPercent: line.discountPercent,
-            taxPercent: line.taxPercent,
-          });
+          const calc = calculateLineTotal(
+            {
+              quantity: line.quantity,
+              weight: line.weight,
+              length: line.length,
+              width: line.width,
+              height: line.height,
+              unitPrice: line.unitPrice,
+              discountPercent: line.discountPercent,
+              taxPercent: line.taxPercent,
+            },
+            draft.invoiceTypeId,
+          );
           return (
             <InvoiceLineRow
               key={index}
               itemName={line.itemName}
               quantity={line.quantity}
               unit={line.unit}
+              measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
               unitPrice={line.unitPrice}
               lineTotal={calc.lineTotal}
               testID={`review-line-${index}`}

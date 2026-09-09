@@ -11,8 +11,20 @@ export interface PdfItemColumn {
   render: (item: InvoiceItemSnapshot, currency: string) => string;
 }
 
+/** Appends a unit suffix to a formatted measurement, e.g. `withUnit('25', 'kg') === '25 kg'` — `''` when there's nothing to show yet. */
+function withUnit(value: number | null, unit: string | null | undefined): string {
+  if (value == null) return '';
+  return unit ? `${value} ${unit}` : value.toString();
+}
+
+/**
+ * PDF columns for every catalog field *except* the three bare unit-selector
+ * fields (`weightUnit`/`lengthUnit`/`timeUnit`) — a unit is rendered as a
+ * suffix on its own measurement's cell (`withUnit`, e.g. "25 kg") rather
+ * than as a redundant column of its own.
+ */
 const OPTIONAL_COLUMNS: Record<
-  Exclude<FieldKey, 'itemName' | 'description' | 'unitPrice'>,
+  Exclude<FieldKey, 'itemName' | 'description' | 'unitPrice' | 'weightUnit' | 'lengthUnit' | 'timeUnit'>,
   PdfItemColumn
 > = {
   sku: { key: 'sku', label: 'SKU', align: 'left', render: (item) => item.sku ?? '' },
@@ -20,32 +32,32 @@ const OPTIONAL_COLUMNS: Record<
     key: 'quantity',
     label: 'Qty',
     align: 'right',
-    render: (item) => (item.quantity ?? 1).toString(),
+    render: (item) => `${(item.quantity ?? 1).toString()}${item.timeUnit ? ` ${item.timeUnit}` : ''}`,
   },
   unit: { key: 'unit', label: 'Unit', align: 'left', render: (item) => item.unit ?? '' },
   weight: {
     key: 'weight',
     label: 'Weight',
     align: 'right',
-    render: (item) => (item.weight != null ? item.weight.toString() : ''),
+    render: (item) => withUnit(item.weight, item.weightUnit),
   },
   length: {
     key: 'length',
     label: 'Length',
     align: 'right',
-    render: (item) => (item.length != null ? item.length.toString() : ''),
+    render: (item) => withUnit(item.length, item.lengthUnit),
   },
   width: {
     key: 'width',
     label: 'Width',
     align: 'right',
-    render: (item) => (item.width != null ? item.width.toString() : ''),
+    render: (item) => withUnit(item.width, item.lengthUnit),
   },
   height: {
     key: 'height',
     label: 'Height',
     align: 'right',
-    render: (item) => (item.height != null ? item.height.toString() : ''),
+    render: (item) => withUnit(item.height, item.lengthUnit),
   },
   discount: {
     key: 'discount',

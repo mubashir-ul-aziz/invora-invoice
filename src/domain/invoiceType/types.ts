@@ -1,6 +1,7 @@
 import {
   ALL_FIELD_KEYS,
   ALWAYS_INCLUDED_FIELD_KEYS,
+  CUSTOM_BUILDER_FIELD_KEYS,
   getFieldDefinition,
   type FieldDefinition,
   type FieldKey,
@@ -10,7 +11,7 @@ import { getInvoiceTypeDefinition, type InvoiceTypeId } from './invoiceTypeRegis
 export type { FieldKey, FieldDefinition, InvoiceTypeId };
 
 /**
- * The default field set a brand-new "Custom" invoice type starts from —
+ * The default field set a brand-new "Custom" pricing method starts from —
  * item, quantity, unit price and tax, the smallest set that still reads as
  * a real invoice line. The business owner can add/remove anything else from
  * the catalog from there.
@@ -18,14 +19,14 @@ export type { FieldKey, FieldDefinition, InvoiceTypeId };
 export const DEFAULT_CUSTOM_FIELD_KEYS: FieldKey[] = ['itemName', 'quantity', 'unitPrice', 'tax'];
 
 /**
- * What's actually persisted: which invoice type is selected, plus — only
- * meaningful when that type is "custom" — which fields were chosen for it.
+ * What's actually persisted: which pricing method is selected, plus — only
+ * meaningful when that method is "custom" — which fields were chosen for it.
  * This is the "proper domain model" the brief asks for: screens never read
  * or write raw strings/columns, only this shape.
  */
 export interface InvoiceTypeSelection {
   invoiceTypeId: InvoiceTypeId;
-  /** Field keys chosen for the "custom" type, in display order. Ignored (and persisted empty) for fixed types. */
+  /** Field keys chosen for the "custom" method, in display order. Ignored (and persisted empty) for fixed methods. */
   customFieldKeys: FieldKey[];
   updatedAt: string;
 }
@@ -39,10 +40,9 @@ export const EMPTY_INVOICE_TYPE_SELECTION_INPUT: InvoiceTypeSelectionInput = {
 
 /**
  * The resolved, ready-to-render field list for a selection. This is what
- * invoice-building screens/PDF rendering (later phases) are meant to
- * consume — they call `resolveInvoiceFieldConfig` and map over `fields`,
- * instead of switching on `invoiceTypeId` and hard-coding a field list
- * per case.
+ * invoice-building screens/PDF rendering consume — they call
+ * `resolveInvoiceFieldConfig` and map over `fields`, instead of switching on
+ * `invoiceTypeId` and hard-coding a field list per case.
  */
 export interface InvoiceFieldConfig {
   invoiceTypeId: InvoiceTypeId;
@@ -54,13 +54,15 @@ export interface InvoiceFieldConfig {
  * present, and puts everything back in canonical catalog order — the one
  * place custom field lists get normalized, so a malformed/older persisted
  * value can never produce a broken or duplicated field list on screen.
+ * Restricted to `CUSTOM_BUILDER_FIELD_KEYS` (excludes the bare unit-selector
+ * fields, which only make sense paired with the fixed measurement methods).
  */
 export function normalizeCustomFieldKeys(keys: FieldKey[]): FieldKey[] {
   const requested = new Set<FieldKey>(keys);
   for (const key of ALWAYS_INCLUDED_FIELD_KEYS) {
     requested.add(key);
   }
-  return ALL_FIELD_KEYS.filter((key) => requested.has(key));
+  return ALL_FIELD_KEYS.filter((key) => CUSTOM_BUILDER_FIELD_KEYS.includes(key) && requested.has(key));
 }
 
 /** Resolves a persisted selection into the concrete list of fields to render. */
@@ -73,4 +75,15 @@ export function resolveInvoiceFieldConfig(
     invoiceTypeId: selection.invoiceTypeId,
     fields: keys.map(getFieldDefinition),
   };
+}
+
+/**
+ * A field's label, with the owning pricing method's own wording (e.g. TIME's
+ * `quantity` field reading "Duration") applied on top of the generic
+ * catalog label — the one place that override is resolved, instead of every
+ * screen re-checking `fieldLabelOverrides` itself.
+ */
+export function getFieldLabel(invoiceTypeId: InvoiceTypeId, key: FieldKey): string {
+  const definition = getInvoiceTypeDefinition(invoiceTypeId);
+  return definition.fieldLabelOverrides?.[key] ?? getFieldDefinition(key).label;
 }

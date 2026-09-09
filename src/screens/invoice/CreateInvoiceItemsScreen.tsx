@@ -7,8 +7,13 @@ import { OptionPicker } from '@/components/business/OptionPicker';
 import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
 import { calculateInvoiceTotals, calculateLineTotal } from '@/domain/invoice/calculations';
-import { invoiceLineFromItem, reconcileInvoiceLineWithFieldConfig } from '@/domain/invoice/snapshot';
-import { INVOICE_TYPE_REGISTRY, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+import {
+  canSafelyConvertPricingMethod,
+  invoiceLineFromItem,
+  reconcileInvoiceLineWithFieldConfig,
+} from '@/domain/invoice/snapshot';
+import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
+import { INVOICE_TYPE_REGISTRY, getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { resolveInvoiceFieldConfig } from '@/domain/invoiceType/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
@@ -17,11 +22,11 @@ import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateInvoiceItems'>;
 
-const INVOICE_TYPE_OPTIONS = INVOICE_TYPE_REGISTRY.map((def) => ({ value: def.id, label: def.label }));
+const PRICING_METHOD_OPTIONS = INVOICE_TYPE_REGISTRY.map((def) => ({ value: def.id, label: def.label }));
 
 /**
  * "Create Invoice – Items". Fields on each line dynamically follow the
- * invoice's selected type (`resolveInvoiceFieldConfig`, Phase 3) — this
+ * invoice's selected Pricing Method (`resolveInvoiceFieldConfig`) — this
  * screen never hard-codes which fields exist. Also reused, unchanged, as the
  * items-editing step for Edit Invoice and Duplicate Invoice (both seed
  * `invoiceDraftStore` before navigating here).
@@ -43,25 +48,77 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
   const totals = calculateInvoiceTotals(
     draft.items.map((line) => ({
       quantity: line.quantity,
+      weight: line.weight,
+      length: line.length,
+      width: line.width,
+      height: line.height,
       unitPrice: line.unitPrice,
       discountPercent: line.discountPercent,
       taxPercent: line.taxPercent,
     })),
+    draft.invoiceTypeId,
   );
 
-  const handleInvoiceTypeChange = (invoiceTypeId: InvoiceTypeId) => {
+  /**
+   * §19 of the brief: an invoice with zero items can switch Pricing Method
+   * freely; one with items already entered must confirm first, and only a
+   * same-family switch (General ↔ Quantity ↔ Service — see
+   * `canSafelyConvertPricingMethod`) reuses the entered values afterwards.
+   * Anything else has no safe conversion (a length × width has no
+   * equivalent weight), so confirming clears the lines instead of silently
+   * reinterpreting them — never a corrupted calculation.
+   */
+  const applyInvoiceTypeChange = (invoiceTypeId: InvoiceTypeId) => {
     const newConfig = resolveInvoiceFieldConfig({
       invoiceTypeId,
       customFieldKeys: selection?.customFieldKeys ?? [],
     });
-    draft.items.forEach((line, index) => {
-      draft.updateLine(index, reconcileInvoiceLineWithFieldConfig(line, newConfig));
-    });
+    if (canSafelyConvertPricingMethod(draft.invoiceTypeId, invoiceTypeId)) {
+      draft.items.forEach((line, index) => {
+        draft.updateLine(index, reconcileInvoiceLineWithFieldConfig(line, newConfig));
+      });
+    } else {
+      // No safe field-by-field conversion exists between these two methods
+      // (see `canSafelyConvertPricingMethod`) — clear every line rather than
+      // leave stale, now-meaningless measurements around. `removeLine(0)`
+      // repeated for the original count always removes the current head,
+      // regardless of how the store re-renders in between.
+      for (let i = 0; i < draft.items.length; i += 1) {
+        draft.removeLine(0);
+      }
+    }
     draft.setInvoiceType(invoiceTypeId);
+  };
+
+  const handleInvoiceTypeChange = (invoiceTypeId: InvoiceTypeId) => {
+    if (invoiceTypeId === draft.invoiceTypeId) {
+      return;
+    }
+    if (draft.items.length === 0) {
+      applyInvoiceTypeChange(invoiceTypeId);
+      return;
+    }
+    const safe = canSafelyConvertPricingMethod(draft.invoiceTypeId, invoiceTypeId);
+    const newLabel = getInvoiceTypeDefinition(invoiceTypeId).label;
+    Alert.alert(
+      'Change pricing method?',
+      safe
+        ? `Changing the pricing method will affect all existing invoice items. Do you want to continue?`
+        : `Changing to "${newLabel}" pricing isn't compatible with the items already on this invoice — they'll be removed so the invoice can't end up with mismatched calculations. Do you want to continue?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: safe ? 'default' : 'destructive',
+          onPress: () => applyInvoiceTypeChange(invoiceTypeId),
+        },
+      ],
+    );
   };
 
   const handleAddFromCatalog = () => {
     navigation.navigate('ItemList', {
+      requiredPricingMethodId: draft.invoiceTypeId,
       onSelectItem: (item) => {
         draft.addLine(invoiceLineFromItem(item, fieldConfig));
       },
@@ -108,13 +165,24 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
         <Text style={styles.customerName}>{draft.customer.name}</Text>
       </View>
 
-      <OptionPicker
-        label="Invoice type"
-        options={INVOICE_TYPE_OPTIONS}
-        value={draft.invoiceTypeId}
-        onChange={handleInvoiceTypeChange}
-        testID="invoice-type-picker"
-      />
+      {draft.mode === 'edit' ? (
+        // The pricing method is fixed once an invoice is saved (`Invoice.invoiceTypeId`'s
+        // doc comment) — `InvoiceUpdateInput` doesn't even accept a new one, so
+        // showing an interactive picker here would let the user "change" a value
+        // that's silently ignored at save time. A read-only summary instead.
+        <View style={styles.customerRow} testID="invoice-type-readonly">
+          <Text style={styles.customerLabel}>Pricing Method</Text>
+          <Text style={styles.customerName}>{getInvoiceTypeDefinition(draft.invoiceTypeId).label}</Text>
+        </View>
+      ) : (
+        <OptionPicker
+          label="Pricing Method"
+          options={PRICING_METHOD_OPTIONS}
+          value={draft.invoiceTypeId}
+          onChange={handleInvoiceTypeChange}
+          testID="invoice-type-picker"
+        />
+      )}
 
       <View style={styles.itemsSection}>
         <Text style={styles.sectionTitle}>Items</Text>
@@ -124,18 +192,26 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
           </Text>
         )}
         {draft.items.map((line, index) => {
-          const calc = calculateLineTotal({
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-            discountPercent: line.discountPercent,
-            taxPercent: line.taxPercent,
-          });
+          const calc = calculateLineTotal(
+            {
+              quantity: line.quantity,
+              weight: line.weight,
+              length: line.length,
+              width: line.width,
+              height: line.height,
+              unitPrice: line.unitPrice,
+              discountPercent: line.discountPercent,
+              taxPercent: line.taxPercent,
+            },
+            draft.invoiceTypeId,
+          );
           return (
             <InvoiceLineRow
               key={index}
               itemName={line.itemName}
               quantity={line.quantity}
               unit={line.unit}
+              measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
               unitPrice={line.unitPrice}
               lineTotal={calc.lineTotal}
               onPress={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}

@@ -1,5 +1,6 @@
 import { calculateLineTotal } from '@/domain/invoice/calculations';
 import { invoiceMatchesFilter, sortInvoices } from '@/domain/invoice/filtering';
+import { assertLinesMatchPricingMethod } from '@/domain/invoice/integrity';
 import {
   EMPTY_INVOICE_FILTER,
   type Invoice,
@@ -9,34 +10,60 @@ import {
   type InvoiceItemSnapshot,
   type InvoiceUpdateInput,
 } from '@/domain/invoice/types';
+import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { generateLocalId } from '@/lib/id';
 
 import type { InvoiceRepository } from './InvoiceRepository';
 
-/** Freezes each line's calculated numbers exactly once — shared by `create` and `update`. */
-function buildLineSnapshots(lines: InvoiceItemInput[]): InvoiceItemSnapshot[] {
-  return lines.map((line) => ({
-    id: generateLocalId('line_'),
-    itemId: line.itemId,
-    itemName: line.itemName,
-    description: line.description,
-    sku: line.sku,
-    quantity: line.quantity,
-    unit: line.unit,
-    weight: line.weight,
-    length: line.length,
-    width: line.width,
-    height: line.height,
-    unitPrice: line.unitPrice,
-    discountPercent: line.discountPercent,
-    taxPercent: line.taxPercent,
-    ...calculateLineTotal({
+/**
+ * Freezes each line's calculated numbers exactly once — shared by `create`
+ * and `update`. `pricingMethodId` comes from the invoice itself (never from
+ * the line) — see the "one invoice, one pricing method" rule — and is
+ * asserted against every line via `assertLinesMatchPricingMethod` before any
+ * math runs, the in-memory repository's equivalent of the SQLite
+ * repository's same guard.
+ */
+function buildLineSnapshots(lines: InvoiceItemInput[], pricingMethodId: InvoiceTypeId): InvoiceItemSnapshot[] {
+  assertLinesMatchPricingMethod(pricingMethodId, lines);
+  return lines.map((line) => {
+    const calc = calculateLineTotal(
+      {
+        quantity: line.quantity,
+        weight: line.weight,
+        length: line.length,
+        width: line.width,
+        height: line.height,
+        unitPrice: line.unitPrice,
+        discountPercent: line.discountPercent,
+        taxPercent: line.taxPercent,
+      },
+      pricingMethodId,
+    );
+    return {
+      id: generateLocalId('line_'),
+      itemId: line.itemId,
+      itemName: line.itemName,
+      description: line.description,
+      sku: line.sku,
       quantity: line.quantity,
+      unit: line.unit,
+      weight: line.weight,
+      weightUnit: line.weightUnit,
+      length: line.length,
+      width: line.width,
+      height: line.height,
+      lengthUnit: line.lengthUnit,
+      timeUnit: line.timeUnit,
       unitPrice: line.unitPrice,
       discountPercent: line.discountPercent,
       taxPercent: line.taxPercent,
-    }),
-  }));
+      pricingMethodId,
+      subtotal: calc.subtotal,
+      discountAmount: calc.discountAmount,
+      taxAmount: calc.taxAmount,
+      lineTotal: calc.lineTotal,
+    };
+  });
 }
 
 /**
@@ -79,7 +106,7 @@ export class InMemoryInvoiceRepository implements InvoiceRepository {
       dueDate: input.dueDate,
       notes: input.notes,
       terms: input.terms,
-      items: buildLineSnapshots(input.items),
+      items: buildLineSnapshots(input.items, input.invoiceTypeId),
       createdAt: now,
       updatedAt: now,
     };
@@ -98,7 +125,7 @@ export class InMemoryInvoiceRepository implements InvoiceRepository {
       dueDate: input.dueDate,
       notes: input.notes,
       terms: input.terms,
-      items: buildLineSnapshots(input.items),
+      items: buildLineSnapshots(input.items, this.invoices[index].invoiceTypeId),
       updatedAt: new Date().toISOString(),
     };
     this.invoices[index] = updated;

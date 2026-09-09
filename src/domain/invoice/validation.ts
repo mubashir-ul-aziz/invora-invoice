@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+
 /**
  * Zod schemas for the two forms in the invoice-creation flow: one invoice
  * line (dynamic fields, but validated with one static schema covering every
@@ -37,23 +39,75 @@ const optionalPercentField = optionalTrimmed()
   })
   .transform((value) => (value === null ? null : Number(value)));
 
-export const invoiceLineFormSchema = z.object({
+const baseInvoiceLineFormSchema = z.object({
   itemName: z.string().trim().min(1, 'Item name is required.').max(160, 'Item name is too long.'),
   description: optionalTrimmed(),
   sku: optionalTrimmed(),
   quantity: optionalDecimalField('quantity'),
   unit: optionalTrimmed(),
   weight: optionalDecimalField('weight'),
+  weightUnit: optionalTrimmed(),
   length: optionalDecimalField('length'),
   width: optionalDecimalField('width'),
   height: optionalDecimalField('height'),
+  lengthUnit: optionalTrimmed(),
+  timeUnit: optionalTrimmed(),
   unitPrice: requiredDecimalField('unit price'),
   discountPercent: optionalPercentField,
   taxPercent: optionalPercentField,
 });
 
-export type InvoiceLineFormValues = z.input<typeof invoiceLineFormSchema>;
-export type InvoiceLineFormOutput = z.output<typeof invoiceLineFormSchema>;
+/** The base schema with no pricing-method-specific requirements layered on — used where the method isn't known/relevant (e.g. some existing tests). */
+export const invoiceLineFormSchema = baseInvoiceLineFormSchema;
+
+/**
+ * Per-Pricing-Method requirements (§20 of the brief), layered onto the base
+ * schema exactly like `domain/item/validation.ts`'s `itemFormSchema` does:
+ * WEIGHT requires weight > 0, AREA requires length/width > 0, VOLUME also
+ * requires height > 0, LENGTH requires length > 0, TIME requires a
+ * duration > 0 (carried in the `quantity` field for that method), and the
+ * plain quantity-priced methods (General/Quantity/Service/Custom) require
+ * quantity > 0 when the field is present at all.
+ */
+export function invoiceLineFormSchemaForPricingMethod(pricingMethodId: InvoiceTypeId) {
+  const { calculationKind } = getInvoiceTypeDefinition(pricingMethodId);
+  return baseInvoiceLineFormSchema.superRefine((values, ctx) => {
+    const positive = (value: number | null, field: keyof typeof values, message: string) => {
+      if (value === null || value <= 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message });
+      }
+    };
+    switch (calculationKind) {
+      case 'weight':
+        positive(values.weight, 'weight', 'Enter a weight greater than 0.');
+        break;
+      case 'length':
+        positive(values.length, 'length', 'Enter a length greater than 0.');
+        break;
+      case 'area':
+        positive(values.length, 'length', 'Enter a length greater than 0.');
+        positive(values.width, 'width', 'Enter a width greater than 0.');
+        break;
+      case 'volume':
+        positive(values.length, 'length', 'Enter a length greater than 0.');
+        positive(values.width, 'width', 'Enter a width greater than 0.');
+        positive(values.height, 'height', 'Enter a height greater than 0.');
+        break;
+      case 'time':
+        positive(values.quantity, 'quantity', 'Enter a duration greater than 0.');
+        break;
+      case 'quantityTimesPrice':
+      default:
+        if (values.quantity !== null) {
+          positive(values.quantity, 'quantity', 'Enter a quantity greater than 0.');
+        }
+        break;
+    }
+  });
+}
+
+export type InvoiceLineFormValues = z.input<typeof baseInvoiceLineFormSchema>;
+export type InvoiceLineFormOutput = z.output<typeof baseInvoiceLineFormSchema>;
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 

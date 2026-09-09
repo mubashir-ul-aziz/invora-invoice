@@ -1,9 +1,9 @@
-import { ALL_FIELD_KEYS } from '../fieldCatalog';
+import { CUSTOM_BUILDER_FIELD_KEYS } from '../fieldCatalog';
 import { customFieldSelectionFormSchema } from '../validation';
 
 function formValues(checked: string[]) {
   const set = new Set(checked);
-  return Object.fromEntries(ALL_FIELD_KEYS.map((key) => [key, set.has(key)]));
+  return Object.fromEntries(CUSTOM_BUILDER_FIELD_KEYS.map((key) => [key, set.has(key)]));
 }
 
 describe('customFieldSelectionFormSchema', () => {
@@ -33,11 +33,11 @@ describe('customFieldSelectionFormSchema', () => {
     }
   });
 
-  it('accepts every field checked', () => {
-    const result = customFieldSelectionFormSchema.safeParse(formValues(ALL_FIELD_KEYS));
+  it('accepts every toggleable field checked', () => {
+    const result = customFieldSelectionFormSchema.safeParse(formValues(CUSTOM_BUILDER_FIELD_KEYS));
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data).toEqual(ALL_FIELD_KEYS);
+      expect(result.data).toEqual(CUSTOM_BUILDER_FIELD_KEYS);
     }
   });
 });

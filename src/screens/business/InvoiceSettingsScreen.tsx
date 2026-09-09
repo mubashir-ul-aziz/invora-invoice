@@ -159,7 +159,7 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
         name="invoiceType"
         render={({ field: { value, onChange } }) => (
           <OptionPicker
-            label="Invoice type"
+            label="Pricing Method"
             options={INVOICE_TYPE_OPTIONS}
             value={value}
             onChange={onChange}

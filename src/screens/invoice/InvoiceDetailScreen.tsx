@@ -10,9 +10,12 @@ import { PaymentListRow } from '@/components/payment/PaymentListRow';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import type { Customer } from '@/domain/customer/types';
 import type { Invoice } from '@/domain/invoice/types';
+import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
 import type { Payment } from '@/domain/payment/types';
+import { formatTimestamp } from '@/domain/shared/formatting';
+import { openEmail, openGoogleMaps, openPhone, openWebsite } from '@/lib/linking';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerStore } from '@/state/customerStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
@@ -31,6 +34,7 @@ function customerFromInvoiceSnapshot(invoice: Invoice): Customer {
     name: invoice.customerName,
     phone: null,
     email: null,
+    website: null,
     address: null,
     notes: null,
     createdAt: invoice.createdAt,
@@ -47,6 +51,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const [detail, setDetail] = useState<InvoiceWithStatus | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<InvoicePaymentSummary | null>(null);
+  const [customer, setCustomer] = useState<Customer | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,13 +66,17 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
           setStatus('not-found');
           return;
         }
-        const invoicePayments = await listByInvoice(invoiceId);
+        const [invoicePayments, invoiceCustomer] = await Promise.all([
+          listByInvoice(invoiceId),
+          getCustomerById(result.invoice.customerId),
+        ]);
         if (cancelled) {
           return;
         }
         setDetail(result);
         setPayments(invoicePayments);
         setPaymentSummary(summarizeInvoicePayments(result.totals.grandTotal, invoicePayments));
+        setCustomer(invoiceCustomer ?? customerFromInvoiceSnapshot(result.invoice));
         setStatus('ready');
       } catch {
         if (!cancelled) {
@@ -151,10 +160,36 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
           <InvoiceStatusBadge status={invoiceStatus} testID="invoice-detail-status" />
         </View>
         <SummaryRow label="Customer" value={invoice.customerName} />
-        <SummaryRow label="Invoice type" value={getInvoiceTypeDefinition(invoice.invoiceTypeId).label} />
+        <SummaryRow label="Pricing Method" value={getInvoiceTypeDefinition(invoice.invoiceTypeId).label} />
         <SummaryRow label="Invoice date" value={formatDate(invoice.issueDate)} />
         {!!invoice.dueDate && <SummaryRow label="Due date" value={formatDate(invoice.dueDate)} />}
+        <SummaryRow label="Created" value={formatTimestamp(invoice.createdAt)} />
       </View>
+
+      {!!customer && (customer.phone || customer.email || customer.website || customer.address) && (
+        <View style={styles.row}>
+          {!!customer.phone && (
+            <ActionButton label="Call" onPress={() => openPhone(customer.phone!)} testID="action-call" />
+          )}
+          {!!customer.email && (
+            <ActionButton label="Email" onPress={() => openEmail(customer.email!)} testID="action-email" />
+          )}
+          {!!customer.website && (
+            <ActionButton
+              label="Website"
+              onPress={() => openWebsite(customer.website!)}
+              testID="action-website"
+            />
+          )}
+          {!!customer.address && (
+            <ActionButton
+              label="Directions"
+              onPress={() => openGoogleMaps({ address: customer.address })}
+              testID="action-directions"
+            />
+          )}
+        </View>
+      )}
 
       <View style={styles.itemsSection}>
         <Text style={styles.sectionTitle}>Items</Text>
@@ -164,6 +199,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
             itemName={line.itemName}
             quantity={line.quantity}
             unit={line.unit}
+            measurementLabel={describeLineMeasurement(line.pricingMethodId ?? invoice.invoiceTypeId, line)}
             unitPrice={line.unitPrice}
             lineTotal={line.lineTotal}
             testID={`invoice-detail-line-${line.id}`}

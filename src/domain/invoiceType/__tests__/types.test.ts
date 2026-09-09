@@ -24,8 +24,10 @@ describe('resolveInvoiceFieldConfig', () => {
     const config = resolveInvoiceFieldConfig({ invoiceTypeId: 'weight', customFieldKeys: [] });
     expect(config.fields.map((f) => f.key)).toEqual([
       'itemName',
-      'quantity',
+      'description',
+      'sku',
       'weight',
+      'weightUnit',
       'unitPrice',
       'discount',
       'tax',

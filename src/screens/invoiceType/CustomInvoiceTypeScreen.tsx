@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 're
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
-import { ALL_FIELD_KEYS, FIELD_DEFINITIONS } from '@/domain/invoiceType/fieldCatalog';
+import { CUSTOM_BUILDER_FIELD_KEYS, FIELD_DEFINITIONS } from '@/domain/invoiceType/fieldCatalog';
 import { selectionToCustomFormDefaults } from '@/domain/invoiceType/formMapping';
 import {
   customFieldSelectionFormSchema,
@@ -52,7 +52,7 @@ export function CustomInvoiceTypeScreen({ navigation }: Props) {
   }, [status]);
 
   const liveValues = useWatch({ control });
-  const previewLabels = ALL_FIELD_KEYS.filter((key) => liveValues[key]).map(
+  const previewLabels = CUSTOM_BUILDER_FIELD_KEYS.filter((key) => liveValues[key]).map(
     (key) => FIELD_DEFINITIONS[key].label,
   );
 
@@ -97,7 +97,7 @@ export function CustomInvoiceTypeScreen({ navigation }: Props) {
         included.
       </Text>
 
-      {ALL_FIELD_KEYS.map((key) => {
+      {CUSTOM_BUILDER_FIELD_KEYS.map((key) => {
         const definition = FIELD_DEFINITIONS[key];
         return (
           <Controller

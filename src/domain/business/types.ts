@@ -1,3 +1,5 @@
+import { INVOICE_TYPE_REGISTRY, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+
 /**
  * Business / Company + Invoice Settings domain types (Phase 2). Both map to
  * the *same* underlying `business` row that Phase 1's `BusinessCard` reads —
@@ -11,12 +13,15 @@
 export type InvoiceTemplate = 'classic' | 'modern' | 'compact';
 
 /**
- * The invoice type/domain that determines which item fields appear on an
- * invoice. This module only stores the *selection* (the "entry point" the
- * brief asks for) — the field matrix / custom-field builder behind it is
- * Phase 3 (Invoice Type / Domain) scope.
+ * The business's default Pricing Method — this module only stores the
+ * *selection* (the "entry point" the brief asks for on Business Settings;
+ * the Invoice Settings screen's chip-picker is a second entry point to the
+ * exact same underlying `business.invoice_type` column, same convention as
+ * `InvoiceTemplate` above). Re-exported from `domain/invoiceType`'s registry
+ * — the single Pricing Method catalog — rather than declared again here, so
+ * the two entry points can never drift apart on which methods exist.
  */
-export type InvoiceType = 'general' | 'quantity' | 'weight' | 'dimension' | 'custom';
+export type InvoiceType = InvoiceTypeId;
 
 export interface BusinessProfile {
   id: string;
@@ -30,13 +35,23 @@ export interface BusinessProfile {
   currency: string;
   /** Tax / VAT registration number. */
   taxId: string | null;
+  /**
+   * Unique 6-digit business id (e.g. `"483920"`), generated once when the
+   * business row is first created and never reassigned afterwards — see
+   * `generateBusinessCode()` in `lib/id.ts`. Repository-managed, like `id`;
+   * never accepted from user input and not part of `BusinessProfileInput`,
+   * so nothing in the app can change it once set. It's the fixed half of
+   * every invoice number this business issues — see `formatNextInvoiceNumber`
+   * below.
+   */
+  businessCode: string;
   invoicePrefix: string;
   nextInvoiceNumber: number;
   updatedAt: string;
 }
 
-/** Fields the Edit Business screen collects; id/updatedAt are repository-managed. */
-export type BusinessProfileInput = Omit<BusinessProfile, 'id' | 'updatedAt'>;
+/** Fields the Edit Business screen collects; id/businessCode/updatedAt are repository-managed. */
+export type BusinessProfileInput = Omit<BusinessProfile, 'id' | 'updatedAt' | 'businessCode'>;
 
 export const EMPTY_BUSINESS_PROFILE_INPUT: BusinessProfileInput = {
   businessName: '',
@@ -52,6 +67,8 @@ export const EMPTY_BUSINESS_PROFILE_INPUT: BusinessProfileInput = {
 };
 
 export interface InvoiceSettings {
+  /** Same repository-managed, immutable value as `BusinessProfile.businessCode` — shown here so this screen can display the invoice-number preview too. */
+  businessCode: string;
   invoicePrefix: string;
   nextInvoiceNumber: number;
   currency: string;
@@ -64,7 +81,7 @@ export interface InvoiceSettings {
   updatedAt: string;
 }
 
-export type InvoiceSettingsInput = Omit<InvoiceSettings, 'updatedAt'>;
+export type InvoiceSettingsInput = Omit<InvoiceSettings, 'updatedAt' | 'businessCode'>;
 
 export const EMPTY_INVOICE_SETTINGS_INPUT: InvoiceSettingsInput = {
   invoicePrefix: 'INV-',
@@ -101,13 +118,9 @@ export const INVOICE_TEMPLATE_OPTIONS: { value: InvoiceTemplate; label: string; 
   },
 ];
 
-export const INVOICE_TYPE_OPTIONS: { value: InvoiceType; label: string }[] = [
-  { value: 'general', label: 'General' },
-  { value: 'quantity', label: 'Quantity' },
-  { value: 'weight', label: 'Weight' },
-  { value: 'dimension', label: 'Dimension' },
-  { value: 'custom', label: 'Custom' },
-];
+export const INVOICE_TYPE_OPTIONS: { value: InvoiceType; label: string }[] = INVOICE_TYPE_REGISTRY.map(
+  (def) => ({ value: def.id, label: def.label }),
+);
 
 export const PAYMENT_TERMS_OPTIONS: { value: number | null; label: string }[] = [
   { value: null, label: 'No default' },
@@ -119,7 +132,21 @@ export const PAYMENT_TERMS_OPTIONS: { value: number | null; label: string }[] = 
   { value: 60, label: 'Net 60' },
 ];
 
-/** Formats the next invoice number a new invoice would get, e.g. "INV-1". */
-export function formatNextInvoiceNumber(prefix: string, nextNumber: number): string {
-  return `${prefix}${nextNumber}`;
+/**
+ * Formats an invoice number from the business's prefix, its fixed 6-digit
+ * `businessCode`, and the sequential number — e.g. `"INV-483920-1"`. The
+ * sequence (`nextNumber`) always advances 1, 2, 3, … via
+ * `BusinessRepository.reserveNextInvoiceNumber()`; combining it with the
+ * business code keeps every invoice number this business issues globally
+ * distinguishable even if the prefix is later changed or left blank. Used
+ * both to reserve the real number for a new invoice and to render the
+ * read-only "next invoice number" preview on the Business/Invoice Settings
+ * screens.
+ */
+export function formatNextInvoiceNumber(
+  prefix: string,
+  businessCode: string,
+  nextNumber: number,
+): string {
+  return `${prefix}${businessCode}-${nextNumber}`;
 }

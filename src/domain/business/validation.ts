@@ -33,13 +33,19 @@ const currencyField = z
   .regex(/^[A-Za-z]{3}$/, 'Use a 3-letter currency code, e.g. USD.')
   .transform((value) => value.toUpperCase());
 
-const invoicePrefixField = z
+/**
+ * Exported (not just used below) so `domain/business/combinedForm.ts` can
+ * extend the Digital Business Card's field set with these two invoice-only
+ * fields, for the single merged Business form — same "one implementation"
+ * reasoning as the phone/URL helpers this file imports.
+ */
+export const invoicePrefixField = z
   .string()
   .trim()
   .max(12, 'Keep the prefix short (max 12 characters).')
   .transform((value) => value || 'INV-');
 
-const nextInvoiceNumberField = z.coerce
+export const nextInvoiceNumberField = z.coerce
   .number({ message: 'Enter a whole number.' })
   .int('Must be a whole number.')
   .min(1, 'Must be 1 or more.');
@@ -84,7 +90,7 @@ export const invoiceSettingsFormSchema = z.object({
     .transform((value) => (value === null ? null : Number(value))),
   defaultPaymentTermsDays: z.number().int().min(0).nullable(),
   defaultInvoiceTemplate: z.enum(['classic', 'modern', 'compact']),
-  invoiceType: z.enum(['general', 'quantity', 'weight', 'dimension', 'custom']),
+  invoiceType: z.enum(['general', 'quantity', 'weight', 'length', 'area', 'volume', 'time', 'service', 'custom']),
 });
 
 export type InvoiceSettingsFormValues = z.input<typeof invoiceSettingsFormSchema>;

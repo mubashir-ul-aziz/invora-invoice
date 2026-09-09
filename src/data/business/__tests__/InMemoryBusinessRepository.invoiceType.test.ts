@@ -10,10 +10,10 @@ describe('InMemoryBusinessRepository — invoice type selection (Phase 3)', () =
   it('saves and returns a fixed invoice type selection with an empty custom field list', async () => {
     const repo = new InMemoryBusinessRepository();
     const saved = await repo.saveInvoiceTypeSelection({
-      invoiceTypeId: 'dimension',
+      invoiceTypeId: 'volume',
       customFieldKeys: [],
     });
-    expect(saved.invoiceTypeId).toBe('dimension');
+    expect(saved.invoiceTypeId).toBe('volume');
     expect(saved.customFieldKeys).toEqual([]);
     await expect(repo.getInvoiceTypeSelection()).resolves.toEqual(saved);
   });

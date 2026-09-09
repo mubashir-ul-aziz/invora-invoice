@@ -32,8 +32,8 @@ describe('selectionToCustomFormDefaults', () => {
 
 describe('describeSelectionFields / describeFixedTypeFields', () => {
   it('formats a fixed type field list as a readable label list', () => {
-    expect(describeSelectionFields({ invoiceTypeId: 'dimension', customFieldKeys: [] })).toBe(
-      'Item Name, Quantity, Length, Width, Height, Unit Price, Discount, Tax',
+    expect(describeSelectionFields({ invoiceTypeId: 'volume', customFieldKeys: [] })).toBe(
+      'Item Name, Description, SKU, Length, Width, Height, Dimension unit, Unit Price, Discount, Tax',
     );
   });
 

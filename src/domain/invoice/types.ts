@@ -19,6 +19,17 @@ export interface InvoiceItemSnapshot {
   id: string;
   /** The catalog item this was copied from, or null for a manually-typed line. Never used to look up "current" data. */
   itemId: string | null;
+  /**
+   * Snapshot of the invoice's own pricing method at the moment this line was
+   * saved (§22/§24 of the brief). Every line the app produces always
+   * matches its parent invoice's `Invoice.invoiceTypeId` — this column
+   * exists so that invariant is stored and checkable (`assertLinesMatchPricingMethod`
+   * in `integrity.ts`) rather than only assumed. Optional so every call site
+   * that predates this field (including existing tests) keeps compiling
+   * without change; when absent it's treated as "inherits the invoice's own
+   * method" rather than a mismatch.
+   */
+  pricingMethodId?: InvoiceTypeId;
   itemName: string;
   description: string | null;
   sku: string | null;
@@ -26,9 +37,20 @@ export interface InvoiceItemSnapshot {
   quantity: number | null;
   unit: string | null;
   weight: number | null;
+  /**
+   * Unit the `weight` value is in (`WeightUnit` — kg/g/lb/oz), null unless
+   * the WEIGHT method is in use. Optional (like `pricingMethodId` above) so
+   * every existing call site/fixture that predates this field keeps
+   * compiling unchanged; absent is treated the same as `null`.
+   */
+  weightUnit?: string | null;
   length: number | null;
   width: number | null;
   height: number | null;
+  /** Unit the `length`/`width`/`height` values are in (`LengthUnit` — m/cm/mm/ft/in/yd), null unless LENGTH/AREA/VOLUME is in use. Optional, same reasoning as `weightUnit`. */
+  lengthUnit?: string | null;
+  /** Unit `quantity` is in when it's being used as a duration (`TimeUnit` — minute/hour/day), null unless the TIME method is in use. Optional, same reasoning as `weightUnit`. */
+  timeUnit?: string | null;
   unitPrice: number;
   /** Percentage (0–100); null = no discount on this line, or the field isn't in use. */
   discountPercent: number | null;
@@ -54,9 +76,12 @@ export const EMPTY_INVOICE_ITEM_INPUT: InvoiceItemInput = {
   quantity: 1,
   unit: null,
   weight: null,
+  weightUnit: null,
   length: null,
   width: null,
   height: null,
+  lengthUnit: null,
+  timeUnit: null,
   unitPrice: 0,
   discountPercent: null,
   taxPercent: null,

@@ -21,6 +21,18 @@ export const business = sqliteTable('business', {
   taxId: text('tax_id'),
   /** Stable random slug used to build the local share-link / QR payload. */
   shareSlug: text('share_slug').notNull(),
+  /**
+   * Unique 6-digit business id (e.g. `"483920"`), generated once when this
+   * row is first created (`generateBusinessCode()`) and never reassigned
+   * afterwards — it's the fixed half of every invoice number this business
+   * issues (see `formatNextInvoiceNumber` in `domain/business/types.ts`).
+   * Nullable only so pre-existing installs from before this column existed
+   * (backfilled via `BUSINESS_COLUMN_UPGRADES`/`ensureBusinessColumns()` in
+   * `db/client.ts`) can have a code generated and persisted lazily, the next
+   * time `SqliteBusinessRepository` reads or writes the row, rather than
+   * failing a NOT NULL migration.
+   */
+  businessCode: text('business_code'),
   // --- Phase 2 (Business / Company + Invoice Settings) additions ---
   invoicePrefix: text('invoice_prefix').notNull().default('INV-'),
   nextInvoiceNumber: integer('next_invoice_number').notNull().default(1),
@@ -47,7 +59,7 @@ export const business = sqliteTable('business', {
    * "custom" is built in Phase 3.
    */
   invoiceType: text('invoice_type', {
-    enum: ['general', 'quantity', 'weight', 'dimension', 'custom'],
+    enum: ['general', 'quantity', 'weight', 'length', 'area', 'volume', 'time', 'service', 'custom'],
   })
     .notNull()
     .default('general'),
@@ -111,11 +123,15 @@ export const item = sqliteTable(
     /** Percentage (0–100); null = no default tax for this item. */
     taxRate: real('tax_rate'),
     weight: real('weight'),
+    /** Unit `weight` is in (kg/g/lb/oz) — added after this table's first release, see `ITEM_COLUMN_UPGRADES`. */
+    weightUnit: text('weight_unit'),
     length: real('length'),
     width: real('width'),
     height: real('height'),
+    /** Unit `length`/`width`/`height` are in (m/cm/mm/ft/in/yd) — added after this table's first release, see `ITEM_COLUMN_UPGRADES`. */
+    lengthUnit: text('length_unit'),
     invoiceType: text('invoice_type', {
-      enum: ['general', 'quantity', 'weight', 'dimension', 'custom'],
+      enum: ['general', 'quantity', 'weight', 'length', 'area', 'volume', 'time', 'service', 'custom'],
     })
       .notNull()
       .default('general'),
@@ -145,6 +161,8 @@ export const customer = sqliteTable(
     name: text('name').notNull(),
     phone: text('phone'),
     email: text('email'),
+    /** Normalized `https://…` URL, or null. Added after this table's first release — see `CUSTOMER_COLUMN_UPGRADES`. */
+    website: text('website'),
     address: text('address'),
     notes: text('notes'),
     createdAt: integer('created_at').notNull(),
@@ -180,7 +198,7 @@ export const invoice = sqliteTable(
       .references(() => customer.id),
     customerName: text('customer_name').notNull(),
     invoiceType: text('invoice_type', {
-      enum: ['general', 'quantity', 'weight', 'dimension', 'custom'],
+      enum: ['general', 'quantity', 'weight', 'length', 'area', 'volume', 'time', 'service', 'custom'],
     }).notNull(),
     /** ISO calendar date, `YYYY-MM-DD`. */
     issueDate: text('issue_date').notNull(),
@@ -220,6 +238,16 @@ export const invoiceItem = sqliteTable(
       .notNull()
       .references(() => invoice.id, { onDelete: 'cascade' }),
     itemId: text('item_id').references(() => item.id, { onDelete: 'set null' }),
+    /**
+     * Snapshot of the parent invoice's `invoice_type` at the moment this line
+     * was saved (added after the table's first release — see
+     * `INVOICE_ITEM_COLUMN_UPGRADES` below). Nullable so pre-existing rows
+     * from before this column existed read back as "inherits the parent
+     * invoice's method" (`SqliteInvoiceRepository.toLineSnapshot`) instead of
+     * failing a NOT NULL backfill; every row written from this point on
+     * always has it set.
+     */
+    pricingMethod: text('pricing_method'),
     sortOrder: integer('sort_order').notNull().default(0),
     itemName: text('item_name').notNull(),
     description: text('description'),
@@ -227,9 +255,12 @@ export const invoiceItem = sqliteTable(
     quantity: real('quantity'),
     unit: text('unit'),
     weight: real('weight'),
+    weightUnit: text('weight_unit'),
     length: real('length'),
     width: real('width'),
     height: real('height'),
+    lengthUnit: text('length_unit'),
+    timeUnit: text('time_unit'),
     unitPrice: real('unit_price').notNull(),
     discountPercent: real('discount_percent'),
     taxPercent: real('tax_percent'),
@@ -383,6 +414,7 @@ export const CREATE_TABLES_SQL = `
     currency TEXT NOT NULL DEFAULT 'USD',
     tax_id TEXT,
     share_slug TEXT NOT NULL,
+    business_code TEXT,
     invoice_prefix TEXT NOT NULL DEFAULT 'INV-',
     next_invoice_number INTEGER NOT NULL DEFAULT 1,
     default_tax_rate REAL,
@@ -410,9 +442,11 @@ export const CREATE_TABLES_SQL = `
     default_price REAL NOT NULL DEFAULT 0,
     tax_rate REAL,
     weight REAL,
+    weight_unit TEXT,
     length REAL,
     width REAL,
     height REAL,
+    length_unit TEXT,
     invoice_type TEXT NOT NULL DEFAULT 'general',
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
@@ -425,6 +459,7 @@ export const CREATE_TABLES_SQL = `
     name TEXT NOT NULL,
     phone TEXT,
     email TEXT,
+    website TEXT,
     address TEXT,
     notes TEXT,
     created_at INTEGER NOT NULL,
@@ -452,6 +487,7 @@ export const CREATE_TABLES_SQL = `
     id TEXT PRIMARY KEY NOT NULL,
     invoice_id TEXT NOT NULL REFERENCES invoice(id) ON DELETE CASCADE,
     item_id TEXT REFERENCES item(id) ON DELETE SET NULL,
+    pricing_method TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     item_name TEXT NOT NULL,
     description TEXT,
@@ -459,9 +495,12 @@ export const CREATE_TABLES_SQL = `
     quantity REAL,
     unit TEXT,
     weight REAL,
+    weight_unit TEXT,
     length REAL,
     width REAL,
     height REAL,
+    length_unit TEXT,
+    time_unit TEXT,
     unit_price REAL NOT NULL,
     discount_percent REAL,
     tax_percent REAL,
@@ -530,6 +569,7 @@ export const CREATE_TABLES_SQL = `
  * Keep this in lockstep with the schema above.
  */
 export const BUSINESS_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'business_code', definition: 'TEXT' },
   { column: 'invoice_prefix', definition: "TEXT NOT NULL DEFAULT 'INV-'" },
   { column: 'next_invoice_number', definition: 'INTEGER NOT NULL DEFAULT 1' },
   { column: 'default_tax_rate', definition: 'REAL' },
@@ -547,6 +587,39 @@ export const BUSINESS_COLUMN_UPGRADES: { column: string; definition: string }[] 
  * `BUSINESS_COLUMN_UPGRADES` above — see `ensureAppSettingsColumns()` in
  * `db/client.ts`.
  */
+/**
+ * Columns added to `item` after its first release (this refactor's
+ * weight/length unit-selector columns). Same additive/idempotent mechanism
+ * as `BUSINESS_COLUMN_UPGRADES` — see `ensureItemColumns()` in `db/client.ts`.
+ */
+export const ITEM_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'weight_unit', definition: 'TEXT' },
+  { column: 'length_unit', definition: 'TEXT' },
+];
+
+/**
+ * Columns added to `invoice_item` after its first release (this refactor's
+ * pricing-method-integrity column). Same additive/idempotent mechanism as
+ * `BUSINESS_COLUMN_UPGRADES` — see `ensureInvoiceItemColumns()` in
+ * `db/client.ts`.
+ */
+export const INVOICE_ITEM_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'pricing_method', definition: 'TEXT' },
+  { column: 'weight_unit', definition: 'TEXT' },
+  { column: 'length_unit', definition: 'TEXT' },
+  { column: 'time_unit', definition: 'TEXT' },
+];
+
+/**
+ * Columns added to `customer` after its first release (this refactor's
+ * `website` field, powering the Call/Email/Website/Directions actions on
+ * Customer/Invoice Detail). Same additive/idempotent mechanism as
+ * `BUSINESS_COLUMN_UPGRADES` — see `ensureCustomerColumns()` in `db/client.ts`.
+ */
+export const CUSTOMER_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'website', definition: 'TEXT' },
+];
+
 export const APP_SETTINGS_COLUMN_UPGRADES: { column: string; definition: string }[] = [
   { column: 'auto_backup_enabled', definition: 'INTEGER NOT NULL DEFAULT 0' },
   { column: 'last_backup_at', definition: 'INTEGER' },

@@ -16,7 +16,8 @@ import {
   type InvoiceTypeSelectionInput,
 } from '@/domain/invoiceType/types';
 import { isFieldKey } from '@/domain/invoiceType/fieldCatalog';
-import { generateLocalId } from '@/lib/id';
+import { normalizeLegacyInvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+import { generateBusinessCode, generateLocalId } from '@/lib/id';
 
 import { getDatabase, getDrizzle } from '../db/client';
 import { business } from '../db/schema';
@@ -25,6 +26,12 @@ import type { BusinessRepository } from './BusinessRepository';
 /** Same single on-device business row `SqliteBusinessCardRepository` uses. */
 const BUSINESS_ID = 'default';
 
+/**
+ * `row.businessCode` must already be resolved (non-null) by the caller —
+ * either a freshly-generated code for a brand-new row, the existing row's
+ * stored code, or a lazily-backfilled one via `ensureBusinessCode()` below —
+ * never generated inside this pure mapping function.
+ */
 function toProfile(row: typeof business.$inferSelect): BusinessProfile {
   return {
     id: row.id,
@@ -36,6 +43,7 @@ function toProfile(row: typeof business.$inferSelect): BusinessProfile {
     website: row.website,
     currency: row.currency,
     taxId: row.taxId,
+    businessCode: row.businessCode ?? '',
     invoicePrefix: row.invoicePrefix,
     nextInvoiceNumber: row.nextInvoiceNumber,
     updatedAt: new Date(row.updatedAt).toISOString(),
@@ -47,15 +55,17 @@ function toInvoiceTemplate(raw: string): InvoiceTemplate {
   return raw === 'minimal' ? 'compact' : (raw as InvoiceTemplate);
 }
 
+/** Same "caller must resolve `businessCode` first" rule as `toProfile()` above. */
 function toSettings(row: typeof business.$inferSelect): InvoiceSettings {
   return {
+    businessCode: row.businessCode ?? '',
     invoicePrefix: row.invoicePrefix,
     nextInvoiceNumber: row.nextInvoiceNumber,
     currency: row.currency,
     defaultTaxRate: row.defaultTaxRate,
     defaultPaymentTermsDays: row.defaultPaymentTermsDays,
     defaultInvoiceTemplate: toInvoiceTemplate(row.defaultInvoiceTemplate),
-    invoiceType: row.invoiceType as InvoiceType,
+    invoiceType: normalizeLegacyInvoiceTypeId(row.invoiceType) as InvoiceType,
     updatedAt: new Date(row.updatedAt).toISOString(),
   };
 }
@@ -78,7 +88,7 @@ function parseCustomFieldKeys(raw: string | null): FieldKey[] {
 
 function toSelection(row: typeof business.$inferSelect): InvoiceTypeSelection {
   return {
-    invoiceTypeId: row.invoiceType as InvoiceType,
+    invoiceTypeId: normalizeLegacyInvoiceTypeId(row.invoiceType),
     customFieldKeys: parseCustomFieldKeys(row.customInvoiceFields),
     updatedAt: new Date(row.updatedAt).toISOString(),
   };
@@ -93,12 +103,33 @@ function toSelection(row: typeof business.$inferSelect): InvoiceTypeSelection {
  * loss across the three feature slices sharing this one row.
  */
 export class SqliteBusinessRepository implements BusinessRepository {
+  /**
+   * Returns `row.businessCode` as-is if it's already set, otherwise
+   * generates one and persists it immediately — a lazy backfill for a row
+   * that predates the `business_code` column (added via
+   * `BUSINESS_COLUMN_UPGRADES`), so every read/write from this point on
+   * always has a real code to work with.
+   */
+  private async ensureBusinessCode(row: { id: string; businessCode: string | null }): Promise<string> {
+    if (row.businessCode) {
+      return row.businessCode;
+    }
+    const db = getDrizzle();
+    const code = generateBusinessCode();
+    await db.update(business).set({ businessCode: code }).where(eq(business.id, row.id));
+    return code;
+  }
+
   async getProfile(): Promise<BusinessProfile | null> {
     await getDatabase();
     const db = getDrizzle();
     const rows = await db.select().from(business).where(eq(business.id, BUSINESS_ID));
     const row = rows[0];
-    return row ? toProfile(row) : null;
+    if (!row) {
+      return null;
+    }
+    const businessCode = await this.ensureBusinessCode(row);
+    return toProfile({ ...row, businessCode });
   }
 
   async saveProfile(input: BusinessProfileInput): Promise<BusinessProfile> {
@@ -107,12 +138,18 @@ export class SqliteBusinessRepository implements BusinessRepository {
 
     const now = Date.now();
     const existing = await db
-      .select({ id: business.id, createdAt: business.createdAt, shareSlug: business.shareSlug })
+      .select({
+        id: business.id,
+        createdAt: business.createdAt,
+        shareSlug: business.shareSlug,
+        businessCode: business.businessCode,
+      })
       .from(business)
       .where(eq(business.id, BUSINESS_ID));
 
     const shareSlug = existing[0]?.shareSlug ?? generateLocalId();
     const createdAt = existing[0]?.createdAt ?? now;
+    const businessCode = existing[0]?.businessCode ?? generateBusinessCode();
 
     const values = {
       id: BUSINESS_ID,
@@ -124,6 +161,7 @@ export class SqliteBusinessRepository implements BusinessRepository {
       website: input.website,
       currency: input.currency,
       taxId: input.taxId,
+      businessCode,
       invoicePrefix: input.invoicePrefix,
       nextInvoiceNumber: input.nextInvoiceNumber,
       shareSlug,
@@ -149,7 +187,11 @@ export class SqliteBusinessRepository implements BusinessRepository {
     const db = getDrizzle();
     const rows = await db.select().from(business).where(eq(business.id, BUSINESS_ID));
     const row = rows[0];
-    return row ? toSettings(row) : null;
+    if (!row) {
+      return null;
+    }
+    const businessCode = await this.ensureBusinessCode(row);
+    return toSettings({ ...row, businessCode });
   }
 
   async saveInvoiceSettings(input: InvoiceSettingsInput): Promise<InvoiceSettings> {
@@ -163,6 +205,7 @@ export class SqliteBusinessRepository implements BusinessRepository {
         name: business.name,
         createdAt: business.createdAt,
         shareSlug: business.shareSlug,
+        businessCode: business.businessCode,
       })
       .from(business)
       .where(eq(business.id, BUSINESS_ID));
@@ -170,10 +213,12 @@ export class SqliteBusinessRepository implements BusinessRepository {
     const shareSlug = existing[0]?.shareSlug ?? generateLocalId();
     const createdAt = existing[0]?.createdAt ?? now;
     const name = existing[0]?.name ?? '';
+    const businessCode = existing[0]?.businessCode ?? generateBusinessCode();
 
     const values = {
       id: BUSINESS_ID,
       name,
+      businessCode,
       invoicePrefix: input.invoicePrefix,
       nextInvoiceNumber: input.nextInvoiceNumber,
       currency: input.currency,
@@ -218,6 +263,7 @@ export class SqliteBusinessRepository implements BusinessRepository {
         name: business.name,
         createdAt: business.createdAt,
         shareSlug: business.shareSlug,
+        businessCode: business.businessCode,
       })
       .from(business)
       .where(eq(business.id, BUSINESS_ID));
@@ -225,10 +271,12 @@ export class SqliteBusinessRepository implements BusinessRepository {
     const shareSlug = existing[0]?.shareSlug ?? generateLocalId();
     const createdAt = existing[0]?.createdAt ?? now;
     const name = existing[0]?.name ?? '';
+    const businessCode = existing[0]?.businessCode ?? generateBusinessCode();
 
     const values = {
       id: BUSINESS_ID,
       name,
+      businessCode,
       invoiceType: input.invoiceTypeId,
       customInvoiceFields:
         input.invoiceTypeId === 'custom'
@@ -263,6 +311,7 @@ export class SqliteBusinessRepository implements BusinessRepository {
         name: business.name,
         createdAt: business.createdAt,
         shareSlug: business.shareSlug,
+        businessCode: business.businessCode,
         invoicePrefix: business.invoicePrefix,
         nextInvoiceNumber: business.nextInvoiceNumber,
       })
@@ -270,13 +319,15 @@ export class SqliteBusinessRepository implements BusinessRepository {
       .where(eq(business.id, BUSINESS_ID));
 
     const row = existing[0];
+    const businessCode = row?.businessCode ?? generateBusinessCode();
     const invoicePrefix = row?.invoicePrefix ?? 'INV-';
     const nextInvoiceNumber = row?.nextInvoiceNumber ?? 1;
-    const invoiceNumber = formatNextInvoiceNumber(invoicePrefix, nextInvoiceNumber);
+    const invoiceNumber = formatNextInvoiceNumber(invoicePrefix, businessCode, nextInvoiceNumber);
 
     const values = {
       id: BUSINESS_ID,
       name: row?.name ?? '',
+      businessCode,
       invoicePrefix,
       nextInvoiceNumber: nextInvoiceNumber + 1,
       shareSlug: row?.shareSlug ?? generateLocalId(),

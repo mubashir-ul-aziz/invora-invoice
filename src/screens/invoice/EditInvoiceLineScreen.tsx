@@ -9,7 +9,7 @@ import { InvoiceLineFormFields } from '@/components/invoice/InvoiceLineFormField
 import { formValuesToInvoiceLineInput, invoiceLineToFormDefaults } from '@/domain/invoice/formMapping';
 import { blankInvoiceLine } from '@/domain/invoice/snapshot';
 import {
-  invoiceLineFormSchema,
+  invoiceLineFormSchemaForPricingMethod,
   type InvoiceLineFormOutput,
   type InvoiceLineFormValues,
 } from '@/domain/invoice/validation';
@@ -51,7 +51,7 @@ export function EditInvoiceLineScreen({ navigation, route }: Props) {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<InvoiceLineFormValues, unknown, InvoiceLineFormOutput>({
-    resolver: zodResolver(invoiceLineFormSchema),
+    resolver: zodResolver(invoiceLineFormSchemaForPricingMethod(draft.invoiceTypeId)),
     defaultValues: invoiceLineToFormDefaults(existingLine ?? blankInvoiceLine(fieldConfig)),
   });
 

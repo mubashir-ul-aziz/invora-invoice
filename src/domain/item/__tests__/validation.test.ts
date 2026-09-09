@@ -9,9 +9,11 @@ const validValues = () => ({
   defaultPrice: '10',
   taxRate: '',
   weight: '',
+  weightUnit: '',
   length: '',
   width: '',
   height: '',
+  lengthUnit: '',
   invoiceTypeId: 'general' as const,
 });
 
@@ -43,7 +45,7 @@ describe('itemFormSchema', () => {
   it('accepts and coerces optional decimal fields (weight/length/width/height)', () => {
     const result = itemFormSchema.safeParse({
       ...validValues(),
-      invoiceTypeId: 'dimension',
+      invoiceTypeId: 'volume',
       length: '10.5',
       width: '5',
       height: '2',

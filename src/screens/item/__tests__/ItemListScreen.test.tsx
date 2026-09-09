@@ -22,7 +22,10 @@ import { ItemListScreen } from '../ItemListScreen';
 
 const navigation = { navigate: jest.fn(), goBack: jest.fn() };
 
-function renderScreen(routeParams?: { onSelectItem?: (item: never) => void }) {
+function renderScreen(routeParams?: {
+  onSelectItem?: (item: never) => void;
+  requiredPricingMethodId?: string;
+}) {
   return render(
     <ItemListScreen navigation={navigation as never} route={{ params: routeParams } as never} />,
   );
@@ -127,5 +130,46 @@ describe('ItemListScreen', () => {
 
     await waitFor(() => expect(view.getByTestId('item-list-empty')).toBeTruthy());
     alertSpy.mockRestore();
+  });
+
+  // §15 of the brief: the invoice item picker only shows/accepts items of the
+  // invoice's own Pricing Method.
+  describe('invoice-picker compatibility guard (requiredPricingMethodId)', () => {
+    it('locks the list to the required method and shows no filter chips', async () => {
+      const repo = new InMemoryItemRepository();
+      await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Rice', invoiceTypeId: 'weight' });
+      await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Flooring', invoiceTypeId: 'area' });
+      mockStore = createItemStore(repo);
+      const view = await renderScreen({ onSelectItem: jest.fn(), requiredPricingMethodId: 'weight' });
+
+      await waitFor(() => expect(view.getByTestId('item-type-filter-locked')).toBeTruthy());
+      expect(view.getByText('Rice')).toBeTruthy();
+      expect(view.queryByText('Flooring')).toBeNull();
+      expect(view.queryByTestId('item-type-filter')).toBeNull();
+    });
+
+    it('refuses to select an incompatible item and explains why', async () => {
+      const repo = new InMemoryItemRepository();
+      const areaItem = await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Flooring', invoiceTypeId: 'area' });
+      mockStore = createItemStore(repo);
+      const onSelectItem = jest.fn();
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      // Bypass the list's own filter to simulate a stale/legacy row still being reachable.
+      mockStore.getState().load = async () => {
+        mockStore.setState({ items: [areaItem], status: 'ready' });
+      };
+      const view = await renderScreen({ onSelectItem, requiredPricingMethodId: 'weight' });
+      await waitFor(() => expect(view.getByTestId('item-type-filter-locked')).toBeTruthy());
+
+      fireEvent.press(view.getByTestId(`item-row-${areaItem.id}`));
+
+      expect(onSelectItem).not.toHaveBeenCalled();
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Incompatible pricing method',
+        expect.stringContaining('Area pricing and cannot be added to this Weight invoice'),
+      );
+      alertSpy.mockRestore();
+    });
   });
 });

@@ -32,14 +32,18 @@ describe('InvoiceTypeSelectionScreen', () => {
     (navigation.goBack as jest.Mock).mockClear();
   });
 
-  it('lists all five invoice types and defaults "General" as selected', async () => {
+  it('lists all nine pricing methods and defaults "General" as selected', async () => {
     mockStore = createInvoiceTypeStore(new InMemoryBusinessRepository());
     const view = await renderScreen();
 
     await waitFor(() => expect(view.getByTestId('invoice-type-card-general')).toBeTruthy());
     expect(view.getByTestId('invoice-type-card-quantity')).toBeTruthy();
     expect(view.getByTestId('invoice-type-card-weight')).toBeTruthy();
-    expect(view.getByTestId('invoice-type-card-dimension')).toBeTruthy();
+    expect(view.getByTestId('invoice-type-card-length')).toBeTruthy();
+    expect(view.getByTestId('invoice-type-card-area')).toBeTruthy();
+    expect(view.getByTestId('invoice-type-card-volume')).toBeTruthy();
+    expect(view.getByTestId('invoice-type-card-time')).toBeTruthy();
+    expect(view.getByTestId('invoice-type-card-service')).toBeTruthy();
     expect(view.getByTestId('invoice-type-card-custom')).toBeTruthy();
     expect(
       view.getByTestId('invoice-type-card-general').props.accessibilityState.selected,
@@ -50,7 +54,7 @@ describe('InvoiceTypeSelectionScreen', () => {
     mockStore = createInvoiceTypeStore(new InMemoryBusinessRepository());
     const view = await renderScreen();
 
-    await waitFor(() => expect(view.getByTestId('invoice-type-card-dimension')).toBeTruthy());
+    await waitFor(() => expect(view.getByTestId('invoice-type-card-volume')).toBeTruthy());
     expect(view.getByText(/Length, Width, Height/)).toBeTruthy();
   });
 

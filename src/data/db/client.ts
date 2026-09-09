@@ -5,6 +5,9 @@ import {
   APP_SETTINGS_COLUMN_UPGRADES,
   BUSINESS_COLUMN_UPGRADES,
   CREATE_TABLES_SQL,
+  CUSTOMER_COLUMN_UPGRADES,
+  INVOICE_ITEM_COLUMN_UPGRADES,
+  ITEM_COLUMN_UPGRADES,
   schema,
 } from './schema';
 
@@ -38,6 +41,9 @@ export function getDatabase(): Promise<void> {
       await sqliteConnection.execAsync(CREATE_TABLES_SQL);
       await ensureBusinessColumns(sqliteConnection);
       await ensureAppSettingsColumns(sqliteConnection);
+      await ensureInvoiceItemColumns(sqliteConnection);
+      await ensureItemColumns(sqliteConnection);
+      await ensureCustomerColumns(sqliteConnection);
       drizzleDb = drizzle(sqliteConnection, { schema });
     })();
   }
@@ -75,6 +81,55 @@ async function ensureAppSettingsColumns(db: SQLite.SQLiteDatabase): Promise<void
   for (const { column, definition } of APP_SETTINGS_COLUMN_UPGRADES) {
     if (!existingNames.has(column)) {
       await db.execAsync(`ALTER TABLE app_settings ADD COLUMN ${column} ${definition};`);
+    }
+  }
+}
+
+/**
+ * Backfills `invoice_item` columns added after its first release (this
+ * refactor's `pricing_method` snapshot column). Same idempotent
+ * `PRAGMA table_info` check as `ensureBusinessColumns()` — a no-op on a
+ * fresh install, since `CREATE_TABLES_SQL` already creates the table with
+ * this column.
+ */
+async function ensureInvoiceItemColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const existingColumns = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(invoice_item);',
+  );
+  const existingNames = new Set(existingColumns.map((col) => col.name));
+  for (const { column, definition } of INVOICE_ITEM_COLUMN_UPGRADES) {
+    if (!existingNames.has(column)) {
+      await db.execAsync(`ALTER TABLE invoice_item ADD COLUMN ${column} ${definition};`);
+    }
+  }
+}
+
+/**
+ * Backfills `item` columns added after its first release (this refactor's
+ * `weight_unit`/`length_unit` columns). Same idempotent `PRAGMA table_info`
+ * check as `ensureBusinessColumns()` — a no-op on a fresh install.
+ */
+async function ensureItemColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const existingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(item);');
+  const existingNames = new Set(existingColumns.map((col) => col.name));
+  for (const { column, definition } of ITEM_COLUMN_UPGRADES) {
+    if (!existingNames.has(column)) {
+      await db.execAsync(`ALTER TABLE item ADD COLUMN ${column} ${definition};`);
+    }
+  }
+}
+
+/**
+ * Backfills `customer` columns added after its first release (this
+ * refactor's `website` column). Same idempotent `PRAGMA table_info` check as
+ * `ensureBusinessColumns()` — a no-op on a fresh install.
+ */
+async function ensureCustomerColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const existingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(customer);');
+  const existingNames = new Set(existingColumns.map((col) => col.name));
+  for (const { column, definition } of CUSTOMER_COLUMN_UPGRADES) {
+    if (!existingNames.has(column)) {
+      await db.execAsync(`ALTER TABLE customer ADD COLUMN ${column} ${definition};`);
     }
   }
 }

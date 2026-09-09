@@ -23,6 +23,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem'>;
 export function CreateItemScreen({ navigation, route }: Props) {
   const { create } = useItemStore();
   const onCreated = route.params?.onCreated;
+  const defaultInvoiceTypeId = route.params?.defaultInvoiceTypeId;
 
   const {
     control,
@@ -30,7 +31,10 @@ export function CreateItemScreen({ navigation, route }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<ItemFormValues, unknown, ItemFormOutput>({
     resolver: zodResolver(itemFormSchema),
-    defaultValues: itemToFormDefaults(null),
+    defaultValues: {
+      ...itemToFormDefaults(null),
+      ...(defaultInvoiceTypeId ? { invoiceTypeId: defaultInvoiceTypeId } : {}),
+    },
   });
 
   const onSubmit = handleSubmit(async (values) => {

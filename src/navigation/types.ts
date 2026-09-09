@@ -1,5 +1,6 @@
 import type { Customer } from '@/domain/customer/types';
 import type { Invoice } from '@/domain/invoice/types';
+import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { Item } from '@/domain/item/types';
 
 export type RootStackParamList = {
@@ -22,7 +23,13 @@ export type RootStackParamList = {
    * (the normal case, reached from the Items entry point) is plain
    * management mode.
    */
-  ItemList: { onSelectItem?: (item: Item) => void } | undefined;
+  /**
+   * `requiredPricingMethodId`, when set alongside `onSelectItem`, is the
+   * invoice-picker's compatibility guard (§15 of the brief): the list is
+   * locked to that Pricing Method, and picking an item of a different one
+   * is refused with an explanation rather than silently added.
+   */
+  ItemList: { onSelectItem?: (item: Item) => void; requiredPricingMethodId?: InvoiceTypeId } | undefined;
   /**
    * `onCreated`, when provided (e.g. a future "+ New item" action inside the
    * invoice item picker), is called with the newly created item instead of
@@ -30,7 +37,8 @@ export type RootStackParamList = {
    * hook the brief asks for, built now so Phase 6 doesn't need to touch this
    * screen.
    */
-  CreateItem: { onCreated?: (item: Item) => void } | undefined;
+  /** `defaultInvoiceTypeId`, when set (the invoice item picker's "+ New item"), preselects that Pricing Method so a business owner can't create an item this invoice couldn't use. */
+  CreateItem: { onCreated?: (item: Item) => void; defaultInvoiceTypeId?: InvoiceTypeId } | undefined;
   EditItem: { itemId: string };
   /**
    * `onSelectCustomer`, when provided, puts the screen in "picker" mode for a

@@ -1,4 +1,4 @@
-import { ALL_FIELD_KEYS, getFieldDefinition, type FieldKey } from './fieldCatalog';
+import { CUSTOM_BUILDER_FIELD_KEYS, getFieldDefinition, type FieldKey } from './fieldCatalog';
 import type { CustomFieldSelectionFormValues } from './validation';
 import {
   DEFAULT_CUSTOM_FIELD_KEYS,
@@ -18,7 +18,7 @@ export function selectionToCustomFormDefaults(
       : DEFAULT_CUSTOM_FIELD_KEYS,
   );
   const keySet = new Set<FieldKey>(keys);
-  return Object.fromEntries(ALL_FIELD_KEYS.map((key) => [key, keySet.has(key)])) as Record<
+  return Object.fromEntries(CUSTOM_BUILDER_FIELD_KEYS.map((key) => [key, keySet.has(key)])) as Record<
     FieldKey,
     boolean
   >;

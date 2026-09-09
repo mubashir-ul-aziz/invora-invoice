@@ -7,7 +7,7 @@ import {
 } from '../fieldCatalog';
 
 describe('fieldCatalog', () => {
-  it('exposes exactly the twelve fields the brief lists', () => {
+  it('exposes exactly the fifteen fields the brief lists (including the weight/length/time unit selectors)', () => {
     expect(ALL_FIELD_KEYS.sort()).toEqual(
       [
         'itemName',
@@ -16,9 +16,12 @@ describe('fieldCatalog', () => {
         'quantity',
         'unit',
         'weight',
+        'weightUnit',
         'length',
         'width',
         'height',
+        'lengthUnit',
+        'timeUnit',
         'unitPrice',
         'discount',
         'tax',

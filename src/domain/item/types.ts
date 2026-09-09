@@ -24,14 +24,26 @@ export interface Item {
   /** Percentage (0–100); null = no default tax for this item. */
   taxRate: number | null;
   weight: number | null;
+  /**
+   * Unit `weight` is in (kg/g/lb/oz) — only meaningful when
+   * `invoiceTypeId === 'weight'`. Optional (not just nullable), like
+   * `InvoiceItemSnapshot.weightUnit`, so every call site/fixture that
+   * predates this field keeps compiling unchanged; treated the same as
+   * `null` ("no unit set") wherever it's read.
+   */
+  weightUnit?: string | null;
   length: number | null;
   width: number | null;
   height: number | null;
+  /** Unit `length`/`width`/`height` are in (m/cm/mm/ft/in/yd) — only meaningful for the length/area/volume methods. Optional, same reasoning as `weightUnit`. */
+  lengthUnit?: string | null;
   /**
-   * Which invoice type/domain this item belongs to (General/Quantity/Weight/
-   * Dimension/Custom — the same registry Phase 3 built). Drives which of the
-   * physical fields above (weight/length/width/height) are relevant to this
-   * item — see `domain/item/relevantFields.ts`.
+   * Which Pricing Method this item belongs to (General/Quantity/Weight/
+   * Length/Area/Volume/Time/Service/Custom — `domain/invoiceType/invoiceTypeRegistry.ts`).
+   * Drives which of the physical fields above are relevant to this item —
+   * see `domain/item/relevantFields.ts` — and which invoices it can be added
+   * to (§15 of the brief: an item can only go on an invoice with the same
+   * pricing method).
    */
   invoiceTypeId: InvoiceTypeId;
   createdAt: string;
@@ -49,9 +61,11 @@ export const EMPTY_ITEM_INPUT: ItemInput = {
   defaultPrice: 0,
   taxRate: null,
   weight: null,
+  weightUnit: null,
   length: null,
   width: null,
   height: null,
+  lengthUnit: null,
   invoiceTypeId: 'general',
 };
 

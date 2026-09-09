@@ -8,6 +8,13 @@ interface Props {
   quantity: number | null;
   unit: string | null;
   unitPrice: number;
+  /**
+   * Method-aware measurement description (e.g. "5m × 4m (20 m²)" for an AREA
+   * line, "25 kg" for WEIGHT — see `describeLineMeasurement`). When given,
+   * this replaces the generic "quantity unit" reading below it, since a
+   * measured line's calculation is the whole point of showing it.
+   */
+  measurementLabel?: string | null;
   /** Already computed by `domain/invoice/calculations.ts` — this row never does the math itself. */
   lineTotal: number;
   onPress?: () => void;
@@ -16,8 +23,18 @@ interface Props {
 }
 
 /** One invoice line, used on Create Invoice – Items, Invoice Review, and Invoice Detail. */
-export function InvoiceLineRow({ itemName, quantity, unit, unitPrice, lineTotal, onPress, onDelete, testID }: Props) {
-  const quantityLabel = quantity != null ? `${formatNumber(quantity)}${unit ? ` ${unit}` : ''}` : null;
+export function InvoiceLineRow({
+  itemName,
+  quantity,
+  unit,
+  unitPrice,
+  measurementLabel,
+  lineTotal,
+  onPress,
+  onDelete,
+  testID,
+}: Props) {
+  const quantityLabel = measurementLabel ?? (quantity != null ? `${formatNumber(quantity)}${unit ? ` ${unit}` : ''}` : null);
   const subtitle = quantityLabel
     ? `${quantityLabel} × ${unitPrice.toFixed(2)}`
     : `${unitPrice.toFixed(2)} each`;

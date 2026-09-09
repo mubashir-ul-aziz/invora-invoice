@@ -28,7 +28,7 @@ describe('getPdfItemColumns', () => {
   it('always includes Item, Unit price, and Total', () => {
     const config = resolveInvoiceFieldConfig({ invoiceTypeId: 'general', customFieldKeys: [] });
     const keys = getPdfItemColumns(config).map((c) => c.key);
-    expect(keys).toEqual(['itemName', 'quantity', 'unit', 'discount', 'tax', 'unitPrice', 'total']);
+    expect(keys).toEqual(['itemName', 'sku', 'quantity', 'unit', 'discount', 'tax', 'unitPrice', 'total']);
   });
 
   it('adds a Weight column only when the invoice type includes it ("weight when applicable")', () => {
@@ -38,8 +38,8 @@ describe('getPdfItemColumns', () => {
     expect(getPdfItemColumns(withWeight).some((c) => c.key === 'weight')).toBe(true);
   });
 
-  it('adds Length/Width/Height columns only for the Dimension type ("dimensions when applicable")', () => {
-    const config = resolveInvoiceFieldConfig({ invoiceTypeId: 'dimension', customFieldKeys: [] });
+  it('adds Length/Width/Height columns only for the Volume method ("dimensions when applicable")', () => {
+    const config = resolveInvoiceFieldConfig({ invoiceTypeId: 'volume', customFieldKeys: [] });
     const keys = getPdfItemColumns(config).map((c) => c.key);
     expect(keys).toEqual(
       expect.arrayContaining(['length', 'width', 'height']),

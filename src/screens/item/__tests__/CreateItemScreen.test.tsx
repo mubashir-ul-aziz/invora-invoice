@@ -47,7 +47,7 @@ describe('CreateItemScreen', () => {
     (navigation.goBack as jest.Mock).mockClear();
   });
 
-  it('shows the invoice-type-specific fields only for weight/dimension types', async () => {
+  it('shows the pricing-method-specific fields only for weight/volume methods', async () => {
     const view = await renderScreen();
     await waitFor(() => expect(view.getByTestId('field-invoiceTypeId')).toBeTruthy());
 
@@ -56,12 +56,14 @@ describe('CreateItemScreen', () => {
 
     fireEvent.press(view.getByTestId('field-invoiceTypeId-weight'));
     await waitFor(() => expect(view.getByTestId('field-weight')).toBeTruthy());
+    expect(view.getByTestId('field-weightUnit')).toBeTruthy();
     expect(view.queryByTestId('field-length')).toBeNull();
 
-    fireEvent.press(view.getByTestId('field-invoiceTypeId-dimension'));
+    fireEvent.press(view.getByTestId('field-invoiceTypeId-volume'));
     await waitFor(() => expect(view.getByTestId('field-length')).toBeTruthy());
     expect(view.getByTestId('field-width')).toBeTruthy();
     expect(view.getByTestId('field-height')).toBeTruthy();
+    expect(view.getByTestId('field-lengthUnit')).toBeTruthy();
     expect(view.queryByTestId('field-weight')).toBeNull();
   });
 });
