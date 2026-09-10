@@ -2,11 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { PaymentFormFields } from '@/components/payment/PaymentFormFields';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
 import { formValuesToPaymentUpdateInput, paymentToFormDefaults } from '@/domain/payment/formMapping';
 import type { Payment } from '@/domain/payment/types';
@@ -143,7 +144,7 @@ export function EditPaymentScreen({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="edit-payment-screen">
+    <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="edit-payment-screen">
       <View style={styles.headerCard}>
         <Text style={styles.invoiceNumber}>{payment.invoiceNumber}</Text>
         <Text style={styles.customerName}>{payment.customerName}</Text>
@@ -161,7 +162,7 @@ export function EditPaymentScreen({ navigation, route }: Props) {
         testID="save-payment"
       />
       <ActionButton label="Delete payment" onPress={handleDelete} testID="action-delete-payment" />
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

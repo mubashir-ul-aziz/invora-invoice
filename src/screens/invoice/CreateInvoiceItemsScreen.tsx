@@ -215,6 +215,7 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
               unitPrice={line.unitPrice}
               lineTotal={calc.lineTotal}
               onPress={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
+              onEdit={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
               onDelete={() => handleRemoveLine(index)}
               testID={`invoice-line-${index}`}
             />

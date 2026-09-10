@@ -8,6 +8,7 @@ import { InvoiceStatusBadge } from '@/components/invoice/InvoiceStatusBadge';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
 import { PaymentListRow } from '@/components/payment/PaymentListRow';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
+import { OverflowMenu } from '@/components/shared/OverflowMenu';
 import type { Customer } from '@/domain/customer/types';
 import type { Invoice } from '@/domain/invoice/types';
 import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
@@ -153,119 +154,134 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const { invoice, totals, status: invoiceStatus } = detail;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="invoice-detail-screen">
-      <View style={styles.headerCard}>
-        <View style={styles.headerRow}>
-          <Text style={styles.invoiceNumber}>{invoice.invoiceNumber}</Text>
-          <InvoiceStatusBadge status={invoiceStatus} testID="invoice-detail-status" />
-        </View>
-        <SummaryRow label="Customer" value={invoice.customerName} />
-        <SummaryRow label="Pricing Method" value={getInvoiceTypeDefinition(invoice.invoiceTypeId).label} />
-        <SummaryRow label="Invoice date" value={formatDate(invoice.issueDate)} />
-        {!!invoice.dueDate && <SummaryRow label="Due date" value={formatDate(invoice.dueDate)} />}
-        <SummaryRow label="Created" value={formatTimestamp(invoice.createdAt)} />
+    <View style={styles.screen} testID="invoice-detail-screen">
+      {/* Sits directly under the real "← Invoice" header; the ⋮ menu keeps
+          Edit / Duplicate / Download PDF / Delete off the screen body. */}
+      <View style={styles.topBar}>
+        <OverflowMenu
+          testID="invoice-detail-menu"
+          items={[
+            {
+              label: 'Edit invoice',
+              onPress: () => navigation.navigate('EditInvoice', { invoiceId }),
+              testID: 'action-edit-invoice',
+            },
+            { label: 'Duplicate', onPress: handleDuplicate, testID: 'action-duplicate-invoice' },
+            {
+              label: 'Download PDF',
+              onPress: () => navigation.navigate('InvoicePdfPreview', { invoiceId }),
+              testID: 'action-download-pdf',
+            },
+            { label: 'Delete invoice', onPress: handleDelete, destructive: true, testID: 'action-delete-invoice' },
+          ]}
+        />
       </View>
 
-      {!!customer && (customer.phone || customer.email || customer.website || customer.address) && (
-        <View style={styles.row}>
-          {!!customer.phone && (
-            <ActionButton label="Call" onPress={() => openPhone(customer.phone!)} testID="action-call" />
-          )}
-          {!!customer.email && (
-            <ActionButton label="Email" onPress={() => openEmail(customer.email!)} testID="action-email" />
-          )}
-          {!!customer.website && (
-            <ActionButton
-              label="Website"
-              onPress={() => openWebsite(customer.website!)}
-              testID="action-website"
-            />
-          )}
-          {!!customer.address && (
-            <ActionButton
-              label="Directions"
-              onPress={() => openGoogleMaps({ address: customer.address })}
-              testID="action-directions"
-            />
-          )}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <View style={styles.headerCard}>
+          <View style={styles.headerRow}>
+            <Text style={styles.invoiceNumber}>{invoice.invoiceNumber}</Text>
+            <InvoiceStatusBadge status={invoiceStatus} testID="invoice-detail-status" />
+          </View>
+          <SummaryRow label="Customer" value={invoice.customerName} />
+          <SummaryRow label="Pricing Method" value={getInvoiceTypeDefinition(invoice.invoiceTypeId).label} />
+          <SummaryRow label="Invoice date" value={formatDate(invoice.issueDate)} />
+          {!!invoice.dueDate && <SummaryRow label="Due date" value={formatDate(invoice.dueDate)} />}
+          <SummaryRow label="Created" value={formatTimestamp(invoice.createdAt)} />
         </View>
-      )}
 
-      <View style={styles.itemsSection}>
-        <Text style={styles.sectionTitle}>Items</Text>
-        {invoice.items.map((line) => (
-          <InvoiceLineRow
-            key={line.id}
-            itemName={line.itemName}
-            quantity={line.quantity}
-            unit={line.unit}
-            measurementLabel={describeLineMeasurement(line.pricingMethodId ?? invoice.invoiceTypeId, line)}
-            unitPrice={line.unitPrice}
-            lineTotal={line.lineTotal}
-            testID={`invoice-detail-line-${line.id}`}
-          />
-        ))}
-      </View>
+        {!!customer && (customer.phone || customer.email || customer.website || customer.address) && (
+          <View style={styles.row}>
+            {!!customer.phone && (
+              <ActionButton label="Call" onPress={() => openPhone(customer.phone!)} testID="action-call" />
+            )}
+            {!!customer.email && (
+              <ActionButton label="Email" onPress={() => openEmail(customer.email!)} testID="action-email" />
+            )}
+            {!!customer.website && (
+              <ActionButton
+                label="Website"
+                onPress={() => openWebsite(customer.website!)}
+                testID="action-website"
+              />
+            )}
+            {!!customer.address && (
+              <ActionButton
+                label="Directions"
+                onPress={() => openGoogleMaps({ address: customer.address })}
+                testID="action-directions"
+              />
+            )}
+          </View>
+        )}
 
-      <InvoiceTotalsSummary totals={totals} testID="invoice-detail-totals" />
-
-      {!!paymentSummary && (
         <View style={styles.itemsSection}>
-          <Text style={styles.sectionTitle}>Invoice payment summary</Text>
-          <PaymentSummaryCard summary={paymentSummary} testID="invoice-detail-payment-summary" />
-          {payments.length === 0 && (
-            <Text style={styles.emptyPaymentsText} testID="invoice-detail-no-payments">
-              No payments recorded yet.
-            </Text>
-          )}
-          {payments.map((paymentRow) => (
-            <PaymentListRow
-              key={paymentRow.id}
-              payment={paymentRow}
-              showInvoiceAndCustomer={false}
-              onPress={() => navigation.navigate('EditPayment', { paymentId: paymentRow.id })}
-              testID={`invoice-detail-payment-${paymentRow.id}`}
+          <Text style={styles.sectionTitle}>Items</Text>
+          {invoice.items.map((line) => (
+            <InvoiceLineRow
+              key={line.id}
+              itemName={line.itemName}
+              quantity={line.quantity}
+              unit={line.unit}
+              measurementLabel={describeLineMeasurement(line.pricingMethodId ?? invoice.invoiceTypeId, line)}
+              unitPrice={line.unitPrice}
+              lineTotal={line.lineTotal}
+              testID={`invoice-detail-line-${line.id}`}
             />
           ))}
         </View>
-      )}
 
-      {!!invoice.notes && (
-        <View style={styles.textCard}>
-          <Text style={styles.textLabel}>Notes</Text>
-          <Text style={styles.textValue}>{invoice.notes}</Text>
-        </View>
-      )}
-      {!!invoice.terms && (
-        <View style={styles.textCard}>
-          <Text style={styles.textLabel}>Terms</Text>
-          <Text style={styles.textValue}>{invoice.terms}</Text>
-        </View>
-      )}
+        <InvoiceTotalsSummary totals={totals} testID="invoice-detail-totals" />
 
-      <View style={styles.row}>
-        <ActionButton
-          label="Edit invoice"
-          variant="primary"
-          onPress={() => navigation.navigate('EditInvoice', { invoiceId })}
-          testID="action-edit-invoice"
-        />
-        <ActionButton label="Duplicate" onPress={handleDuplicate} testID="action-duplicate-invoice" />
-      </View>
-      <View style={styles.row}>
+        {!!paymentSummary && (
+          <View style={styles.itemsSection}>
+            <Text style={styles.sectionTitle}>Invoice payment summary</Text>
+            <PaymentSummaryCard summary={paymentSummary} testID="invoice-detail-payment-summary" />
+            {payments.length === 0 && (
+              <Text style={styles.emptyPaymentsText} testID="invoice-detail-no-payments">
+                No payments recorded yet.
+              </Text>
+            )}
+            {payments.map((paymentRow) => (
+              <PaymentListRow
+                key={paymentRow.id}
+                payment={paymentRow}
+                showInvoiceAndCustomer={false}
+                onPress={() => navigation.navigate('EditPayment', { paymentId: paymentRow.id })}
+                testID={`invoice-detail-payment-${paymentRow.id}`}
+              />
+            ))}
+          </View>
+        )}
+
+        {!!invoice.notes && (
+          <View style={styles.textCard}>
+            <Text style={styles.textLabel}>Notes</Text>
+            <Text style={styles.textValue}>{invoice.notes}</Text>
+          </View>
+        )}
+        {!!invoice.terms && (
+          <View style={styles.textCard}>
+            <Text style={styles.textLabel}>Terms</Text>
+            <Text style={styles.textValue}>{invoice.terms}</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      <View style={styles.actionBar}>
         <ActionButton
           label="Record payment"
+          variant="primary"
           onPress={() => navigation.navigate('RecordPayment', { invoiceId })}
           testID="action-record-payment"
         />
         <ActionButton
-          label="Share / PDF"
+          label="Share"
           onPress={() => navigation.navigate('InvoicePdfPreview', { invoiceId })}
           testID="action-share"
         />
       </View>
-      <ActionButton label="Delete invoice" onPress={handleDelete} testID="action-delete-invoice" />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -287,9 +303,25 @@ function formatDate(isoDate: string): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  scroll: { flex: 1 },
   content: { padding: 16, gap: 16 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    backgroundColor: colors.background,
+  },
+  actionBar: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
   headerCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,

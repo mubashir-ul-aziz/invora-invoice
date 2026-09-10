@@ -2,10 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { ItemFormFields } from '@/components/item/ItemFormFields';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { formValuesToItemInput, itemToFormDefaults } from '@/domain/item/formMapping';
 import { itemFormSchema, type ItemFormOutput, type ItemFormValues } from '@/domain/item/validation';
 import type { RootStackParamList } from '@/navigation/types';
@@ -48,7 +49,7 @@ export function CreateItemScreen({ navigation, route }: Props) {
   });
 
   return (
-    <ScrollView
+    <KeyboardAvoidingScreen
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="create-item-screen"
@@ -61,7 +62,7 @@ export function CreateItemScreen({ navigation, route }: Props) {
         disabled={isSubmitting}
         testID="save-item"
       />
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

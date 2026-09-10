@@ -2,10 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CustomerFormFields } from '@/components/customer/CustomerFormFields';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { customerToFormDefaults, formValuesToCustomerInput } from '@/domain/customer/formMapping';
 import {
   customerFormSchema,
@@ -97,7 +98,7 @@ export function EditCustomerScreen({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView
+    <KeyboardAvoidingScreen
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="edit-customer-screen"
@@ -110,7 +111,7 @@ export function EditCustomerScreen({ navigation, route }: Props) {
         disabled={isSubmitting}
         testID="save-customer"
       />
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

@@ -6,6 +6,7 @@ import { INVOICE_STATUS_LABELS } from '@/domain/invoice/status';
 import type { InvoiceStatus } from '@/domain/invoice/types';
 import type { InvoiceFieldConfig } from '@/domain/invoiceType/types';
 import { summarizeInvoicePayments } from '@/domain/payment/calculations';
+import { PAYMENT_METHOD_LABELS } from '@/domain/payment/types';
 import type { Payment } from '@/domain/payment/types';
 
 import type { InvoicePdfData } from './types';
@@ -52,6 +53,7 @@ export function buildInvoicePdfData(args: BuildInvoicePdfDataArgs): InvoicePdfDa
       name: customer?.name || invoice.customerName,
       phone: customer?.phone ?? null,
       email: customer?.email ?? null,
+      website: customer?.website ?? null,
       address: customer?.address ?? null,
     },
     invoiceNumber: invoice.invoiceNumber,
@@ -64,6 +66,14 @@ export function buildInvoicePdfData(args: BuildInvoicePdfDataArgs): InvoicePdfDa
     items: invoice.items,
     totals: args.totals,
     payment: summarizeInvoicePayments(args.totals.grandTotal, args.payments),
+    payments: [...args.payments]
+      .sort((a, b) => a.paymentDate.localeCompare(b.paymentDate) || a.createdAt.localeCompare(b.createdAt))
+      .map((payment) => ({
+        paymentDate: payment.paymentDate,
+        methodLabel: PAYMENT_METHOD_LABELS[payment.method],
+        reference: payment.reference,
+        amount: payment.amount,
+      })),
     statusLabel: INVOICE_STATUS_LABELS[args.status],
   };
 }

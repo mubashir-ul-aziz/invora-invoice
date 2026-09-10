@@ -20,23 +20,13 @@ function makePayment(overrides: Partial<Payment> = {}): Payment {
 }
 
 describe('paymentToFormDefaults', () => {
-  it('defaults to blank amount, today\'s date, and "cash" when recording a new payment with no remaining balance given', () => {
+  it('defaults to blank amount, today\'s date, and "cash" when recording a new payment', () => {
     const defaults = paymentToFormDefaults(null);
     expect(defaults.amount).toBe('');
     expect(defaults.paymentDate).toBe(todayIsoDate());
     expect(defaults.method).toBe('cash');
     expect(defaults.reference).toBe('');
     expect(defaults.notes).toBe('');
-  });
-
-  it('prefills the amount with the remaining balance when recording a new payment', () => {
-    const defaults = paymentToFormDefaults(null, 250);
-    expect(defaults.amount).toBe('250');
-  });
-
-  it('leaves the amount blank when the remaining balance is 0 (nothing left to pay)', () => {
-    const defaults = paymentToFormDefaults(null, 0);
-    expect(defaults.amount).toBe('');
   });
 
   it('round-trips an existing payment\'s fields', () => {
@@ -49,12 +39,6 @@ describe('paymentToFormDefaults', () => {
       reference: 'REF-1',
       notes: 'Paid in cash',
     });
-  });
-
-  it('shows an existing payment\'s own amount, not the remaining balance', () => {
-    const payment = makePayment({ amount: 300 });
-    const defaults = paymentToFormDefaults(payment, 999);
-    expect(defaults.amount).toBe('300');
   });
 });
 

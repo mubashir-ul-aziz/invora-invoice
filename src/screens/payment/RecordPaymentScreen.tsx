@@ -2,11 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { PaymentFormFields } from '@/components/payment/PaymentFormFields';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
 import { paymentToFormDefaults } from '@/domain/payment/formMapping';
 import { paymentFormSchema, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
@@ -22,15 +23,15 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
 /**
  * Record Payment. The invoice is fixed by `route.params.invoiceId` (chosen
  * before navigating here); recording a payment never lets the user pick or
- * change which invoice it applies to. The payment summary and the amount
- * field's default both come from `summarizeInvoicePayments` — the same
- * centralized calculation Invoice Detail's payment summary and Edit Payment
- * use, computed here from this invoice's own real payment rows so the
- * prefilled amount is never out of sync with what's actually been paid. The
- * amount field defaults to the current remaining balance (the common "pay it
- * off" case) but stays freely editable for a partial payment — and is
- * **not** capped at that balance, since overpayment is allowed rather than
- * blocked (see `domain/payment/validation.ts`).
+ * change which invoice it applies to. The payment summary comes from
+ * `summarizeInvoicePayments` — the same centralized calculation Invoice
+ * Detail's payment summary and Edit Payment use, computed here from this
+ * invoice's own real payment rows. The amount field itself always starts
+ * blank (see `paymentToFormDefaults`) rather than prefilled with the
+ * remaining balance, so the payer has to type the actual amount instead of
+ * accidentally submitting the full balance — and it's **not** capped at that
+ * balance either way, since overpayment is allowed rather than blocked (see
+ * `domain/payment/validation.ts`).
  */
 export function RecordPaymentScreen({ navigation, route }: Props) {
   const { invoiceId } = route.params;
@@ -70,7 +71,7 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
         const paymentSummary = summarizeInvoicePayments(found.totals.grandTotal, payments);
         setDetail(found);
         setSummary(paymentSummary);
-        reset(paymentToFormDefaults(null, paymentSummary.remaining));
+        reset(paymentToFormDefaults(null));
         setStatus('ready');
       } catch {
         if (!cancelled) {
@@ -134,7 +135,7 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="record-payment-screen">
+    <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="record-payment-screen">
       <View style={styles.headerCard}>
         <Text style={styles.invoiceNumber}>{detail.invoice.invoiceNumber}</Text>
         <Text style={styles.customerName}>{detail.invoice.customerName}</Text>
@@ -151,7 +152,7 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
         disabled={isSubmitting}
         testID="save-payment"
       />
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

@@ -1,5 +1,6 @@
+import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 
@@ -18,6 +19,13 @@ interface Props {
   /** Already computed by `domain/invoice/calculations.ts` — this row never does the math itself. */
   lineTotal: number;
   onPress?: () => void;
+  /**
+   * Small quantity icon button shown next to Remove. Opens the same Edit
+   * Invoice Line screen as `onPress` — a more discoverable, explicit
+   * affordance for adjusting a line's quantity, alongside the row already
+   * being tappable as a whole.
+   */
+  onEdit?: () => void;
   onDelete?: () => void;
   testID?: string;
 }
@@ -31,6 +39,7 @@ export function InvoiceLineRow({
   measurementLabel,
   lineTotal,
   onPress,
+  onEdit,
   onDelete,
   testID,
 }: Props) {
@@ -40,34 +49,56 @@ export function InvoiceLineRow({
     : `${unitPrice.toFixed(2)} each`;
 
   return (
-    <Pressable
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={onPress ? `Edit ${itemName || 'line item'}` : undefined}
-      testID={testID}
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [styles.row, pressed && !!onPress && styles.pressed]}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.scrollContent}
     >
-      <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
-          {itemName || 'Untitled line'}
+      <Pressable
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? `Edit ${itemName || 'line item'}` : undefined}
+        testID={testID}
+        onPress={onPress}
+        disabled={!onPress}
+        style={({ pressed }) => [styles.row, pressed && !!onPress && styles.pressed]}
+      >
+        <View style={styles.info}>
+          <Text style={styles.name} numberOfLines={1}>
+            {itemName || 'Untitled line'}
+          </Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        </View>
+        <Text style={styles.total} numberOfLines={1}>
+          {lineTotal.toFixed(2)}
         </Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-      </View>
-      <Text style={styles.total}>{lineTotal.toFixed(2)}</Text>
-      {!!onDelete && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${itemName || 'line item'}`}
-          testID={testID ? `${testID}-delete` : undefined}
-          onPress={onDelete}
-          hitSlop={8}
-          style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.deleteLabel}>Remove</Text>
-        </Pressable>
-      )}
-    </Pressable>
+        {!!onEdit && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit quantity for ${itemName || 'line item'}`}
+            testID={testID ? `${testID}-quantity` : undefined}
+            onPress={onEdit}
+            hitSlop={8}
+            style={({ pressed }) => [styles.quantityButton, pressed && styles.pressed]}
+          >
+            <Feather name="hash" size={16} color={colors.primary} />
+          </Pressable>
+        )}
+        {!!onDelete && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${itemName || 'line item'}`}
+            testID={testID ? `${testID}-delete` : undefined}
+            onPress={onDelete}
+            hitSlop={8}
+            style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.deleteLabel}>Remove</Text>
+          </Pressable>
+        )}
+      </Pressable>
+    </ScrollView>
   );
 }
 
@@ -76,9 +107,11 @@ function formatNumber(value: number): string {
 }
 
 const styles = StyleSheet.create({
+  scrollContent: { flexGrow: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexGrow: 1,
     gap: 10,
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -88,10 +121,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   pressed: { opacity: 0.7 },
-  info: { flex: 1, gap: 2 },
+  // Fixed (non-shrinking) width so the name/subtitle never wrap onto a
+  // second line — on a narrow screen the row instead overflows its
+  // ScrollView and the whole line scrolls horizontally (see the ScrollView
+  // wrapping this row above), rather than the text squeezing or wrapping.
+  info: { width: 160, gap: 2 },
   name: { fontSize: 14, fontWeight: '600', color: colors.text },
   subtitle: { fontSize: 12, color: colors.textMuted },
-  total: { fontSize: 14, fontWeight: '700', color: colors.text },
+  total: { fontSize: 14, fontWeight: '700', color: colors.text, minWidth: 64, textAlign: 'right' },
+  quantityButton: { padding: 6, borderRadius: 8 },
   deleteButton: { paddingVertical: 4, paddingHorizontal: 8 },
   deleteLabel: { fontSize: 12, fontWeight: '600', color: colors.danger },
 });

@@ -88,7 +88,8 @@ describe('EditPaymentScreen', () => {
     const view = await renderScreen(payment.id);
 
     await waitFor(() => expect(view.getByTestId('field-amount').props.value).toBe('300'));
-    expect(view.getByTestId('field-paymentDate').props.value).toBe('2026-06-05');
+    // paymentDate is a DateField (tap-to-open calendar), not a text input — assert its displayed value instead of a raw `.props.value`.
+    expect(view.getByText('Jun 5, 2026')).toBeTruthy();
     expect(view.getByTestId('field-reference').props.value).toBe('REF-7');
     expect(view.getByText('INV-1')).toBeTruthy();
     expect(view.getByText('Acme Co')).toBeTruthy();

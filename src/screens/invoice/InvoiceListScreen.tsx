@@ -67,8 +67,12 @@ export function InvoiceListScreen({ navigation, route }: Props) {
 
   const handleOpenInvoice = (entry: InvoiceWithStatus) => {
     if (onSelectInvoice) {
-      onSelectInvoice(entry.invoice);
+      // Pop this picker off the stack *before* invoking the callback: the
+      // callback (e.g. "Record payment") typically pushes the next screen
+      // itself, and calling goBack() after that would pop that freshly-
+      // pushed screen right back off instead of this one.
       navigation.goBack();
+      onSelectInvoice(entry.invoice);
       return;
     }
     navigation.navigate('InvoiceDetail', { invoiceId: entry.invoice.id });

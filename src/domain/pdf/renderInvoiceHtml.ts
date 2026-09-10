@@ -107,6 +107,23 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
     })
     .join('');
 
+  const paymentRows = data.payments
+    .map(
+      (payment) =>
+        `<tr><td>${escapeHtml(formatDate(payment.paymentDate))}</td><td>${escapeHtml(payment.methodLabel)}</td><td>${escapeHtml(payment.reference || '-')}</td><td class="num">${escapeHtml(formatMoney(payment.amount, data.currency))}</td></tr>`,
+    )
+    .join('');
+
+  const paymentHistorySection = data.payments.length
+    ? `<div class="section">
+    <div class="section-title">Payment History</div>
+    <table class="items">
+      <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="num">Amount</th></tr></thead>
+      <tbody>${paymentRows}</tbody>
+    </table>
+  </div>`
+    : '';
+
   const remainingOrOverpaidRow =
     data.payment.overpaid > 0
       ? `<tr><td>Overpaid</td><td>${escapeHtml(formatMoney(data.payment.overpaid, data.currency))}</td></tr>`
@@ -142,7 +159,7 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
     <div>
       <div class="section-title">Bill to</div>
       <div><strong>${escapeHtml(data.customer.name)}</strong></div>
-      <div class="muted">${addressBlock([data.customer.address, data.customer.phone, data.customer.email])}</div>
+      <div class="muted">${addressBlock([data.customer.address, data.customer.phone, data.customer.email, data.customer.website])}</div>
     </div>
     <div style="text-align:right">
       <div class="section-title">Details</div>
@@ -166,6 +183,8 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
       ${remainingOrOverpaidRow}
     </table>
   </div>
+
+  ${paymentHistorySection}
 
   <div class="notes-terms">
     ${data.notes ? `<div><div class="section-title">Notes</div><div>${escapeHtmlMultiline(data.notes)}</div></div>` : ''}

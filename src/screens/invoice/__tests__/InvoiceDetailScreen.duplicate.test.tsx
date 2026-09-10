@@ -82,6 +82,8 @@ describe('InvoiceDetailScreen duplicate', () => {
       <InvoiceDetailScreen navigation={navigation as never} route={{ params: { invoiceId: created.id } } as never} />,
     );
 
+    await waitFor(() => expect(view.getByTestId('invoice-detail-menu')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-detail-menu'));
     await waitFor(() => expect(view.getByTestId('action-duplicate-invoice')).toBeTruthy());
     fireEvent.press(view.getByTestId('action-duplicate-invoice'));
 
@@ -105,6 +107,8 @@ describe('InvoiceDetailScreen duplicate', () => {
       <InvoiceDetailScreen navigation={navigation as never} route={{ params: { invoiceId: created.id } } as never} />,
     );
 
+    await waitFor(() => expect(view.getByTestId('invoice-detail-menu')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-detail-menu'));
     await waitFor(() => expect(view.getByTestId('action-duplicate-invoice')).toBeTruthy());
     fireEvent.press(view.getByTestId('action-duplicate-invoice'));
 

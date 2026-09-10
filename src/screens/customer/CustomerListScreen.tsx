@@ -38,8 +38,12 @@ export function CustomerListScreen({ navigation, route }: Props) {
 
   const handlePressCustomer = (customer: Customer) => {
     if (onSelectCustomer) {
-      onSelectCustomer(customer);
+      // Pop this picker off the stack *before* invoking the callback: the
+      // callback (e.g. Dashboard's "Create invoice" flow) typically pushes
+      // the next screen itself, and calling goBack() after that would pop
+      // that freshly-pushed screen right back off instead of this one.
       navigation.goBack();
+      onSelectCustomer(customer);
       return;
     }
     navigation.navigate('CustomerDetail', { customerId: customer.id });

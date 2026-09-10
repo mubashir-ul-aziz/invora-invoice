@@ -87,7 +87,7 @@ describe('RecordPaymentScreen', () => {
     expect(view.getByTestId('payment-summary-remaining')).toBeTruthy();
   });
 
-  it('prefills the amount field with the remaining balance after a partial payment', async () => {
+  it('leaves the amount field blank after a partial payment, even though a balance remains', async () => {
     const invoices = new InMemoryInvoiceRepository();
     const created = await invoices.create('INV-1', makeInput()); // grand total 1000
     const payments = new InMemoryPaymentRepository();
@@ -107,6 +107,7 @@ describe('RecordPaymentScreen', () => {
 
     const view = await renderScreen(created.id);
 
-    await waitFor(() => expect(view.getByTestId('field-amount').props.value).toBe('700'));
+    await waitFor(() => expect(view.getByTestId('payment-summary-remaining')).toBeTruthy());
+    expect(view.getByTestId('field-amount').props.value).toBe('');
   });
 });

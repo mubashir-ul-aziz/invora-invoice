@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
+import { AppHeader, HeaderIconButton } from '@/components/shared/AppHeader';
 import { BusinessScreen } from '@/screens/business/BusinessScreen';
 import { BusinessSettingsScreen } from '@/screens/business/BusinessSettingsScreen';
 import { EditBusinessScreen } from '@/screens/business/EditBusinessScreen';
@@ -45,8 +46,25 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   return (
-    <Stack.Navigator initialRouteName="Dashboard">
-      <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
+    <Stack.Navigator
+      initialRouteName="Dashboard"
+      screenOptions={{ header: (props) => <AppHeader {...props} /> }}
+    >
+      <Stack.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={({ navigation }) => ({
+          title: 'Dashboard',
+          headerRight: () => (
+            <HeaderIconButton
+              icon="briefcase"
+              label="Business"
+              testID="header-business"
+              onPress={() => navigation.navigate('Business')}
+            />
+          ),
+        })}
+      />
       <Stack.Screen
         name="DigitalCard"
         component={DigitalCardScreen}

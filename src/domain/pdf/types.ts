@@ -6,6 +6,16 @@ import type { InvoiceTotals } from '@/domain/invoice/calculations';
 
 export type { InvoiceTemplate };
 
+/** One recorded payment, as the invoice PDF's Payment History table shows it — narrowed from `Payment` (method pre-resolved to its display label). */
+export interface InvoicePdfPayment {
+  /** ISO calendar date, `YYYY-MM-DD`. */
+  paymentDate: string;
+  /** e.g. "Cash" / "Bank transfer" — from `PAYMENT_METHOD_LABELS`. */
+  methodLabel: string;
+  reference: string | null;
+  amount: number;
+}
+
 /** The Business fields an invoice PDF actually shows — a narrow view over `BusinessProfile`, not a duplicate entity. */
 export interface InvoicePdfBusiness {
   businessName: string;
@@ -21,6 +31,7 @@ export interface InvoicePdfCustomer {
   name: string;
   phone: string | null;
   email: string | null;
+  website: string | null;
   address: string | null;
 }
 
@@ -49,6 +60,8 @@ export interface InvoicePdfData {
   items: InvoiceItemSnapshot[];
   totals: InvoiceTotals;
   payment: InvoicePaymentSummary;
+  /** Every payment recorded against this invoice, oldest first — the Payment History table. Empty when nothing's been recorded yet. */
+  payments: InvoicePdfPayment[];
   /** e.g. "Paid" / "Partial" / "Unpaid" / "Overdue" — from `domain/invoice/status.ts`'s `INVOICE_STATUS_LABELS`. */
   statusLabel: string;
 }

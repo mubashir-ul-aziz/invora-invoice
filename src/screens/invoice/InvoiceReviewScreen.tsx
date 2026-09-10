@@ -2,12 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceDetailsFormFields } from '@/components/invoice/InvoiceDetailsFormFields';
 import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { formatNextInvoiceNumber } from '@/domain/business/types';
 import { calculateInvoiceTotals, calculateLineTotal } from '@/domain/invoice/calculations';
 import { formValuesToInvoiceDetails, invoiceToDetailsFormDefaults } from '@/domain/invoice/formMapping';
@@ -102,7 +103,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   });
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="invoice-review-screen">
+    <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="invoice-review-screen">
       <View style={styles.summaryCard}>
         {!!invoiceNumberLabel && (
           <SummaryRow label="Invoice number" value={invoiceNumberLabel} testID="review-invoice-number" />
@@ -160,7 +161,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
         disabled={isSubmitting}
         testID="save-invoice"
       />
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

@@ -2,11 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
 import { LogoPicker } from '@/components/businessCard/LogoPicker';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import {
   businessFormSchema,
   businessFormToCardInput,
@@ -83,7 +84,7 @@ export function EditBusinessScreen({ navigation }: Props) {
   });
 
   return (
-    <ScrollView
+    <KeyboardAvoidingScreen
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="edit-business-screen"
@@ -188,7 +189,7 @@ export function EditBusinessScreen({ navigation }: Props) {
         disabled={isSaving}
         testID="save-business"
       />
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

@@ -105,6 +105,8 @@ describe('InvoiceDetailScreen', () => {
     mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
 
     const view = await renderScreen(created.id);
+    await waitFor(() => expect(view.getByTestId('invoice-detail-menu')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-detail-menu'));
     await waitFor(() => expect(view.getByTestId('action-edit-invoice')).toBeTruthy());
     fireEvent.press(view.getByTestId('action-edit-invoice'));
     expect(navigation.navigate).toHaveBeenCalledWith('EditInvoice', { invoiceId: created.id });

@@ -128,6 +128,45 @@ describe('renderInvoiceHtml', () => {
     expect(html).toContain('tpl-modern');
   });
 
+  it('renders a Payment History table with date, method, and reference when payments exist', () => {
+    const data = buildInvoicePdfData({
+      template: 'classic',
+      invoice: {
+        id: 'inv-1',
+        invoiceNumber: 'INV-1',
+        customerId: 'c1',
+        customerName: 'Customer',
+        invoiceTypeId: 'general',
+        issueDate: '2026-01-01',
+        dueDate: null,
+        notes: null,
+        terms: null,
+        items: [weightLine],
+        createdAt: '',
+        updatedAt: '',
+      },
+      totals: { subtotal: 100, discountTotal: 0, taxTotal: 0, grandTotal: 100 },
+      status: 'partial',
+      payments: [
+        { id: 'p1', invoiceId: 'inv-1', invoiceNumber: 'INV-1', customerId: 'c1', customerName: 'Customer', amount: 40, paymentDate: '2026-01-05', method: 'bank_transfer', reference: 'TXN-9981', notes: null, createdAt: '', updatedAt: '' },
+      ],
+      business: null,
+      customer: null,
+      fieldConfig: resolveInvoiceFieldConfig({ invoiceTypeId: 'general', customFieldKeys: [] }),
+      logoDataUri: null,
+    });
+    const html = renderInvoiceHtml(data);
+    expect(html).toContain('Payment History');
+    expect(html).toContain('Bank transfer');
+    expect(html).toContain('TXN-9981');
+    expect(html).toContain('USD 40.00');
+  });
+
+  it('omits the Payment History section entirely when no payments were recorded', () => {
+    const html = renderInvoiceHtml(buildData('classic'));
+    expect(html).not.toContain('Payment History');
+  });
+
   it('renders the logo image only when a logo data URI is provided', () => {
     const withoutLogo = renderInvoiceHtml(buildData('compact'));
     expect(withoutLogo).not.toContain('<img');
@@ -135,6 +174,46 @@ describe('renderInvoiceHtml', () => {
     const dataWithLogo = { ...buildData('compact'), logoDataUri: 'data:image/png;base64,AAAA' };
     const withLogo = renderInvoiceHtml(dataWithLogo);
     expect(withLogo).toContain('<img class="logo" src="data:image/png;base64,AAAA" />');
+  });
+
+  it('shows the customer\'s website in the Bill To block when the customer has one', () => {
+    const data = buildInvoicePdfData({
+      template: 'classic',
+      invoice: {
+        id: 'inv-1',
+        invoiceNumber: 'INV-1',
+        customerId: 'cust-1',
+        customerName: 'Customer',
+        invoiceTypeId: 'general',
+        issueDate: '2026-01-01',
+        dueDate: null,
+        notes: null,
+        terms: null,
+        items: [weightLine],
+        createdAt: '',
+        updatedAt: '',
+      },
+      totals: { subtotal: 100, discountTotal: 0, taxTotal: 0, grandTotal: 100 },
+      status: 'unpaid',
+      payments: [],
+      business: null,
+      customer: {
+        id: 'cust-1',
+        name: 'Nuts & Bolts Ltd',
+        phone: '555-1111',
+        email: 'buyer@nutsandbolts.test',
+        website: 'https://nutsandbolts.test',
+        address: '9 Side St',
+        notes: null,
+        createdAt: '',
+        updatedAt: '',
+      },
+      fieldConfig: resolveInvoiceFieldConfig({ invoiceTypeId: 'general', customFieldKeys: [] }),
+      logoDataUri: null,
+    });
+
+    const html = renderInvoiceHtml(data);
+    expect(html).toContain('https://nutsandbolts.test');
   });
 
   it('renders a genuinely different style block per template', () => {

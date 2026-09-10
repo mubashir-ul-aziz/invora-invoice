@@ -2,11 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
 import { OptionPicker } from '@/components/business/OptionPicker';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { formValuesToSettingsInput, settingsToFormDefaults } from '@/domain/business/formMapping';
 import {
   formatNextInvoiceNumber,
@@ -60,7 +61,7 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
   });
 
   return (
-    <ScrollView
+    <KeyboardAvoidingScreen
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="invoice-settings-screen"
@@ -184,7 +185,7 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
         disabled={isSubmitting || status === 'saving'}
         testID="save-invoice-settings"
       />
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

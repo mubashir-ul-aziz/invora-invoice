@@ -64,7 +64,7 @@ const customer: Customer = {
   name: 'Acme Corp',
   phone: '555-5678',
   email: 'billing@acme.test',
-  website: null,
+  website: 'https://acme-corp.test',
   address: '456 Side St',
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -99,9 +99,37 @@ describe('buildInvoicePdfData', () => {
     expect(data.totals.grandTotal).toBe(1000);
     expect(data.business.businessName).toBe('Invora Supplies');
     expect(data.customer.name).toBe('Acme Corp');
+    expect(data.customer.website).toBe('https://acme-corp.test');
     expect(data.invoiceNumber).toBe('INV-1');
     expect(data.statusLabel).toBe('Partial');
     expect(data.items).toBe(invoice.items);
+    expect(data.payments).toEqual([
+      { paymentDate: '2026-01-05', methodLabel: 'Cash', reference: null, amount: 300 },
+      { paymentDate: '2026-01-10', methodLabel: 'Card', reference: null, amount: 200 },
+    ]);
+  });
+
+  it('sorts the payment history oldest-first regardless of the order payments were passed in', () => {
+    const totals = sumInvoiceTotals([line]);
+    const payments: Payment[] = [
+      { id: 'p2', invoiceId: 'inv-1', invoiceNumber: 'INV-1', customerId: 'cust-1', customerName: 'Acme Corp', amount: 200, paymentDate: '2026-01-10', method: 'card', reference: 'REF-2', notes: null, createdAt: '', updatedAt: '' },
+      { id: 'p1', invoiceId: 'inv-1', invoiceNumber: 'INV-1', customerId: 'cust-1', customerName: 'Acme Corp', amount: 300, paymentDate: '2026-01-05', method: 'cash', reference: 'REF-1', notes: null, createdAt: '', updatedAt: '' },
+    ];
+
+    const data = buildInvoicePdfData({
+      template: 'classic',
+      invoice,
+      totals,
+      status: 'partial',
+      payments,
+      business,
+      customer,
+      fieldConfig,
+      logoDataUri: null,
+    });
+
+    expect(data.payments.map((p) => p.paymentDate)).toEqual(['2026-01-05', '2026-01-10']);
+    expect(data.payments.map((p) => p.reference)).toEqual(['REF-1', 'REF-2']);
   });
 
   it('falls back to a placeholder business name and the invoice\'s own customer-name snapshot when both are missing', () => {

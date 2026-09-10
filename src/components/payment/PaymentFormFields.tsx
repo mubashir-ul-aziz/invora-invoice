@@ -3,6 +3,7 @@ import { Controller, type Control } from 'react-hook-form';
 
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { FormField } from '@/components/businessCard/FormField';
+import { DateField } from '@/components/shared/DateField';
 import { PAYMENT_METHOD_OPTIONS } from '@/domain/payment/types';
 import type { PaymentFormOutput, PaymentFormValues } from '@/domain/payment/validation';
 
@@ -31,12 +32,19 @@ export function PaymentFormFields({ control, errors }: Props) {
         errors={errors}
         keyboardType="decimal-pad"
       />
-      <Field
-        name="paymentDate"
-        label="Payment date *"
+      <Controller
         control={control}
-        errors={errors}
-        placeholder="YYYY-MM-DD"
+        name="paymentDate"
+        render={({ field: { value, onChange, onBlur } }) => (
+          <DateField
+            label="Payment date *"
+            value={typeof value === 'string' ? value : ''}
+            onChange={onChange}
+            onBlur={onBlur}
+            error={errors.paymentDate?.message}
+            testID="field-paymentDate"
+          />
+        )}
       />
 
       <Controller

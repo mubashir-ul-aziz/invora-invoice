@@ -8,13 +8,14 @@ export function todayIsoDate(): string {
 
 /**
  * Payment (or nothing, for "recording new") -> flat string-based form default
- * values. `remainingBalance`, when given, prefills the amount field with the
- * invoice's current remaining balance — a convenience for the common
- * "pay it off" case; the field stays freely editable for a partial payment.
+ * values. Recording a new payment always starts with a blank amount field —
+ * it's never prefilled from the invoice's remaining balance — so the payer
+ * has to type the actual amount rather than accidentally submit the full
+ * balance.
  */
-export function paymentToFormDefaults(payment: Payment | null, remainingBalance?: number) {
+export function paymentToFormDefaults(payment: Payment | null) {
   return {
-    amount: payment ? String(payment.amount) : remainingBalance != null && remainingBalance > 0 ? String(remainingBalance) : '',
+    amount: payment ? String(payment.amount) : '',
     paymentDate: payment?.paymentDate ?? todayIsoDate(),
     method: payment?.method ?? 'cash',
     reference: payment?.reference ?? '',

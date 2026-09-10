@@ -2,10 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceLineFormFields } from '@/components/invoice/InvoiceLineFormFields';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { formValuesToInvoiceLineInput, invoiceLineToFormDefaults } from '@/domain/invoice/formMapping';
 import { blankInvoiceLine } from '@/domain/invoice/snapshot';
 import {
@@ -83,7 +84,7 @@ export function EditInvoiceLineScreen({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView
+    <KeyboardAvoidingScreen
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="edit-invoice-line-screen"
@@ -99,7 +100,7 @@ export function EditInvoiceLineScreen({ navigation, route }: Props) {
       {lineIndex != null && (
         <ActionButton label="Remove line" onPress={handleRemove} testID="remove-invoice-line" />
       )}
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

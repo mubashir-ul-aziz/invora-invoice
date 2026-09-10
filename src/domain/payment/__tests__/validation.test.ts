@@ -46,6 +46,19 @@ describe('paymentFormSchema', () => {
     expect(paymentFormSchema.safeParse(baseValues({ paymentDate: '2026-02-30' })).success).toBe(false);
   });
 
+  it('rejects an upcoming (future) payment date', () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const iso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    expect(paymentFormSchema.safeParse(baseValues({ paymentDate: iso })).success).toBe(false);
+  });
+
+  it('accepts a payment dated today', () => {
+    const now = new Date();
+    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    expect(paymentFormSchema.safeParse(baseValues({ paymentDate: iso })).success).toBe(true);
+  });
+
   it('rejects an unknown payment method', () => {
     expect(paymentFormSchema.safeParse(baseValues({ method: 'bitcoin' })).success).toBe(false);
   });
