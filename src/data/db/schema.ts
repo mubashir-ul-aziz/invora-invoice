@@ -72,6 +72,13 @@ export const business = sqliteTable('business', {
    * registry instead of the database.
    */
   customInvoiceFields: text('custom_invoice_fields'),
+  /**
+   * JSON-encoded `CustomUnitsMap` (`domain/invoiceType/customUnits.ts`) —
+   * business-added units for each of the four unit dropdowns (generic/
+   * weight/length/time), layered on top of the fixed catalog in `units.ts`.
+   * Null/malformed reads as "no custom units yet" (`parseCustomUnitsMap`).
+   */
+  customUnits: text('custom_units'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
@@ -422,6 +429,7 @@ export const CREATE_TABLES_SQL = `
     default_invoice_template TEXT NOT NULL DEFAULT 'classic',
     invoice_type TEXT NOT NULL DEFAULT 'general',
     custom_invoice_fields TEXT,
+    custom_units TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   );
@@ -577,6 +585,7 @@ export const BUSINESS_COLUMN_UPGRADES: { column: string; definition: string }[] 
   { column: 'default_invoice_template', definition: "TEXT NOT NULL DEFAULT 'classic'" },
   { column: 'invoice_type', definition: "TEXT NOT NULL DEFAULT 'general'" },
   { column: 'custom_invoice_fields', definition: 'TEXT' },
+  { column: 'custom_units', definition: 'TEXT' },
 ];
 
 /**

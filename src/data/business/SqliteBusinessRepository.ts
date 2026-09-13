@@ -17,6 +17,13 @@ import {
 } from '@/domain/invoiceType/types';
 import { isFieldKey } from '@/domain/invoiceType/fieldCatalog';
 import { normalizeLegacyInvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+import {
+  addCustomUnitToList,
+  baseUnitOptionsFor,
+  parseCustomUnitsMap,
+  type CustomUnitsMap,
+  type UnitFieldKind,
+} from '@/domain/invoiceType/customUnits';
 import { generateBusinessCode, generateLocalId } from '@/lib/id';
 
 import { getDatabase, getDrizzle } from '../db/client';
@@ -92,6 +99,10 @@ function toSelection(row: typeof business.$inferSelect): InvoiceTypeSelection {
     customFieldKeys: parseCustomFieldKeys(row.customInvoiceFields),
     updatedAt: new Date(row.updatedAt).toISOString(),
   };
+}
+
+function toCustomUnits(row: { customUnits: string | null } | undefined): CustomUnitsMap {
+  return parseCustomUnitsMap(row?.customUnits ?? null);
 }
 
 /**
@@ -298,6 +309,63 @@ export class SqliteBusinessRepository implements BusinessRepository {
       throw new Error('Failed to read back the invoice type selection after saving.');
     }
     return saved;
+  }
+
+  async getCustomUnits(): Promise<CustomUnitsMap> {
+    await getDatabase();
+    const db = getDrizzle();
+    const rows = await db
+      .select({ customUnits: business.customUnits })
+      .from(business)
+      .where(eq(business.id, BUSINESS_ID));
+    return toCustomUnits(rows[0]);
+  }
+
+  async addCustomUnit(kind: UnitFieldKind, label: string): Promise<CustomUnitsMap> {
+    await getDatabase();
+    const db = getDrizzle();
+
+    const now = Date.now();
+    const existing = await db
+      .select({
+        id: business.id,
+        name: business.name,
+        createdAt: business.createdAt,
+        shareSlug: business.shareSlug,
+        businessCode: business.businessCode,
+        customUnits: business.customUnits,
+      })
+      .from(business)
+      .where(eq(business.id, BUSINESS_ID));
+
+    const shareSlug = existing[0]?.shareSlug ?? generateLocalId();
+    const createdAt = existing[0]?.createdAt ?? now;
+    const name = existing[0]?.name ?? '';
+    const businessCode = existing[0]?.businessCode ?? generateBusinessCode();
+
+    const current = toCustomUnits(existing[0]);
+    const updated: CustomUnitsMap = {
+      ...current,
+      [kind]: addCustomUnitToList(current[kind], label, baseUnitOptionsFor(kind)),
+    };
+
+    const values = {
+      id: BUSINESS_ID,
+      name,
+      businessCode,
+      customUnits: JSON.stringify(updated),
+      shareSlug,
+      createdAt,
+      updatedAt: now,
+    };
+
+    if (existing[0]) {
+      await db.update(business).set(values).where(eq(business.id, BUSINESS_ID));
+    } else {
+      await db.insert(business).values(values);
+    }
+
+    return updated;
   }
 
   async reserveNextInvoiceNumber(): Promise<string> {

@@ -1,4 +1,4 @@
-import { paymentFormSchema } from '../validation';
+import { paymentFormSchema, paymentFormSchemaWithMinDate } from '../validation';
 
 function baseValues(overrides: Partial<Record<string, string>> = {}) {
   return {
@@ -76,5 +76,34 @@ describe('paymentFormSchema', () => {
       expect(result.data.reference).toBeNull();
       expect(result.data.notes).toBeNull();
     }
+  });
+});
+
+describe('paymentFormSchemaWithMinDate', () => {
+  // Dates picked safely in the past (relative to any real test-run clock) so
+  // only the min-date bound is under test, never the separate "no future
+  // dates" rule already covered above.
+  it("rejects a payment date before the invoice's issue date", () => {
+    const schema = paymentFormSchemaWithMinDate('2020-09-11');
+    const result = schema.safeParse(baseValues({ paymentDate: '2020-09-10' }));
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a payment date matching the invoice's issue date", () => {
+    const schema = paymentFormSchemaWithMinDate('2020-09-11');
+    const result = schema.safeParse(baseValues({ paymentDate: '2020-09-11' }));
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a payment date after the issue date', () => {
+    const schema = paymentFormSchemaWithMinDate('2020-06-01');
+    const result = schema.safeParse(baseValues({ paymentDate: '2020-06-05' }));
+    expect(result.success).toBe(true);
+  });
+
+  it('applies no lower bound when minDate is null', () => {
+    const schema = paymentFormSchemaWithMinDate(null);
+    const result = schema.safeParse(baseValues({ paymentDate: '2020-01-01' }));
+    expect(result.success).toBe(true);
   });
 });

@@ -59,6 +59,25 @@ export const DEFAULT_WEIGHT_UNIT: WeightUnit = 'kg';
 export const DEFAULT_LENGTH_UNIT: LengthUnit = 'm';
 export const DEFAULT_TIME_UNIT: TimeUnit = 'hour';
 
+/**
+ * Dropdown choices for the generic `unit` field (General/Quantity/Service —
+ * "e.g. pcs, box, hr"). Replaces what used to be a free-text input; unlike
+ * `WEIGHT_UNITS`/`LENGTH_UNITS`/`TIME_UNITS` these aren't tied to a
+ * conversion table since nothing ever converts a "box" into a "pcs".
+ */
+export const GENERIC_UNITS: { value: string; label: string }[] = [
+  { value: 'pcs', label: 'pcs' },
+  { value: 'unit', label: 'unit' },
+  { value: 'box', label: 'box' },
+  { value: 'pack', label: 'pack' },
+  { value: 'set', label: 'set' },
+  { value: 'dozen', label: 'dozen' },
+  { value: 'hr', label: 'hr' },
+  { value: 'kg', label: 'kg' },
+  { value: 'ltr', label: 'ltr' },
+  { value: 'm', label: 'm' },
+];
+
 const UNIT_TABLES: Record<MeasurementKind, UnitOption<string>[]> = {
   weight: WEIGHT_UNITS,
   length: LENGTH_UNITS,

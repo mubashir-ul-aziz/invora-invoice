@@ -181,6 +181,11 @@ export const INVOICE_TYPE_REGISTRY: InvoiceTypeDefinition[] = [
 
 export const INVOICE_TYPE_IDS: InvoiceTypeId[] = INVOICE_TYPE_REGISTRY.map((def) => def.id);
 
+/** `{ value, label }` options for every Pricing Method dropdown in the app — one list, so the choices can never drift between screens. */
+export const PRICING_METHOD_OPTIONS: { value: InvoiceTypeId; label: string }[] = INVOICE_TYPE_REGISTRY.map(
+  (def) => ({ value: def.id, label: def.label }),
+);
+
 export function getInvoiceTypeDefinition(id: InvoiceTypeId): InvoiceTypeDefinition {
   const definition = INVOICE_TYPE_REGISTRY.find((def) => def.id === id);
   if (!definition) {

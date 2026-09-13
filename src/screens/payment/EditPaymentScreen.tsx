@@ -10,8 +10,8 @@ import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
 import { formValuesToPaymentUpdateInput, paymentToFormDefaults } from '@/domain/payment/formMapping';
-import type { Payment } from '@/domain/payment/types';
-import { paymentFormSchema, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
+import type { Payment, PaymentUpdateInput } from '@/domain/payment/types';
+import { paymentFormSchemaWithMinDate, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceStore } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
@@ -27,6 +27,11 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
  * it's shown but never editable here. The payment summary shown is the
  * invoice's real current one (via `summarizeInvoicePayments`, the same
  * centralized calculation every other payment-summary screen uses).
+ *
+ * The actual form (`EditPaymentForm`) only mounts once the invoice's own
+ * `issueDate` has loaded, so `paymentFormSchemaWithMinDate` can be built with
+ * that lower bound from the very first render — same pattern as
+ * `RecordPaymentScreen`.
  */
 export function EditPaymentScreen({ navigation, route }: Props) {
   const { paymentId } = route.params;
@@ -35,16 +40,7 @@ export function EditPaymentScreen({ navigation, route }: Props) {
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [payment, setPayment] = useState<Payment | null>(null);
   const [summary, setSummary] = useState<InvoicePaymentSummary | null>(null);
-
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<PaymentFormValues, unknown, PaymentFormOutput>({
-    resolver: zodResolver(paymentFormSchema),
-    defaultValues: paymentToFormDefaults(null),
-  });
+  const [invoiceIssueDate, setInvoiceIssueDate] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,9 +61,9 @@ export function EditPaymentScreen({ navigation, route }: Props) {
         }
         if (detail) {
           setSummary(summarizeInvoicePayments(detail.totals.grandTotal, allPayments));
+          setInvoiceIssueDate(detail.invoice.issueDate);
         }
         setPayment(found);
-        reset(paymentToFormDefaults(found));
         setStatus('ready');
       } catch {
         if (!cancelled) {
@@ -80,19 +76,6 @@ export function EditPaymentScreen({ navigation, route }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentId]);
-
-  const onSubmit = handleSubmit(async (values) => {
-    if (!payment) {
-      return;
-    }
-    try {
-      await update(payment.id, formValuesToPaymentUpdateInput(values));
-      navigation.popToTop();
-      navigation.navigate('InvoiceDetail', { invoiceId: payment.invoiceId });
-    } catch {
-      Alert.alert("Couldn't save", 'Your changes could not be saved. Please try again.');
-    }
-  });
 
   const handleDelete = () => {
     if (!payment) {
@@ -144,6 +127,52 @@ export function EditPaymentScreen({ navigation, route }: Props) {
   }
 
   return (
+    <EditPaymentForm
+      navigation={navigation}
+      payment={payment}
+      summary={summary}
+      invoiceIssueDate={invoiceIssueDate}
+      update={update}
+      onDelete={handleDelete}
+    />
+  );
+}
+
+function EditPaymentForm({
+  navigation,
+  payment,
+  summary,
+  invoiceIssueDate,
+  update,
+  onDelete,
+}: {
+  navigation: Props['navigation'];
+  payment: Payment;
+  summary: InvoicePaymentSummary | null;
+  invoiceIssueDate: string | null;
+  update: (id: string, input: PaymentUpdateInput) => Promise<Payment>;
+  onDelete: () => void;
+}) {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<PaymentFormValues, unknown, PaymentFormOutput>({
+    resolver: zodResolver(paymentFormSchemaWithMinDate(invoiceIssueDate)),
+    defaultValues: paymentToFormDefaults(payment),
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      await update(payment.id, formValuesToPaymentUpdateInput(values));
+      navigation.popToTop();
+      navigation.navigate('InvoiceDetail', { invoiceId: payment.invoiceId });
+    } catch {
+      Alert.alert("Couldn't save", 'Your changes could not be saved. Please try again.');
+    }
+  });
+
+  return (
     <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="edit-payment-screen">
       <View style={styles.headerCard}>
         <Text style={styles.invoiceNumber}>{payment.invoiceNumber}</Text>
@@ -152,7 +181,7 @@ export function EditPaymentScreen({ navigation, route }: Props) {
 
       {!!summary && <PaymentSummaryCard summary={summary} testID="edit-payment-summary" />}
 
-      <PaymentFormFields control={control} errors={errors} />
+      <PaymentFormFields control={control} errors={errors} minPaymentDate={invoiceIssueDate} />
 
       <ActionButton
         label={isSubmitting ? 'Saving…' : 'Save changes'}
@@ -161,7 +190,7 @@ export function EditPaymentScreen({ navigation, route }: Props) {
         disabled={isSubmitting}
         testID="save-payment"
       />
-      <ActionButton label="Delete payment" onPress={handleDelete} testID="action-delete-payment" />
+      <ActionButton label="Delete payment" onPress={onDelete} testID="action-delete-payment" />
     </KeyboardAvoidingScreen>
   );
 }

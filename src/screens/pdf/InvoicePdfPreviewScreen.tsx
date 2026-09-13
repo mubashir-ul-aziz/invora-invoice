@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } f
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
-import { PdfLineItemRow } from '@/components/pdf/PdfLineItemRow';
+import { PdfLineItemRow, PDF_ITEM_CELL_WIDTH } from '@/components/pdf/PdfLineItemRow';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import { INVOICE_TEMPLATE_OPTIONS, type InvoiceTemplate } from '@/domain/business/types';
 import { getPdfItemColumns } from '@/domain/pdf/itemColumns';
@@ -129,15 +129,37 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Items</Text>
-        {data.items.map((item) => (
-          <PdfLineItemRow
-            key={item.id}
-            item={item}
-            columns={columns}
-            currency={data.currency}
-            testID={`pdf-preview-line-${item.id}`}
-          />
-        ))}
+        {/*
+          Every item stays on one row (`PdfLineItemRow`'s fixed-width cells,
+          no wrapping) — this horizontal ScrollView is what keeps the table
+          readable on a narrow phone instead of squeezing or wrapping
+          columns: it scrolls sideways for the extra columns a pricing
+          method with more fields (e.g. Volume) adds, rather than breaking
+          a line item across multiple visual rows.
+        */}
+        <ScrollView horizontal showsHorizontalScrollIndicator testID="pdf-preview-items-scroll">
+          <View>
+            <View style={styles.itemsHeaderRow}>
+              {columns.map((column) => (
+                <Text
+                  key={column.key}
+                  style={[styles.itemsHeaderCell, column.align === 'right' && styles.itemsHeaderCellRight]}
+                >
+                  {column.label}
+                </Text>
+              ))}
+            </View>
+            {data.items.map((item) => (
+              <PdfLineItemRow
+                key={item.id}
+                item={item}
+                columns={columns}
+                currency={data.currency}
+                testID={`pdf-preview-line-${item.id}`}
+              />
+            ))}
+          </View>
+        </ScrollView>
       </View>
 
       <InvoiceTotalsSummary totals={data.totals} testID="pdf-preview-totals" />
@@ -235,5 +257,15 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 13, color: colors.text, flexShrink: 1, textAlign: 'right' },
   section: { gap: 4 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  itemsHeaderRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 6 },
+  itemsHeaderCell: {
+    width: PDF_ITEM_CELL_WIDTH,
+    paddingRight: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  itemsHeaderCellRight: { textAlign: 'right' },
   actions: { gap: 10 },
 });

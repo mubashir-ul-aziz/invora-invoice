@@ -12,6 +12,8 @@ function failingRepository(message: string): BusinessRepository {
     saveInvoiceSettings: () => Promise.reject(new Error(message)),
     getInvoiceTypeSelection: () => Promise.reject(new Error(message)),
     saveInvoiceTypeSelection: () => Promise.reject(new Error(message)),
+    getCustomUnits: () => Promise.reject(new Error(message)),
+    addCustomUnit: () => Promise.reject(new Error(message)),
     reserveNextInvoiceNumber: () => Promise.reject(new Error(message)),
   };
 }

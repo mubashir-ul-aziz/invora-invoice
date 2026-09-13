@@ -4,6 +4,7 @@ import type {
   InvoiceSettings,
   InvoiceSettingsInput,
 } from '@/domain/business/types';
+import type { CustomUnitsMap, UnitFieldKind } from '@/domain/invoiceType/customUnits';
 import type { InvoiceTypeSelection, InvoiceTypeSelectionInput } from '@/domain/invoiceType/types';
 
 /**
@@ -39,6 +40,17 @@ export interface BusinessRepository {
   getInvoiceTypeSelection(): Promise<InvoiceTypeSelection | null>;
   /** Creates the business row on first save, or updates the existing one. */
   saveInvoiceTypeSelection(input: InvoiceTypeSelectionInput): Promise<InvoiceTypeSelection>;
+
+  /** Returns every business-added unit, per unit dropdown kind. Empty lists (never null) when none have been added yet. */
+  getCustomUnits(): Promise<CustomUnitsMap>;
+  /**
+   * Adds one new unit to a dropdown kind (generic/weight/length/time) and
+   * returns the full updated map — a no-op that returns the map unchanged
+   * when `label` is blank or already known (case-insensitively) for that
+   * kind, so the same unit can never be saved twice (see
+   * `addCustomUnitToList`).
+   */
+  addCustomUnit(kind: UnitFieldKind, label: string): Promise<CustomUnitsMap>;
 
   /**
    * Atomically reads the current `invoicePrefix`/`nextInvoiceNumber`, formats

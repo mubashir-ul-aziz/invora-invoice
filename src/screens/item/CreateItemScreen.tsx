@@ -54,7 +54,7 @@ export function CreateItemScreen({ navigation, route }: Props) {
       contentContainerStyle={styles.content}
       testID="create-item-screen"
     >
-      <ItemFormFields control={control} errors={errors} />
+      <ItemFormFields control={control} errors={errors} lockedInvoiceTypeId={defaultInvoiceTypeId ?? null} />
       <ActionButton
         label={isSubmitting ? 'Saving…' : 'Create item'}
         variant="primary"

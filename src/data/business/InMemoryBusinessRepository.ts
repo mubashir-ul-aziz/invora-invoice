@@ -13,6 +13,13 @@ import {
   type InvoiceTypeSelection,
   type InvoiceTypeSelectionInput,
 } from '@/domain/invoiceType/types';
+import {
+  addCustomUnitToList,
+  baseUnitOptionsFor,
+  EMPTY_CUSTOM_UNITS,
+  type CustomUnitsMap,
+  type UnitFieldKind,
+} from '@/domain/invoiceType/customUnits';
 import { generateBusinessCode, generateLocalId } from '@/lib/id';
 
 import type { BusinessRepository } from './BusinessRepository';
@@ -38,6 +45,8 @@ interface Row {
   invoiceType: InvoiceType;
   /** Only meaningful when `invoiceType` is `'custom'` — see `db/schema.ts`. */
   customFieldKeys: FieldKey[];
+  /** Business-added units per unit dropdown kind — see `db/schema.ts`'s `custom_units` column. */
+  customUnits: CustomUnitsMap;
   updatedAt: string;
 }
 
@@ -108,6 +117,7 @@ export class InMemoryBusinessRepository implements BusinessRepository {
       defaultInvoiceTemplate: this.row?.defaultInvoiceTemplate ?? 'classic',
       invoiceType: this.row?.invoiceType ?? 'general',
       customFieldKeys: this.row?.customFieldKeys ?? [],
+      customUnits: this.row?.customUnits ?? { ...EMPTY_CUSTOM_UNITS },
       ...input,
       updatedAt: now,
     };
@@ -131,6 +141,7 @@ export class InMemoryBusinessRepository implements BusinessRepository {
       website: this.row?.website ?? null,
       taxId: this.row?.taxId ?? null,
       customFieldKeys: this.row?.customFieldKeys ?? [],
+      customUnits: this.row?.customUnits ?? { ...EMPTY_CUSTOM_UNITS },
       ...input,
       updatedAt: now,
     };
@@ -162,9 +173,45 @@ export class InMemoryBusinessRepository implements BusinessRepository {
       invoiceType: input.invoiceTypeId,
       customFieldKeys:
         input.invoiceTypeId === 'custom' ? normalizeCustomFieldKeys(input.customFieldKeys) : [],
+      customUnits: this.row?.customUnits ?? { ...EMPTY_CUSTOM_UNITS },
       updatedAt: now,
     };
     return toSelection(this.row);
+  }
+
+  async getCustomUnits(): Promise<CustomUnitsMap> {
+    return this.row?.customUnits ?? { ...EMPTY_CUSTOM_UNITS };
+  }
+
+  async addCustomUnit(kind: UnitFieldKind, label: string): Promise<CustomUnitsMap> {
+    const now = new Date().toISOString();
+    const current = this.row?.customUnits ?? { ...EMPTY_CUSTOM_UNITS };
+    const updated: CustomUnitsMap = {
+      ...current,
+      [kind]: addCustomUnitToList(current[kind], label, baseUnitOptionsFor(kind)),
+    };
+    this.row = {
+      id: this.row?.id ?? generateLocalId('biz_'),
+      businessCode: this.row?.businessCode ?? generateBusinessCode(),
+      businessName: this.row?.businessName ?? '',
+      logoUri: this.row?.logoUri ?? null,
+      address: this.row?.address ?? null,
+      phone: this.row?.phone ?? null,
+      email: this.row?.email ?? null,
+      website: this.row?.website ?? null,
+      taxId: this.row?.taxId ?? null,
+      currency: this.row?.currency ?? 'USD',
+      invoicePrefix: this.row?.invoicePrefix ?? 'INV-',
+      nextInvoiceNumber: this.row?.nextInvoiceNumber ?? 1,
+      defaultTaxRate: this.row?.defaultTaxRate ?? null,
+      defaultPaymentTermsDays: this.row?.defaultPaymentTermsDays ?? null,
+      defaultInvoiceTemplate: this.row?.defaultInvoiceTemplate ?? 'classic',
+      invoiceType: this.row?.invoiceType ?? 'general',
+      customFieldKeys: this.row?.customFieldKeys ?? [],
+      customUnits: updated,
+      updatedAt: now,
+    };
+    return updated;
   }
 
   async reserveNextInvoiceNumber(): Promise<string> {
@@ -191,6 +238,7 @@ export class InMemoryBusinessRepository implements BusinessRepository {
       defaultInvoiceTemplate: this.row?.defaultInvoiceTemplate ?? 'classic',
       invoiceType: this.row?.invoiceType ?? 'general',
       customFieldKeys: this.row?.customFieldKeys ?? [],
+      customUnits: this.row?.customUnits ?? { ...EMPTY_CUSTOM_UNITS },
       updatedAt: now,
     };
     return invoiceNumber;

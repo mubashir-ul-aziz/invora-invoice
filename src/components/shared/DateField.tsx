@@ -20,10 +20,16 @@ interface Props {
    * invoice due date, which is allowed to be in the future).
    */
   maximumDate?: Date | null;
+  /**
+   * Earliest selectable day, inclusive. Defaults to `null` (no lower bound)
+   * — pass today (e.g. an invoice due date, which shouldn't be backdated)
+   * to restrict the calendar to upcoming dates only.
+   */
+  minimumDate?: Date | null;
 }
 
-/** Parses a `YYYY-MM-DD` string as a local calendar date (never shifts a day due to UTC conversion). */
-function parseIsoDateLocal(value: string): Date | null {
+/** Parses a `YYYY-MM-DD` string as a local calendar date (never shifts a day due to UTC conversion). Exported so callers can turn a stored ISO date into a `minimumDate`/`maximumDate` prop without duplicating this parsing. */
+export function parseIsoDateLocal(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) {
     return null;
@@ -64,6 +70,7 @@ export function DateField({
   placeholder = 'Select a date',
   testID,
   maximumDate = new Date(),
+  minimumDate = null,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -100,6 +107,7 @@ export function DateField({
           value={selectedDate}
           mode="date"
           maximumDate={maximumDate ?? undefined}
+          minimumDate={minimumDate ?? undefined}
           onValueChange={(_event, date) => {
             setOpen(false);
             onBlur?.();
@@ -121,6 +129,7 @@ export function DateField({
                 mode="date"
                 display="inline"
                 maximumDate={maximumDate ?? undefined}
+                minimumDate={minimumDate ?? undefined}
                 onValueChange={(_event, date) => onChange(toIsoDateLocal(date))}
               />
               <Pressable

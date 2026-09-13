@@ -1,4 +1,4 @@
-import { LENGTH_UNITS, TIME_UNITS, WEIGHT_UNITS } from './units';
+import { GENERIC_UNITS, LENGTH_UNITS, TIME_UNITS, WEIGHT_UNITS } from './units';
 
 /**
  * The single catalog of every item-line field the app knows how to render.
@@ -53,7 +53,12 @@ export const FIELD_DEFINITIONS: Record<FieldKey, FieldDefinition> = {
   description: { key: 'description', label: 'Description', inputKind: 'multiline' },
   sku: { key: 'sku', label: 'SKU', inputKind: 'text' },
   quantity: { key: 'quantity', label: 'Quantity', inputKind: 'decimal' },
-  unit: { key: 'unit', label: 'Unit', inputKind: 'text' },
+  unit: {
+    key: 'unit',
+    label: 'Unit',
+    inputKind: 'select',
+    options: GENERIC_UNITS,
+  },
   weight: { key: 'weight', label: 'Weight', inputKind: 'decimal' },
   weightUnit: {
     key: 'weightUnit',

@@ -13,7 +13,7 @@ import {
   reconcileInvoiceLineWithFieldConfig,
 } from '@/domain/invoice/snapshot';
 import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
-import { INVOICE_TYPE_REGISTRY, getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
+import { PRICING_METHOD_OPTIONS, getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { resolveInvoiceFieldConfig } from '@/domain/invoiceType/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
@@ -21,8 +21,6 @@ import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateInvoiceItems'>;
-
-const PRICING_METHOD_OPTIONS = INVOICE_TYPE_REGISTRY.map((def) => ({ value: def.id, label: def.label }));
 
 /**
  * "Create Invoice – Items". Fields on each line dynamically follow the

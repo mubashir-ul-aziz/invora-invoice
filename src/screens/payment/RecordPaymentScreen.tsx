@@ -10,7 +10,8 @@ import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
 import { paymentToFormDefaults } from '@/domain/payment/formMapping';
-import { paymentFormSchema, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
+import { paymentFormSchemaWithMinDate, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
+import type { PaymentInput } from '@/domain/payment/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
@@ -32,6 +33,12 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
  * accidentally submitting the full balance — and it's **not** capped at that
  * balance either way, since overpayment is allowed rather than blocked (see
  * `domain/payment/validation.ts`).
+ *
+ * The actual form (`RecordPaymentForm`) only mounts once the invoice has
+ * loaded, so its validation schema can be built with the invoice's own
+ * `issueDate` as the payment date's lower bound from the very first render —
+ * see `paymentFormSchemaWithMinDate` — instead of trying to reactively patch
+ * a `useForm` already in flight.
  */
 export function RecordPaymentScreen({ navigation, route }: Props) {
   const { invoiceId } = route.params;
@@ -40,16 +47,6 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [detail, setDetail] = useState<InvoiceWithStatus | null>(null);
   const [summary, setSummary] = useState<InvoicePaymentSummary | null>(null);
-
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<PaymentFormValues, unknown, PaymentFormOutput>({
-    resolver: zodResolver(paymentFormSchema),
-    defaultValues: paymentToFormDefaults(null),
-  });
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +68,6 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
         const paymentSummary = summarizeInvoicePayments(found.totals.grandTotal, payments);
         setDetail(found);
         setSummary(paymentSummary);
-        reset(paymentToFormDefaults(null));
         setStatus('ready');
       } catch {
         if (!cancelled) {
@@ -84,29 +80,6 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
-
-  const onSubmit = handleSubmit(async (values) => {
-    if (!detail) {
-      return;
-    }
-    try {
-      await create({
-        invoiceId,
-        invoiceNumber: detail.invoice.invoiceNumber,
-        customerId: detail.invoice.customerId,
-        customerName: detail.invoice.customerName,
-        amount: values.amount,
-        paymentDate: values.paymentDate,
-        method: values.method,
-        reference: values.reference,
-        notes: values.notes,
-      });
-      navigation.popToTop();
-      navigation.navigate('InvoiceDetail', { invoiceId });
-    } catch {
-      Alert.alert("Couldn't save", 'This payment could not be recorded. Please try again.');
-    }
-  });
 
   if (status === 'loading') {
     return (
@@ -135,6 +108,59 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
   }
 
   return (
+    <RecordPaymentForm
+      navigation={navigation}
+      invoiceId={invoiceId}
+      detail={detail}
+      summary={summary}
+      create={create}
+    />
+  );
+}
+
+function RecordPaymentForm({
+  navigation,
+  invoiceId,
+  detail,
+  summary,
+  create,
+}: {
+  navigation: Props['navigation'];
+  invoiceId: string;
+  detail: InvoiceWithStatus;
+  summary: InvoicePaymentSummary;
+  create: (input: PaymentInput) => Promise<unknown>;
+}) {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<PaymentFormValues, unknown, PaymentFormOutput>({
+    resolver: zodResolver(paymentFormSchemaWithMinDate(detail.invoice.issueDate)),
+    defaultValues: paymentToFormDefaults(null),
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      await create({
+        invoiceId,
+        invoiceNumber: detail.invoice.invoiceNumber,
+        customerId: detail.invoice.customerId,
+        customerName: detail.invoice.customerName,
+        amount: values.amount,
+        paymentDate: values.paymentDate,
+        method: values.method,
+        reference: values.reference,
+        notes: values.notes,
+      });
+      navigation.popToTop();
+      navigation.navigate('InvoiceDetail', { invoiceId });
+    } catch {
+      Alert.alert("Couldn't save", 'This payment could not be recorded. Please try again.');
+    }
+  });
+
+  return (
     <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="record-payment-screen">
       <View style={styles.headerCard}>
         <Text style={styles.invoiceNumber}>{detail.invoice.invoiceNumber}</Text>
@@ -143,7 +169,7 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
 
       <PaymentSummaryCard summary={summary} testID="record-payment-summary" />
 
-      <PaymentFormFields control={control} errors={errors} />
+      <PaymentFormFields control={control} errors={errors} minPaymentDate={detail.invoice.issueDate} />
 
       <ActionButton
         label={isSubmitting ? 'Saving…' : 'Record payment'}

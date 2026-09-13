@@ -55,3 +55,20 @@ export const paymentFormSchema = z.object({
 
 export type PaymentFormValues = z.input<typeof paymentFormSchema>;
 export type PaymentFormOutput = z.output<typeof paymentFormSchema>;
+
+/**
+ * `paymentFormSchema` plus "payment date can't be before the invoice's own
+ * issue date" — a payment can never predate the invoice it's for (e.g. an
+ * invoice issued 2026-09-11 can't record a payment dated 2026-09-10). Layered
+ * on as a separate schema (rather than baked into `paymentFormSchema`
+ * itself) since the bound is only known once the invoice has loaded — see
+ * `RecordPaymentScreen`/`EditPaymentScreen`, which build this once the
+ * invoice's `issueDate` is available and mount the form from that point on.
+ * `minDate` of `null` (invoice not loaded yet) applies no extra bound.
+ */
+export function paymentFormSchemaWithMinDate(minDate: string | null) {
+  return paymentFormSchema.refine((data) => !minDate || data.paymentDate >= minDate, {
+    message: `Payment date can't be before the invoice date${minDate ? ` (${minDate})` : ''}.`,
+    path: ['paymentDate'],
+  });
+}

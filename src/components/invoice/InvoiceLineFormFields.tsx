@@ -1,11 +1,16 @@
 import React from 'react';
 import { Controller, type Control } from 'react-hook-form';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { FormField } from '@/components/businessCard/FormField';
+import { UnitOptionPicker } from '@/components/shared/UnitOptionPicker';
 import type { InvoiceLineFormOutput, InvoiceLineFormValues } from '@/domain/invoice/validation';
+import type { UnitFieldKind } from '@/domain/invoiceType/customUnits';
 import { getFieldDefinition } from '@/domain/invoiceType/fieldCatalog';
+import { PRICING_METHOD_OPTIONS, getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { getFieldLabel, type InvoiceFieldConfig } from '@/domain/invoiceType/types';
+import { colors } from '@/theme/colors';
 
 /** Matches the exact `useForm<InvoiceLineFormValues, unknown, InvoiceLineFormOutput>()` shape the screen uses. */
 type InvoiceLineFormControl = Control<InvoiceLineFormValues, unknown, InvoiceLineFormOutput>;
@@ -15,6 +20,16 @@ interface Props {
   errors: Record<string, { message?: string } | undefined>;
   /** Which fields to render, and which pricing method they belong to (for method-specific labels/units) — resolved once by the screen from the invoice's Pricing Method. */
   fieldConfig: InvoiceFieldConfig;
+  /**
+   * Whether the Pricing Method field above Item Name is an editable dropdown
+   * rather than a read-only label. Only true for a brand-new line on an
+   * invoice that has no items yet (the screen decides this — every other
+   * line must match the invoice's already-established pricing method, see
+   * `assertLinesMatchPricingMethod`).
+   */
+  pricingMethodEditable?: boolean;
+  /** Required when `pricingMethodEditable` is true — picking a new method re-resolves `fieldConfig` and re-renders the fields below it. */
+  onPricingMethodChange?: (invoiceTypeId: InvoiceTypeId) => void;
 }
 
 /**
@@ -29,12 +44,32 @@ interface Props {
  * `fieldConfig` includes it, with its label resolved per-method (e.g. TIME's
  * "Duration" instead of the generic "Quantity").
  */
-export function InvoiceLineFormFields({ control, errors, fieldConfig }: Props) {
+export function InvoiceLineFormFields({
+  control,
+  errors,
+  fieldConfig,
+  pricingMethodEditable,
+  onPricingMethodChange,
+}: Props) {
   const has = (key: string) => fieldConfig.fields.some((field) => field.key === key);
   const label = (key: Parameters<typeof getFieldLabel>[1]) => getFieldLabel(fieldConfig.invoiceTypeId, key);
 
   return (
     <>
+      {pricingMethodEditable && onPricingMethodChange ? (
+        <OptionPicker
+          label="Pricing Method"
+          options={PRICING_METHOD_OPTIONS}
+          value={fieldConfig.invoiceTypeId}
+          onChange={onPricingMethodChange}
+          testID="field-pricingMethod"
+        />
+      ) : (
+        <View style={styles.readonlyRow} testID="field-pricingMethod-readonly">
+          <Text style={styles.readonlyLabel}>Pricing Method</Text>
+          <Text style={styles.readonlyValue}>{getInvoiceTypeDefinition(fieldConfig.invoiceTypeId).label}</Text>
+        </View>
+      )}
       <Field name="itemName" label={`${label('itemName')} *`} control={control} errors={errors} />
       {has('description') && (
         <Field name="description" label={label('description')} control={control} errors={errors} multiline />
@@ -43,9 +78,7 @@ export function InvoiceLineFormFields({ control, errors, fieldConfig }: Props) {
       {has('quantity') && (
         <Field name="quantity" label={`${label('quantity')} *`} control={control} errors={errors} keyboardType="decimal-pad" />
       )}
-      {has('unit') && (
-        <Field name="unit" label={label('unit')} control={control} errors={errors} placeholder="e.g. pcs, box, hr" />
-      )}
+      {has('unit') && <SelectField name="unit" fieldKey="unit" control={control} />}
       {has('weight') && (
         <Field name="weight" label={`${label('weight')} *`} control={control} errors={errors} keyboardType="decimal-pad" />
       )}
@@ -110,25 +143,27 @@ function Field({
   );
 }
 
-/** A unit dropdown (weight/dimension/time) — its fixed choices come straight from the field catalog's `options`. */
+/** A unit dropdown (generic/weight/dimension/time) — its fixed choices come straight from the field catalog's `options`. */
 function SelectField({
   name,
   fieldKey,
   control,
 }: {
   name: keyof InvoiceLineFormValues;
-  fieldKey: 'weightUnit' | 'lengthUnit' | 'timeUnit';
+  fieldKey: 'unit' | 'weightUnit' | 'lengthUnit' | 'timeUnit';
   control: InvoiceLineFormControl;
 }) {
   const definition = getFieldDefinition(fieldKey);
+  const kind: UnitFieldKind =
+    fieldKey === 'unit' ? 'generic' : fieldKey === 'weightUnit' ? 'weight' : fieldKey === 'lengthUnit' ? 'length' : 'time';
   return (
     <Controller
       control={control}
       name={name}
       render={({ field: { value, onChange } }) => (
-        <OptionPicker
+        <UnitOptionPicker
           label={definition.label}
-          options={definition.options ?? []}
+          kind={kind}
           value={typeof value === 'string' ? value : ''}
           onChange={onChange}
           testID={`field-${name}`}
@@ -137,3 +172,16 @@ function SelectField({
     />
   );
 }
+
+const styles = StyleSheet.create({
+  readonlyRow: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 4,
+  },
+  readonlyLabel: { fontSize: 12, color: colors.textMuted },
+  readonlyValue: { fontSize: 16, fontWeight: '700', color: colors.text },
+});

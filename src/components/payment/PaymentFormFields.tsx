@@ -3,7 +3,7 @@ import { Controller, type Control } from 'react-hook-form';
 
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { FormField } from '@/components/businessCard/FormField';
-import { DateField } from '@/components/shared/DateField';
+import { DateField, parseIsoDateLocal } from '@/components/shared/DateField';
 import { PAYMENT_METHOD_OPTIONS } from '@/domain/payment/types';
 import type { PaymentFormOutput, PaymentFormValues } from '@/domain/payment/validation';
 
@@ -13,6 +13,8 @@ type PaymentFormControl = Control<PaymentFormValues, unknown, PaymentFormOutput>
 interface Props {
   control: PaymentFormControl;
   errors: Record<string, { message?: string } | undefined>;
+  /** The invoice's own issue date (`YYYY-MM-DD`) — a payment can't be dated before it, so it's also the calendar's lower bound (see `paymentFormSchemaWithMinDate`). */
+  minPaymentDate?: string | null;
 }
 
 /**
@@ -22,7 +24,7 @@ interface Props {
  * not a field here — it's fixed by the screen's route param, never
  * user-editable (see the doc comment on `PaymentUpdateInput`).
  */
-export function PaymentFormFields({ control, errors }: Props) {
+export function PaymentFormFields({ control, errors, minPaymentDate }: Props) {
   return (
     <>
       <Field
@@ -42,6 +44,7 @@ export function PaymentFormFields({ control, errors }: Props) {
             onChange={onChange}
             onBlur={onBlur}
             error={errors.paymentDate?.message}
+            minimumDate={minPaymentDate ? parseIsoDateLocal(minPaymentDate) : null}
             testID="field-paymentDate"
           />
         )}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Controller, type Control } from 'react-hook-form';
 
 import { FormField } from '@/components/businessCard/FormField';
+import { DateField } from '@/components/shared/DateField';
 import type { InvoiceDetailsFormOutput, InvoiceDetailsFormValues } from '@/domain/invoice/validation';
 
 type InvoiceDetailsFormControl = Control<InvoiceDetailsFormValues, unknown, InvoiceDetailsFormOutput>;
@@ -15,14 +16,37 @@ interface Props {
 export function InvoiceDetailsFormFields({ control, errors }: Props) {
   return (
     <>
-      <Field
-        name="issueDate"
-        label="Invoice date *"
+      <Controller
         control={control}
-        errors={errors}
-        placeholder="YYYY-MM-DD"
+        name="issueDate"
+        render={({ field: { value, onChange, onBlur } }) => (
+          <DateField
+            label="Invoice date *"
+            value={typeof value === 'string' ? value : ''}
+            onChange={onChange}
+            onBlur={onBlur}
+            error={errors.issueDate?.message}
+            maximumDate={null}
+            testID="field-issueDate"
+          />
+        )}
       />
-      <Field name="dueDate" label="Due date" control={control} errors={errors} placeholder="YYYY-MM-DD" />
+      <Controller
+        control={control}
+        name="dueDate"
+        render={({ field: { value, onChange, onBlur } }) => (
+          <DateField
+            label="Due date"
+            value={typeof value === 'string' ? value : ''}
+            onChange={onChange}
+            onBlur={onBlur}
+            error={errors.dueDate?.message}
+            maximumDate={null}
+            minimumDate={new Date()}
+            testID="field-dueDate"
+          />
+        )}
+      />
       <Field name="notes" label="Notes" control={control} errors={errors} multiline />
       <Field name="terms" label="Terms" control={control} errors={errors} multiline />
     </>

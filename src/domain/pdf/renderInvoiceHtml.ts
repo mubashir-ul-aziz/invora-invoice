@@ -60,6 +60,15 @@ const BASE_CSS = `
   table.items th { text-align: left; }
   table.items td.num, table.items th.num { text-align: right; }
   .item-desc { display: block; font-size: 11px; color: #666; }
+  /* The line-items table specifically (not the payments table further down,
+     which reuses the plain .items class): each item stays on one row, and
+     the table scrolls horizontally rather than wrapping a row's cells onto a
+     second line when a pricing method with more columns (e.g. Volume) needs
+     more width than a small screen/paper width gives it. */
+  .table-scroll { overflow-x: auto; margin-top: 12px; }
+  table.line-items { min-width: 480px; border-collapse: collapse; }
+  table.line-items th, table.line-items td { white-space: nowrap; }
+  table.line-items td:first-child, table.line-items th:first-child { white-space: normal; }
   .totals { display: flex; justify-content: flex-end; margin-top: 16px; }
   table.totals-table { min-width: 260px; }
   table.totals-table td:first-child { color: #555; }
@@ -168,10 +177,12 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
     </div>
   </div>
 
-  <table class="items">
-    <thead><tr>${headerRow}</tr></thead>
-    <tbody>${bodyRows}</tbody>
-  </table>
+  <div class="table-scroll">
+    <table class="items line-items">
+      <thead><tr>${headerRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  </div>
 
   <div class="totals">
     <table class="totals-table">
