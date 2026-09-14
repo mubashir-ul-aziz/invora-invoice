@@ -72,6 +72,10 @@ export function ItemListScreen({ navigation, route }: Props) {
     navigation.navigate('EditItem', { itemId: item.id });
   };
 
+  const handleEditItem = (item: Item) => {
+    navigation.navigate('EditItem', { itemId: item.id });
+  };
+
   const handleDeleteItem = (item: Item) => {
     Alert.alert('Delete item', `Delete "${item.name}"? This cannot be undone.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -163,6 +167,7 @@ export function ItemListScreen({ navigation, route }: Props) {
             <ItemListRow
               item={item}
               onPress={() => handlePressItem(item)}
+              onEdit={() => handleEditItem(item)}
               onDelete={() => handleDeleteItem(item)}
               testID={`item-row-${item.id}`}
             />

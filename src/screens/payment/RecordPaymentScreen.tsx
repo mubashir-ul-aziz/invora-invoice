@@ -9,7 +9,7 @@ import { PaymentFormFields } from '@/components/payment/PaymentFormFields';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
-import { paymentToFormDefaults } from '@/domain/payment/formMapping';
+import { paymentToFormDefaults, todayIsoDate } from '@/domain/payment/formMapping';
 import { paymentFormSchemaWithMinDate, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
 import type { PaymentInput } from '@/domain/payment/types';
 import type { RootStackParamList } from '@/navigation/types';
@@ -134,11 +134,17 @@ function RecordPaymentForm({
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<PaymentFormValues, unknown, PaymentFormOutput>({
     resolver: zodResolver(paymentFormSchemaWithMinDate(detail.invoice.issueDate)),
     defaultValues: paymentToFormDefaults(null),
   });
+
+  const handleFullPay = () => {
+    setValue('amount', String(summary.remaining), { shouldValidate: true, shouldDirty: true });
+    setValue('paymentDate', todayIsoDate(), { shouldValidate: true, shouldDirty: true });
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -169,7 +175,12 @@ function RecordPaymentForm({
 
       <PaymentSummaryCard summary={summary} testID="record-payment-summary" />
 
-      <PaymentFormFields control={control} errors={errors} minPaymentDate={detail.invoice.issueDate} />
+      <PaymentFormFields
+        control={control}
+        errors={errors}
+        minPaymentDate={detail.invoice.issueDate}
+        onFullPay={handleFullPay}
+      />
 
       <ActionButton
         label={isSubmitting ? 'Saving…' : 'Record payment'}

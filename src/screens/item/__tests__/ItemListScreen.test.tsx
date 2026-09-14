@@ -73,6 +73,21 @@ describe('ItemListScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('EditItem', { itemId: created.id });
   });
 
+  it('navigates to Edit Item when tapping the edit button in picker mode', async () => {
+    const repo = new InMemoryItemRepository();
+    const created = await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Steel Pipe' });
+    mockStore = createItemStore(repo);
+    const onSelectItem = jest.fn();
+    const view = await renderScreen({ onSelectItem });
+
+    await waitFor(() => expect(view.getByTestId(`item-row-${created.id}-edit`)).toBeTruthy());
+    fireEvent.press(view.getByTestId(`item-row-${created.id}-edit`));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('EditItem', { itemId: created.id });
+    expect(onSelectItem).not.toHaveBeenCalled();
+    expect(navigation.goBack).not.toHaveBeenCalled();
+  });
+
   it('calls onSelectItem and goes back when tapping a row in picker mode', async () => {
     const repo = new InMemoryItemRepository();
     const created = await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Steel Pipe' });

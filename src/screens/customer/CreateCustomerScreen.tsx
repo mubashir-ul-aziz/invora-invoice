@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert, StyleSheet } from 'react-native';
 
@@ -30,10 +30,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CreateCustomer'>;
 export function CreateCustomerScreen({ navigation, route }: Props) {
   const { create } = useCustomerStore();
   const onCreated = route.params?.onCreated;
+  const [justCreated, setJustCreated] = useState(false);
 
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<CustomerFormValues, unknown, CustomerFormOutput>({
     resolver: zodResolver(customerFormSchema),
@@ -43,6 +45,11 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
   const onSubmit = handleSubmit(async (values) => {
     try {
       const created = await create(formValuesToCustomerInput(values));
+      // Clear the form and keep the button disabled immediately so nothing
+      // stale (filled fields, a re-enabled button) flashes while the screen
+      // transition below is still in flight.
+      setJustCreated(true);
+      reset(customerToFormDefaults(null));
       if (onCreated) {
         onCreated(created);
         navigation.goBack();
@@ -69,7 +76,7 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
         label={isSubmitting ? 'Saving…' : 'Create customer'}
         variant="primary"
         onPress={onSubmit}
-        disabled={isSubmitting}
+        disabled={isSubmitting || justCreated}
         testID="save-customer"
       />
     </KeyboardAvoidingScreen>

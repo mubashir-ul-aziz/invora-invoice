@@ -2,6 +2,7 @@ import React from 'react';
 import { Controller, type Control } from 'react-hook-form';
 
 import { OptionPicker } from '@/components/business/OptionPicker';
+import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
 import { DateField, parseIsoDateLocal } from '@/components/shared/DateField';
 import { PAYMENT_METHOD_OPTIONS } from '@/domain/payment/types';
@@ -15,6 +16,12 @@ interface Props {
   errors: Record<string, { message?: string } | undefined>;
   /** The invoice's own issue date (`YYYY-MM-DD`) — a payment can't be dated before it, so it's also the calendar's lower bound (see `paymentFormSchemaWithMinDate`). */
   minPaymentDate?: string | null;
+  /**
+   * When provided, shows a "Full pay" button above the amount field that
+   * fills in the invoice's full remaining balance and today's date in one
+   * tap (Record Payment only — Edit Payment doesn't pass this).
+   */
+  onFullPay?: () => void;
 }
 
 /**
@@ -24,9 +31,10 @@ interface Props {
  * not a field here — it's fixed by the screen's route param, never
  * user-editable (see the doc comment on `PaymentUpdateInput`).
  */
-export function PaymentFormFields({ control, errors, minPaymentDate }: Props) {
+export function PaymentFormFields({ control, errors, minPaymentDate, onFullPay }: Props) {
   return (
     <>
+      {!!onFullPay && <ActionButton label="Full pay" variant="primary" onPress={onFullPay} testID="full-pay-button" />}
       <Field
         name="amount"
         label="Amount *"
@@ -45,6 +53,7 @@ export function PaymentFormFields({ control, errors, minPaymentDate }: Props) {
             onBlur={onBlur}
             error={errors.paymentDate?.message}
             minimumDate={minPaymentDate ? parseIsoDateLocal(minPaymentDate) : null}
+            maximumDate={null}
             testID="field-paymentDate"
           />
         )}
@@ -101,3 +110,4 @@ function Field({
     />
   );
 }
+

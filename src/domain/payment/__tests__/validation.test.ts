@@ -46,11 +46,11 @@ describe('paymentFormSchema', () => {
     expect(paymentFormSchema.safeParse(baseValues({ paymentDate: '2026-02-30' })).success).toBe(false);
   });
 
-  it('rejects an upcoming (future) payment date', () => {
+  it('accepts an upcoming (future) payment date', () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const iso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-    expect(paymentFormSchema.safeParse(baseValues({ paymentDate: iso })).success).toBe(false);
+    expect(paymentFormSchema.safeParse(baseValues({ paymentDate: iso })).success).toBe(true);
   });
 
   it('accepts a payment dated today', () => {
@@ -80,9 +80,6 @@ describe('paymentFormSchema', () => {
 });
 
 describe('paymentFormSchemaWithMinDate', () => {
-  // Dates picked safely in the past (relative to any real test-run clock) so
-  // only the min-date bound is under test, never the separate "no future
-  // dates" rule already covered above.
   it("rejects a payment date before the invoice's issue date", () => {
     const schema = paymentFormSchemaWithMinDate('2020-09-11');
     const result = schema.safeParse(baseValues({ paymentDate: '2020-09-10' }));

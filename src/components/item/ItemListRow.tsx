@@ -8,12 +8,13 @@ import { colors } from '@/theme/colors';
 interface Props {
   item: Item;
   onPress: () => void;
+  onEdit: () => void;
   onDelete: () => void;
   testID?: string;
 }
 
-/** One row on the Items List screen: name, SKU/unit/price summary, and a delete action. */
-export function ItemListRow({ item, onPress, onDelete, testID }: Props) {
+/** One row on the Items List screen: name, SKU/unit/price summary, and edit/delete actions. */
+export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) {
   const subtitleParts = [
     item.sku ? `SKU ${item.sku}` : null,
     item.unit ? `per ${item.unit}` : null,
@@ -22,7 +23,7 @@ export function ItemListRow({ item, onPress, onDelete, testID }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Edit ${item.name}`}
+      accessibilityLabel={item.name}
       testID={testID}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
@@ -36,6 +37,16 @@ export function ItemListRow({ item, onPress, onDelete, testID }: Props) {
         </Text>
       </View>
       <Text style={styles.price}>{item.defaultPrice.toFixed(2)}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${item.name}`}
+        testID={testID ? `${testID}-edit` : undefined}
+        onPress={onEdit}
+        hitSlop={8}
+        style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+      >
+        <Text style={styles.editLabel}>Edit</Text>
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Delete ${item.name}`}
@@ -67,6 +78,8 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '600', color: colors.text },
   subtitle: { fontSize: 12, color: colors.textMuted },
   price: { fontSize: 14, fontWeight: '700', color: colors.text },
+  editButton: { paddingVertical: 4, paddingHorizontal: 8 },
+  editLabel: { fontSize: 12, fontWeight: '600', color: colors.primary },
   deleteButton: { paddingVertical: 4, paddingHorizontal: 8 },
   deleteLabel: { fontSize: 12, fontWeight: '600', color: colors.danger },
 });

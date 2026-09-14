@@ -42,6 +42,7 @@ export function PaymentListRow({ payment, onPress, showInvoiceAndCustomer = true
         <View style={styles.methodBadge}>
           <Text style={styles.methodLabel}>{PAYMENT_METHOD_LABELS[payment.method]}</Text>
         </View>
+        {!!onPress && <Text style={styles.editLabel}>Edit</Text>}
       </View>
     </Pressable>
   );
@@ -74,4 +75,5 @@ const styles = StyleSheet.create({
   amount: { fontSize: 14, fontWeight: '700', color: colors.text },
   methodBadge: { backgroundColor: colors.background, borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8 },
   methodLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
+  editLabel: { fontSize: 11, fontWeight: '600', color: colors.primary },
 });

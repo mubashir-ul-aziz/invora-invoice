@@ -9,7 +9,14 @@ interface Props extends TextInputProps {
   testID?: string;
 }
 
+/** Textarea-style fields (`multiline`) always show room for at least this many lines, even with no `numberOfLines` override. */
+const MIN_MULTILINE_LINES = 3;
+const LINE_HEIGHT = 20;
+
 export function FormField({ label, error, testID, style, ...inputProps }: Props) {
+  const minLines = inputProps.multiline
+    ? Math.max(inputProps.numberOfLines ?? 0, MIN_MULTILINE_LINES)
+    : undefined;
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -17,7 +24,12 @@ export function FormField({ label, error, testID, style, ...inputProps }: Props)
         {...inputProps}
         testID={testID}
         placeholderTextColor={colors.placeholder}
-        style={[styles.input, !!error && styles.inputError, style]}
+        style={[
+          styles.input,
+          inputProps.multiline && [styles.multilineInput, { minHeight: minLines! * LINE_HEIGHT + 20 }],
+          !!error && styles.inputError,
+          style,
+        ]}
       />
       {!!error && (
         <Text style={styles.error} testID={testID ? `${testID}-error` : undefined}>
@@ -41,6 +53,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.surface,
   },
+  multilineInput: { textAlignVertical: 'top' },
   inputError: { borderColor: colors.danger },
   error: { fontSize: 12, color: colors.danger },
 });

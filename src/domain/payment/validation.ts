@@ -27,14 +27,6 @@ function isValidCalendarDate(value: string): boolean {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-/** Local (not UTC) "today" as `YYYY-MM-DD` — matches how `DateField` reads/writes calendar days. */
-function todayIsoDateLocal(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
 export const paymentFormSchema = z.object({
   amount: z
     .string()
@@ -46,8 +38,7 @@ export const paymentFormSchema = z.object({
   paymentDate: z
     .string()
     .trim()
-    .refine(isValidCalendarDate, { message: 'Enter a valid date (YYYY-MM-DD).' })
-    .refine((value) => value <= todayIsoDateLocal(), { message: "Payment date can't be in the future." }),
+    .refine(isValidCalendarDate, { message: 'Enter a valid date (YYYY-MM-DD).' }),
   method: z.enum(['cash', 'bank_transfer', 'card', 'paypal', 'other']),
   reference: optionalTrimmed(),
   notes: optionalTrimmed(),
