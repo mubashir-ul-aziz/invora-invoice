@@ -2,10 +2,13 @@ import { render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import { createCustomerStore } from '@/state/customerStore';
+import { createCustomerActivityStore } from '@/state/customerActivityStore';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
+import { InMemoryCustomerActivityRepository } from '@/data/customerActivity/InMemoryCustomerActivityRepository';
 import { EMPTY_CUSTOMER_INPUT } from '@/domain/customer/types';
 
 let mockStore: ReturnType<typeof createCustomerStore>;
+let mockActivityStore: ReturnType<typeof createCustomerActivityStore>;
 
 jest.mock('@/state/customerStore', () => {
   const actual = jest.requireActual('@/state/customerStore');
@@ -14,6 +17,16 @@ jest.mock('@/state/customerStore', () => {
     useCustomerStore: (...args: unknown[]) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/customerActivityStore', () => {
+  const actual = jest.requireActual('@/state/customerActivityStore');
+  return {
+    ...actual,
+    useCustomerActivityStore: (...args: unknown[]) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockActivityStore as any)(...args),
   };
 });
 
@@ -34,6 +47,7 @@ describe('EditCustomerScreen', () => {
   beforeEach(() => {
     (navigation.navigate as jest.Mock).mockClear();
     (navigation.goBack as jest.Mock).mockClear();
+    mockActivityStore = createCustomerActivityStore(new InMemoryCustomerActivityRepository());
   });
 
   it('shows a not-found state for a missing customer id', async () => {

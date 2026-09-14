@@ -2,10 +2,13 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import { createCustomerStore } from '@/state/customerStore';
+import { createCustomerActivityStore } from '@/state/customerActivityStore';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
+import { InMemoryCustomerActivityRepository } from '@/data/customerActivity/InMemoryCustomerActivityRepository';
 import { EMPTY_CUSTOMER_INPUT } from '@/domain/customer/types';
 
 let mockStore: ReturnType<typeof createCustomerStore>;
+let mockActivityStore: ReturnType<typeof createCustomerActivityStore>;
 
 jest.mock('@/state/customerStore', () => {
   const actual = jest.requireActual('@/state/customerStore');
@@ -17,6 +20,16 @@ jest.mock('@/state/customerStore', () => {
   };
 });
 
+jest.mock('@/state/customerActivityStore', () => {
+  const actual = jest.requireActual('@/state/customerActivityStore');
+  return {
+    ...actual,
+    useCustomerActivityStore: (...args: unknown[]) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockActivityStore as any)(...args),
+  };
+});
+
 import { EditCustomerScreen } from '../EditCustomerScreen';
 
 const navigation = { navigate: jest.fn(), goBack: jest.fn() };
@@ -25,6 +38,7 @@ describe('EditCustomerScreen.save', () => {
   beforeEach(() => {
     (navigation.navigate as jest.Mock).mockClear();
     (navigation.goBack as jest.Mock).mockClear();
+    mockActivityStore = createCustomerActivityStore(new InMemoryCustomerActivityRepository());
   });
 
   it('saves the edited customer and navigates back, keeping the same id', async () => {
