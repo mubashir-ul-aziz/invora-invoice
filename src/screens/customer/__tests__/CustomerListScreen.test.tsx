@@ -1,12 +1,19 @@
 import { Alert } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
 import React from 'react';
 
+import { InMemoryCustomerActivityRepository } from '@/data/customerActivity/InMemoryCustomerActivityRepository';
 import { createCustomerStore } from '@/state/customerStore';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
-import { EMPTY_CUSTOMER_INPUT } from '@/domain/customer/types';
+import { EMPTY_CUSTOMER_INPUT, type CustomerActivityEntry } from '@/domain/customer/types';
+import { createCustomerBalancesStore } from '@/state/customerBalancesStore';
 
 let mockStore: ReturnType<typeof createCustomerStore>;
+// Never wired to the real (SQLite-backed) repository in tests — same reason
+// Dashboard's tests mock `businessProfileStore`: this screen's balance badges
+// are a bonus, not what any of these tests assert on, so they're backed by
+// an in-memory repository that defaults to "no activity" for every customer.
+let mockBalancesStore: ReturnType<typeof createCustomerBalancesStore>;
 
 jest.mock('@/state/customerStore', () => {
   const actual = jest.requireActual('@/state/customerStore');
@@ -15,6 +22,16 @@ jest.mock('@/state/customerStore', () => {
     useCustomerStore: (...args: unknown[]) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (mockStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/customerBalancesStore', () => {
+  const actual = jest.requireActual('@/state/customerBalancesStore');
+  return {
+    ...actual,
+    useCustomerBalancesStore: (...args: unknown[]) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockBalancesStore as any)(...args),
   };
 });
 
@@ -32,6 +49,7 @@ describe('CustomerListScreen', () => {
   beforeEach(() => {
     (navigation.navigate as jest.Mock).mockClear();
     (navigation.goBack as jest.Mock).mockClear();
+    mockBalancesStore = createCustomerBalancesStore(new InMemoryCustomerActivityRepository());
   });
 
   it('shows an empty-state prompt when no customers exist', async () => {
@@ -139,5 +157,41 @@ describe('CustomerListScreen', () => {
 
     await waitFor(() => expect(view.getByTestId('customer-list-empty')).toBeTruthy());
     alertSpy.mockRestore();
+  });
+
+  it('shows a real outstanding balance and lets the Due/Settled pills filter by it', async () => {
+    const repo = new InMemoryCustomerRepository();
+    const paid = await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
+    const owing = await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Zeta Ltd' });
+    mockStore = createCustomerStore(repo);
+
+    const entries: Record<string, CustomerActivityEntry[]> = {
+      [owing.id]: [
+        {
+          id: 'inv1',
+          type: 'invoice',
+          date: '2026-01-01T00:00:00.000Z',
+          title: 'Invoice INV-1',
+          amount: 250,
+          status: 'unpaid',
+        },
+      ],
+    };
+    mockBalancesStore = createCustomerBalancesStore(new InMemoryCustomerActivityRepository(entries));
+
+    const view = await renderScreen();
+
+    await waitFor(() =>
+      expect(within(view.getByTestId(`customer-row-${owing.id}`)).getByText('250.00')).toBeTruthy(),
+    );
+    expect(within(view.getByTestId(`customer-row-${paid.id}`)).getByText('0.00')).toBeTruthy();
+
+    fireEvent.press(view.getByTestId('customer-filter-settled'));
+    await waitFor(() => expect(view.queryByText('Zeta Ltd')).toBeNull());
+    expect(view.getByText('Acme Co')).toBeTruthy();
+
+    fireEvent.press(view.getByTestId('customer-filter-due'));
+    await waitFor(() => expect(view.queryByText('Acme Co')).toBeNull());
+    expect(view.getByText('Zeta Ltd')).toBeTruthy();
   });
 });

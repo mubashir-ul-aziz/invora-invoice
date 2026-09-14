@@ -5,6 +5,22 @@ import {
   type CustomerBalanceSummary,
 } from './types';
 
+/** A customer's billing status, derived from their `CustomerBalanceSummary` — feeds the Customer List screen's per-row badge and its Due/Settled filter pills. */
+export type CustomerBalanceStatus = 'settled' | 'overdue' | 'due';
+
+/**
+ * `outstanding === 0` is settled; any overdue portion takes priority over a
+ * merely-not-yet-due balance. Never reads a stored status field — always
+ * derived from the same `CustomerBalanceSummary` `summarizeActivity()`
+ * produces, per `MVP_BUILD_PLAN.md` §6.3.
+ */
+export function classifyBalanceStatus(summary: CustomerBalanceSummary): CustomerBalanceStatus {
+  if (summary.outstanding <= 0) {
+    return 'settled';
+  }
+  return summary.overdueAmount > 0 ? 'overdue' : 'due';
+}
+
 /**
  * Derives the Customer Detail summary numbers from a customer's raw
  * chronological activity — the one calculation both

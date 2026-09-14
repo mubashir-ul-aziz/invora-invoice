@@ -1,5 +1,5 @@
-import { filterActivity, sortActivityChronological, summarizeActivity } from '../activity';
-import { EMPTY_CUSTOMER_BALANCE_SUMMARY, type CustomerActivityEntry } from '../types';
+import { classifyBalanceStatus, filterActivity, sortActivityChronological, summarizeActivity } from '../activity';
+import { EMPTY_CUSTOMER_BALANCE_SUMMARY, type CustomerActivityEntry, type CustomerBalanceSummary } from '../types';
 
 function invoice(overrides: Partial<CustomerActivityEntry>): CustomerActivityEntry {
   return {
@@ -87,5 +87,23 @@ describe('filterActivity', () => {
   it('filters to just payments', () => {
     const result = filterActivity(entries, { type: 'payment' });
     expect(result.map((e) => e.id)).toEqual(['p1']);
+  });
+});
+
+describe('classifyBalanceStatus', () => {
+  function summary(overrides: Partial<CustomerBalanceSummary>): CustomerBalanceSummary {
+    return { ...EMPTY_CUSTOMER_BALANCE_SUMMARY, ...overrides };
+  }
+
+  it('is "settled" when nothing is outstanding', () => {
+    expect(classifyBalanceStatus(summary({ outstanding: 0 }))).toBe('settled');
+  });
+
+  it('is "overdue" when part of the outstanding balance is overdue', () => {
+    expect(classifyBalanceStatus(summary({ outstanding: 100, overdueAmount: 40 }))).toBe('overdue');
+  });
+
+  it('is "due" when outstanding but nothing is overdue yet', () => {
+    expect(classifyBalanceStatus(summary({ outstanding: 100, overdueAmount: 0 }))).toBe('due');
   });
 });
