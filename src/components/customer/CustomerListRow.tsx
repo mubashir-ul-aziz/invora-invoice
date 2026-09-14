@@ -26,7 +26,8 @@ const AVATAR_STYLES: { background: string; foreground: string }[] = [
   { background: '#E5EEFF', foreground: colors.text },
 ];
 
-function avatarStyleFor(id: string) {
+/** Exported so Customer Detail's profile header can reuse the exact same per-customer avatar tint. */
+export function avatarStyleFor(id: string) {
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) {
     hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
@@ -34,7 +35,8 @@ function avatarStyleFor(id: string) {
   return AVATAR_STYLES[hash % AVATAR_STYLES.length];
 }
 
-function initialsFor(name: string): string {
+/** Exported so Customer Detail's profile header can reuse the exact same initials rule. */
+export function initialsFor(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();

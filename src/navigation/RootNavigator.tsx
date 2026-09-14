@@ -136,7 +136,7 @@ export function RootNavigator() {
       <Stack.Screen
         name="CustomerDetail"
         component={CustomerDetailScreen}
-        options={{ title: 'Customer' }}
+        options={{ title: 'Customer Detail' }}
       />
       <Stack.Screen
         name="CustomerHistory"
