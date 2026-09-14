@@ -10,14 +10,15 @@ interface Props {
   testID?: string;
 }
 
-const STATUS_BACKGROUND: Record<InvoiceStatus, string> = {
+/** Exported so other invoice-status displays (e.g. the Dashboard's recent-invoices row) can match this badge's palette instead of redefining it. */
+export const STATUS_BACKGROUND: Record<InvoiceStatus, string> = {
   unpaid: '#EEF0F5',
   partial: '#FFF3D6',
   paid: '#E3F3E8',
   overdue: '#FBE4E2',
 };
 
-const STATUS_TEXT: Record<InvoiceStatus, string> = {
+export const STATUS_TEXT: Record<InvoiceStatus, string> = {
   unpaid: colors.textMuted,
   partial: '#8A6D1D',
   paid: '#1E7B41',

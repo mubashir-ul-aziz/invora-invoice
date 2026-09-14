@@ -1,14 +1,21 @@
+import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
+import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
+import { DashboardGreetingHeader } from '@/components/dashboard/DashboardGreetingHeader';
+import { DashboardQuickActions } from '@/components/dashboard/DashboardQuickActions';
+import { DashboardStatusBreakdown } from '@/components/dashboard/DashboardStatusBreakdown';
 import { DashboardSummaryCard } from '@/components/dashboard/DashboardSummaryCard';
+import { DashboardSyncBanner } from '@/components/dashboard/DashboardSyncBanner';
 import { RecentInvoiceRow } from '@/components/dashboard/RecentInvoiceRow';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
 import type { RootStackParamList } from '@/navigation/types';
+import { useBusinessProfileStore } from '@/state/businessProfileStore';
 import { useDashboardStore } from '@/state/dashboardStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
@@ -18,8 +25,16 @@ import { colors } from '@/theme/colors';
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
 /**
- * The app's home screen (Phase 8). Total Sales / Paid / Outstanding /
- * Overdue / invoice count (`DashboardSummaryCard`) and a short recent-
+ * The app's home screen, restyled to match the Stitch "Dashboard" design:
+ * a greeting header, a 3-tile quick-actions row, a 2x2 key-metrics grid, a
+ * status-breakdown strip, and a recent-invoices list, plus a screen-local
+ * bottom nav mirroring the Stitch mock's tab bar. See the doc comments on
+ * `DashboardGreetingHeader`, `DashboardSummaryCard`, and `DashboardSyncBanner`
+ * for exactly which Stitch elements have no backend support and are marked
+ * DESIGN ONLY instead of showing invented numbers.
+ *
+ * Total Sales / Paid / Outstanding / Overdue / invoice counts
+ * (`DashboardSummaryCard`, `DashboardStatusBreakdown`) and the recent-
  * invoices list come from `dashboardStore`, the only consumer of
  * `domain/dashboard/calculations.ts` — nothing on this screen sums an
  * invoice or a payment itself. `recentInvoices` is capped at a handful of
@@ -40,11 +55,13 @@ export function DashboardScreen({ navigation }: Props) {
   const { status, summary, error, load } = useDashboardStore();
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
+  const { profile: businessProfile, load: loadBusinessProfile } = useBusinessProfileStore();
 
   useEffect(() => {
     load();
     loadInvoiceType();
     loadInvoiceSettings();
+    loadBusinessProfile();
     const unsubscribe = navigation.addListener('focus', load);
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,57 +111,85 @@ export function DashboardScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="dashboard-screen">
-      <DashboardSummaryCard summary={summary} testID="dashboard-summary" />
+    <View style={styles.screen} testID="dashboard-screen">
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <DashboardGreetingHeader profile={businessProfile} testID="dashboard-greeting" />
 
-      <View style={styles.row}>
-        <ActionButton
-          label="Create invoice"
-          variant="primary"
-          onPress={handleCreateInvoice}
-          testID="action-create-invoice"
+        <DashboardQuickActions
+          onCreateInvoice={handleCreateInvoice}
+          onAddCustomer={() => navigation.navigate('CreateCustomer')}
+          onRecordPayment={handleRecordPayment}
         />
-        <ActionButton label="Add customer" onPress={() => navigation.navigate('CreateCustomer')} testID="action-add-customer" />
-        <ActionButton label="Record payment" onPress={handleRecordPayment} testID="action-record-payment" />
-      </View>
 
-      <View style={styles.row}>
-        <ActionButton label="Invoices" onPress={() => navigation.navigate('InvoiceList')} testID="action-invoices" />
-        <ActionButton label="Customers" onPress={() => navigation.navigate('CustomerList')} testID="action-customers" />
-        <ActionButton label="Business" onPress={() => navigation.navigate('Business')} testID="action-business" />
-        <ActionButton label="Settings" onPress={() => navigation.navigate('Settings')} testID="action-settings" />
-      </View>
+        <DashboardSummaryCard summary={summary} testID="dashboard-summary" />
 
-      <View style={styles.section} testID="dashboard-recent-invoices">
-        <Text style={styles.sectionTitle}>Recent invoices</Text>
+        <DashboardStatusBreakdown summary={summary} testID="dashboard-status-breakdown" />
 
-        {summary.recentInvoices.length === 0 ? (
-          <Text style={styles.emptyText} testID="dashboard-recent-empty">
-            You haven't created any invoices yet.
-          </Text>
-        ) : (
-          summary.recentInvoices.map((entry) => (
-            <RecentInvoiceRow
-              key={entry.invoiceId}
-              entry={entry}
-              onPress={() => handleOpenInvoice(entry)}
-              testID={`dashboard-recent-invoice-${entry.invoiceId}`}
-            />
-          ))
-        )}
-      </View>
-    </ScrollView>
+        <View style={styles.section} testID="dashboard-recent-invoices">
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>Recent invoices</Text>
+              <View style={styles.countBadge} testID="summary-invoice-count">
+                <Text style={styles.countBadgeText}>{summary.invoiceCount}</Text>
+              </View>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="See all invoices"
+              onPress={() => navigation.navigate('InvoiceList')}
+              style={styles.seeAll}
+            >
+              <Text style={styles.seeAllText}>See all</Text>
+              <Feather name="chevron-right" size={16} color={colors.primary} />
+            </Pressable>
+          </View>
+
+          {summary.recentInvoices.length === 0 ? (
+            <Text style={styles.emptyText} testID="dashboard-recent-empty">
+              You haven't created any invoices yet.
+            </Text>
+          ) : (
+            <View style={styles.recentList}>
+              {summary.recentInvoices.map((entry) => (
+                <RecentInvoiceRow
+                  key={entry.invoiceId}
+                  entry={entry}
+                  onPress={() => handleOpenInvoice(entry)}
+                  testID={`dashboard-recent-invoice-${entry.invoiceId}`}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+
+        <DashboardSyncBanner />
+      </ScrollView>
+
+      <DashboardBottomNav
+        onInvoices={() => navigation.navigate('InvoiceList')}
+        onCustomers={() => navigation.navigate('CustomerList')}
+        onBusiness={() => navigation.navigate('Business')}
+        onSettings={() => navigation.navigate('Settings')}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 32, gap: 16 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: colors.background },
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   section: { gap: 10 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  countBadge: { backgroundColor: colors.background, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  countBadgeText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  seeAll: { flexDirection: 'row', alignItems: 'center' },
+  seeAllText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+  recentList: { gap: 8 },
   emptyText: { color: colors.textMuted },
 });

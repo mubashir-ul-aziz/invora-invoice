@@ -60,6 +60,9 @@ export function summarizeDashboard(
   let totalPaid = 0;
   let totalOutstanding = 0;
   let totalOverdue = 0;
+  let paidCount = 0;
+  let pendingCount = 0;
+  let overdueCount = 0;
 
   const withStatus = entries.map((entry) => {
     const status = computeInvoiceStatus({
@@ -75,6 +78,11 @@ export function summarizeDashboard(
     totalOutstanding = round2(totalOutstanding + remaining);
     if (status === 'overdue') {
       totalOverdue = round2(totalOverdue + remaining);
+      overdueCount += 1;
+    } else if (status === 'paid') {
+      paidCount += 1;
+    } else {
+      pendingCount += 1;
     }
 
     return { entry, status };
@@ -91,6 +99,7 @@ export function summarizeDashboard(
       invoiceNumber: entry.invoiceNumber,
       customerName: entry.customerName,
       issueDate: entry.issueDate,
+      dueDate: entry.dueDate,
       grandTotal: entry.grandTotal,
       amountPaid: entry.amountPaid,
       status,
@@ -102,6 +111,9 @@ export function summarizeDashboard(
     totalOutstanding,
     totalOverdue,
     invoiceCount: entries.length,
+    paidCount,
+    pendingCount,
+    overdueCount,
     recentInvoices,
   };
 }

@@ -22,6 +22,9 @@ describe('summarizeDashboard', () => {
       totalOutstanding: 0,
       totalOverdue: 0,
       invoiceCount: 0,
+      paidCount: 0,
+      pendingCount: 0,
+      overdueCount: 0,
       recentInvoices: [],
     });
   });
@@ -105,9 +108,25 @@ describe('summarizeDashboard', () => {
       invoiceNumber: 'INV-x',
       customerName: 'Acme Co',
       issueDate: '2026-01-01',
+      dueDate: null,
       grandTotal: 1000,
       amountPaid: 400,
       status: 'partial',
     });
+  });
+
+  it('counts invoices per status bucket — paid, pending (unpaid + partial), and overdue', () => {
+    const entries = [
+      entry({ invoiceId: 'paid', grandTotal: 100, amountPaid: 100 }),
+      entry({ invoiceId: 'partial', grandTotal: 100, amountPaid: 40 }),
+      entry({ invoiceId: 'unpaid', grandTotal: 100, amountPaid: 0 }),
+      entry({ invoiceId: 'overdue', grandTotal: 100, amountPaid: 0, dueDate: '2025-01-01' }),
+    ];
+
+    const summary = summarizeDashboard(entries, { today: '2026-01-01' });
+
+    expect(summary.paidCount).toBe(1);
+    expect(summary.pendingCount).toBe(2);
+    expect(summary.overdueCount).toBe(1);
   });
 });

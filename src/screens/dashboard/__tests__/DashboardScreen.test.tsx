@@ -4,6 +4,7 @@ import React from 'react';
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
 import { InMemoryDashboardRepository } from '@/data/dashboard/InMemoryDashboardRepository';
 import type { Invoice } from '@/domain/invoice/types';
+import { createBusinessProfileStore } from '@/state/businessProfileStore';
 import { createDashboardStore } from '@/state/dashboardStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { createInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
@@ -12,6 +13,11 @@ import { createInvoiceTypeStore } from '@/state/invoiceTypeStore';
 let mockDashboardStore: ReturnType<typeof createDashboardStore>;
 let mockInvoiceTypeStore: ReturnType<typeof createInvoiceTypeStore>;
 let mockInvoiceSettingsStore: ReturnType<typeof createInvoiceSettingsStore>;
+// The Dashboard screen now also preloads the business profile (for the
+// Stitch-matched greeting header's business name/VAT line) — mocked here
+// purely so it never touches the real SQLite repository in tests; nothing
+// in this file asserts on business profile data.
+let mockBusinessProfileStore: ReturnType<typeof createBusinessProfileStore>;
 
 jest.mock('@/state/dashboardStore', () => {
   const actual = jest.requireActual('@/state/dashboardStore');
@@ -19,6 +25,15 @@ jest.mock('@/state/dashboardStore', () => {
     ...actual,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useDashboardStore: (...args: unknown[]) => (mockDashboardStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/businessProfileStore', () => {
+  const actual = jest.requireActual('@/state/businessProfileStore');
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    useBusinessProfileStore: (...args: unknown[]) => (mockBusinessProfileStore as any)(...args),
   };
 });
 
@@ -97,6 +112,7 @@ describe('DashboardScreen', () => {
     (navigation.addListener as jest.Mock).mockClear();
     mockInvoiceTypeStore = createInvoiceTypeStore(new InMemoryBusinessRepository());
     mockInvoiceSettingsStore = createInvoiceSettingsStore(new InMemoryBusinessRepository());
+    mockBusinessProfileStore = createBusinessProfileStore(new InMemoryBusinessRepository());
     useInvoiceDraftStore.getState().reset();
   });
 

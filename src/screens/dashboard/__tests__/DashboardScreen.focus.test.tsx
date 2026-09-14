@@ -3,6 +3,7 @@ import React from 'react';
 
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
 import { InMemoryDashboardRepository } from '@/data/dashboard/InMemoryDashboardRepository';
+import { createBusinessProfileStore } from '@/state/businessProfileStore';
 import { createDashboardStore } from '@/state/dashboardStore';
 import { createInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { createInvoiceTypeStore } from '@/state/invoiceTypeStore';
@@ -10,6 +11,7 @@ import { createInvoiceTypeStore } from '@/state/invoiceTypeStore';
 let mockDashboardStore: ReturnType<typeof createDashboardStore>;
 let mockInvoiceTypeStore: ReturnType<typeof createInvoiceTypeStore>;
 let mockInvoiceSettingsStore: ReturnType<typeof createInvoiceSettingsStore>;
+let mockBusinessProfileStore: ReturnType<typeof createBusinessProfileStore>;
 
 jest.mock('@/state/dashboardStore', () => {
   const actual = jest.requireActual('@/state/dashboardStore');
@@ -17,6 +19,15 @@ jest.mock('@/state/dashboardStore', () => {
     ...actual,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     useDashboardStore: (...args: unknown[]) => (mockDashboardStore as any)(...args),
+  };
+});
+
+jest.mock('@/state/businessProfileStore', () => {
+  const actual = jest.requireActual('@/state/businessProfileStore');
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    useBusinessProfileStore: (...args: unknown[]) => (mockBusinessProfileStore as any)(...args),
   };
 });
 
@@ -59,6 +70,7 @@ describe('DashboardScreen — focus refresh', () => {
     (navigation.addListener as jest.Mock).mockClear();
     mockInvoiceTypeStore = createInvoiceTypeStore(new InMemoryBusinessRepository());
     mockInvoiceSettingsStore = createInvoiceSettingsStore(new InMemoryBusinessRepository());
+    mockBusinessProfileStore = createBusinessProfileStore(new InMemoryBusinessRepository());
   });
 
   it('registers a focus listener so returning to this screen refreshes the summary', async () => {

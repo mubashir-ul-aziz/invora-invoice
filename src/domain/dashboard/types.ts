@@ -32,6 +32,8 @@ export interface DashboardRecentInvoice {
   invoiceNumber: string;
   customerName: string;
   issueDate: string;
+  /** ISO calendar date, `YYYY-MM-DD`, or null — carried through from `DashboardInvoiceEntry.dueDate` for the Dashboard screen's due-date display. */
+  dueDate: string | null;
   grandTotal: number;
   amountPaid: number;
   status: InvoiceStatus;
@@ -53,6 +55,12 @@ export interface DashboardSummary {
   totalOverdue: number;
   /** Count of every invoice, regardless of status. */
   invoiceCount: number;
+  /** Count of invoices whose computed status is `'paid'`. */
+  paidCount: number;
+  /** Count of invoices whose computed status is `'unpaid'` or `'partial'` — not yet fully paid, and not overdue. */
+  pendingCount: number;
+  /** Count of invoices whose computed status is `'overdue'`. */
+  overdueCount: number;
   /** Newest-issue-date-first, capped at the configured limit — see `DEFAULT_RECENT_INVOICES_LIMIT`. */
   recentInvoices: DashboardRecentInvoice[];
 }
@@ -66,5 +74,8 @@ export const EMPTY_DASHBOARD_SUMMARY: DashboardSummary = {
   totalOutstanding: 0,
   totalOverdue: 0,
   invoiceCount: 0,
+  paidCount: 0,
+  pendingCount: 0,
+  overdueCount: 0,
   recentInvoices: [],
 };
