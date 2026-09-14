@@ -121,7 +121,12 @@ export function RootNavigator() {
       <Stack.Screen
         name="CustomerList"
         component={CustomerListScreen}
-        options={{ title: 'Customers' }}
+        options={({ route }) => ({
+          // In picker mode (`onSelectCustomer`) this screen is Step 1 of the
+          // invoice-creation flow — the Stitch "Select Customer" design —
+          // rather than the plain Customers tab.
+          title: route.params?.onSelectCustomer ? 'Select Customer' : 'Customers',
+        })}
       />
       <Stack.Screen
         name="CreateCustomer"

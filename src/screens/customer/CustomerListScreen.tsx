@@ -23,24 +23,37 @@ type SortMode = 'name' | 'balance';
  * a pill search bar with an A-Z/Balance sort toggle, All/Due/Settled filter
  * pills, avatar rows with a real per-customer outstanding balance and
  * status badge, an outstanding/settled summary strip, and a floating "Add
- * Customer" button. Also doubles as a customer **picker** when
- * `route.params.onSelectCustomer` is provided (see `navigation/types.ts`) —
- * a future invoice-creation flow (Phase 6) can reuse this screen instead of a
- * second, near-duplicate list; in that mode the screen-local bottom nav
- * (which would navigate away from the in-progress flow) is hidden.
+ * Customer" button.
+ *
+ * Also doubles as the Stitch "Select Customer" screen — Step 1 of 3 of the
+ * invoice-creation flow — when `route.params.onSelectCustomer` is provided
+ * (see `navigation/types.ts`; wired from `DashboardScreen.handleCreateInvoice`
+ * and `MVP_BUILD_PLAN.md`'s "Create Invoice – Customer is `CustomerList` in
+ * picker mode" note). That mode renders a dedicated branch near the top of
+ * this component matching the Stitch mock (step tracker, pinned "+ New
+ * Customer" quick-add, count/sort caption, "Smart Pre-filling" hint) instead
+ * of reusing the plain-mode layout below, since the two designs diverge too
+ * much to share JSX cleanly. Tapping a row calls `onSelectCustomer` and pops
+ * back to the caller instead of opening Customer Detail; the screen-local
+ * bottom nav (which would navigate away from the in-progress flow) is never
+ * shown in this mode.
  *
  * Balances come from `customerBalancesStore`, which reads the same
  * `CustomerActivityRepository` Customer Detail/History already use — real
  * invoice/payment-derived numbers, one lookup per visible customer, never a
  * stored or fabricated figure. The Stitch mock's per-row "Due 4d"/"Due Today"
- * day-countdown and its business-category tag ("Commercial Realty") have no
+ * day-countdown, its business-category tag ("Commercial Realty"), and the
+ * Select Customer mock's per-row "Net 14"/"Net 30" payment-terms tag have no
  * backing field (`CustomerBalanceSummary` has no due date; `Customer` has no
- * category) — the badge instead shows a plain "Due"/"Overdue" status, and the
- * row's second line falls back to phone/email, matching the mock's own
- * email-detail row variants. The "Active Ledger" live-status pill and the
- * mock's empty-state "Zero-State Mode" preview watermark are Stitch-only
- * decoration with no real sync/preview concept behind them, so the former is
- * marked DESIGN ONLY and the latter isn't reproduced.
+ * category or default-terms field) — the badge instead shows a plain
+ * "Due"/"Overdue"/"Settled" status, and the row's second line falls back to
+ * phone/email, matching the mock's own email-detail row variants. The plain
+ * mode's "Active Ledger" live-status pill and the mock's empty-state
+ * "Zero-State Mode" preview watermark are Stitch-only decoration with no real
+ * sync/preview concept behind them, so the former is marked DESIGN ONLY and
+ * the latter isn't reproduced. The Select Customer mode's "Smart Pre-filling"
+ * banner is marked DESIGN ONLY for the same reason (see the banner's own
+ * comment below).
  */
 export function CustomerListScreen({ navigation, route }: Props) {
   const onSelectCustomer = route.params?.onSelectCustomer;
@@ -128,6 +141,197 @@ export function CustomerListScreen({ navigation, route }: Props) {
   const handleCreate = () => {
     navigation.navigate('CreateCustomer', onSelectCustomer ? { onCreated: onSelectCustomer } : undefined);
   };
+
+  // Picker mode (`onSelectCustomer`) is Step 1 of the invoice-creation flow —
+  // the Stitch "Select Customer" design — which looks and behaves
+  // differently enough from the plain Customers tab (below) that it gets its
+  // own render branch rather than sprinkling `onSelectCustomer` checks
+  // through one shared layout.
+  if (onSelectCustomer) {
+    const hintBanner = (
+      <View style={styles.hintBanner}>
+        <View style={styles.hintIconWrap}>
+          <Feather name="zap" size={16} color={colors.primary} />
+        </View>
+        <View style={styles.hintTextCol}>
+          <View style={styles.hintTitleRow}>
+            <Text style={styles.hintTitle}>Smart Pre-filling</Text>
+            <Text style={styles.designOnlyTag}>DESIGN ONLY</Text>
+          </View>
+          {/*
+            DESIGN ONLY: `Customer` (domain/customer/types.ts) has no
+            default-payment-terms field, and `invoiceDraftStore.setCustomer`
+            only stores the chosen customer — it doesn't copy their address
+            onto the invoice. Stitch's copy describes this auto-fill as if it
+            already happens; it doesn't, so the badge above flags it.
+          */}
+          <Text style={styles.hintCaption}>
+            Invoices could inherit a customer&apos;s default payment terms and registered billing address
+            automatically.
+          </Text>
+        </View>
+      </View>
+    );
+
+    return (
+      <View style={styles.screen} testID="customer-list-screen">
+        <View style={styles.stepTrackerWrap}>
+          <View style={styles.stepTrackerRow}>
+            <Text style={styles.stepTrackerStep}>Step 1 of 3</Text>
+            <Text style={styles.stepTrackerLabel}>Invoice Recipient</Text>
+          </View>
+          <View style={styles.stepTrackerBarBg}>
+            <View style={styles.stepTrackerBarFill} />
+          </View>
+        </View>
+
+        <View style={styles.pickerSearchRow}>
+          <View style={styles.searchPill}>
+            <Feather name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              value={filter.searchText}
+              onChangeText={(text) => setFilter({ searchText: text })}
+              placeholder="Search customers by name, company, email..."
+              placeholderTextColor={colors.placeholder}
+              style={styles.searchInput}
+              testID="customer-search"
+            />
+            {!!filter.searchText && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                testID="customer-search-clear"
+                hitSlop={8}
+                onPress={() => setFilter({ searchText: '' })}
+              >
+                <Feather name="x-circle" size={16} color={colors.textMuted} />
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="New customer"
+          testID="action-create-customer"
+          onPress={handleCreate}
+          style={({ pressed }) => [styles.newCustomerCard, pressed && styles.pressedCard]}
+        >
+          <View style={styles.newCustomerLeft}>
+            <View style={styles.newCustomerIcon}>
+              <Feather name="user-plus" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.newCustomerTextCol}>
+              <View style={styles.newCustomerTitleRow}>
+                <Text style={styles.newCustomerTitle}>+ New Customer</Text>
+                <View style={styles.quickAddPill}>
+                  <Text style={styles.quickAddPillText}>Quick Add</Text>
+                </View>
+              </View>
+              <Text style={styles.newCustomerSubtitle} numberOfLines={1}>
+                Add and configure a new customer profile
+              </Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.primary} />
+        </Pressable>
+
+        <View style={styles.directoryHeaderRow}>
+          <View style={styles.directoryHeaderLeft}>
+            <Text style={styles.directoryLabel}>Customers</Text>
+            <View style={styles.directoryCountBadge}>
+              <Text style={styles.directoryCountText}>
+                {customers.length} {customers.length === 1 ? 'found' : 'available'}
+              </Text>
+            </View>
+          </View>
+          {/*
+            Stitch's caption reads "Sorted by recent activity", but this app
+            has no per-customer last-invoice/payment date to sort by (see
+            domain/customer/activity.ts) — inventing that signal would violate
+            DESIGN.md's "never fake a backend feature" rule. The list below
+            uses the repository's real default order instead (most recently
+            *added* customer first — SqliteCustomerRepository.list's
+            `orderBy(desc(createdAt))`), and this caption is worded to match
+            that real behavior.
+          */}
+          <Text style={styles.directoryCaption}>Sorted by recently added</Text>
+        </View>
+
+        <View style={styles.pickerBody}>
+          {(status === 'loading' || status === 'idle') && (
+            <View style={styles.centered} testID="customer-list-loading">
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          )}
+
+          {status === 'error' && (
+            <View style={styles.centered} testID="customer-list-error">
+              <Text style={styles.errorText}>Couldn&apos;t load customers.</Text>
+              <Text style={styles.errorDetail}>{error}</Text>
+              <ActionButton label="Try again" onPress={load} />
+            </View>
+          )}
+
+          {/*
+            The store's `customers` is already the *search-filtered* result
+            (see `customerStore.setFilter` → `repository.list(filter)`), so
+            there's no separate "unfiltered total" to compare against here —
+            an empty result while a search is active means "no matches",
+            while an empty result with no search text means "no customers
+            exist yet".
+          */}
+          {status === 'ready' && customers.length === 0 && !filter.searchText && (
+            <View style={styles.centered} testID="customer-list-empty">
+              <Text style={styles.emptyText}>No customers yet — add your first one above.</Text>
+            </View>
+          )}
+
+          {status === 'ready' && customers.length === 0 && !!filter.searchText && (
+            <View style={styles.noMatches} testID="customer-list-no-filter-matches">
+              <View style={styles.noMatchesIconWrap}>
+                <Feather name="search" size={26} color={colors.textMuted} />
+              </View>
+              <Text style={styles.noMatchesTitle}>No matching customers</Text>
+              <Text style={styles.noMatchesSubtitle}>
+                Double check your search or create a new profile instantly.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Create this customer"
+                testID="customer-search-empty-create"
+                onPress={handleCreate}
+                style={({ pressed }) => [styles.noMatchesButton, pressed && styles.pressedCard]}
+              >
+                <Text style={styles.noMatchesButtonText}>Create This Customer</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {status === 'ready' && customers.length > 0 && (
+            <FlatList
+              testID="customer-list"
+              data={customers}
+              keyExtractor={(customer) => customer.id}
+              contentContainerStyle={styles.listContent}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              renderItem={({ item: customer }) => (
+                <CustomerListRow
+                  customer={customer}
+                  balance={balances[customer.id]}
+                  balanceStatus={balances[customer.id] ? classifyBalanceStatus(balances[customer.id]) : undefined}
+                  onPress={() => handlePressCustomer(customer)}
+                  testID={`customer-row-${customer.id}`}
+                />
+              )}
+            />
+          )}
+        </View>
+
+        {status === 'ready' && hintBanner}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen} testID="customer-list-screen">
@@ -465,4 +669,97 @@ const styles = StyleSheet.create({
   fabNoNav: { bottom: 24 },
   fabPressed: { opacity: 0.85 },
   fabText: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
+
+  // --- Select Customer (picker mode / invoice-creation Step 1) ---
+  pressedCard: { opacity: 0.85 },
+  stepTrackerWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, gap: 6 },
+  stepTrackerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepTrackerStep: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  stepTrackerLabel: { fontSize: 12, color: colors.textMuted },
+  stepTrackerBarBg: { width: '100%', height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' },
+  stepTrackerBarFill: { width: '33%', height: '100%', borderRadius: 3, backgroundColor: colors.primary },
+  pickerSearchRow: { paddingHorizontal: 16, paddingVertical: 8 },
+  newCustomerCard: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  newCustomerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 },
+  newCustomerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newCustomerTextCol: { flex: 1, minWidth: 0, gap: 2 },
+  newCustomerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  newCustomerTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  quickAddPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, backgroundColor: colors.background },
+  quickAddPillText: { fontSize: 9, fontWeight: '700', color: colors.textMuted },
+  newCustomerSubtitle: { fontSize: 12, color: colors.textMuted },
+  directoryHeaderRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  directoryHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  directoryLabel: { fontSize: 12, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
+  directoryCountBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: colors.surface },
+  directoryCountText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
+  directoryCaption: { fontSize: 11, color: colors.placeholder },
+  pickerBody: { flex: 1 },
+  noMatches: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 24 },
+  noMatchesIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  noMatchesTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  noMatchesSubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 260, marginBottom: 8 },
+  noMatchesButton: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: colors.primary },
+  noMatchesButtonText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
+  hintBanner: {
+    margin: 16,
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  hintIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  hintTextCol: { flex: 1, minWidth: 0, gap: 2 },
+  hintTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hintTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
+  designOnlyTag: { fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.3 },
+  hintCaption: { fontSize: 12, color: colors.textMuted, lineHeight: 17 },
 });

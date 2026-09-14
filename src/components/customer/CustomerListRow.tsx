@@ -12,8 +12,9 @@ interface Props {
   balance?: CustomerBalanceSummary;
   balanceStatus?: CustomerBalanceStatus;
   onPress: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  /** Omit both `onEdit` and `onDelete` (the Select Customer picker) to hide the manage actions and show a selection arrow instead. */
+  onEdit?: () => void;
+  onDelete?: () => void;
   testID?: string;
 }
 
@@ -62,6 +63,7 @@ export function CustomerListRow({ customer, balance, balanceStatus, onPress, onE
   const subtitleParts = [customer.phone, customer.email].filter(Boolean);
   const avatarStyle = avatarStyleFor(customer.id);
   const badge = balanceStatus ? STATUS_BADGE[balanceStatus] : null;
+  const selectable = !onEdit && !onDelete;
 
   return (
     <Pressable
@@ -104,28 +106,34 @@ export function CustomerListRow({ customer, balance, balanceStatus, onPress, onE
         )}
       </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Edit ${customer.name}`}
-          testID={testID ? `${testID}-edit` : undefined}
-          onPress={onEdit}
-          hitSlop={8}
-          style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
-        >
-          <Feather name="edit-2" size={15} color={colors.textMuted} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Delete ${customer.name}`}
-          testID={testID ? `${testID}-delete` : undefined}
-          onPress={onDelete}
-          hitSlop={8}
-          style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
-        >
-          <Feather name="trash-2" size={15} color={colors.danger} />
-        </Pressable>
-      </View>
+      {selectable ? (
+        <View style={styles.selectionIndicator}>
+          <Feather name="arrow-right" size={14} color={colors.primary} />
+        </View>
+      ) : (
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${customer.name}`}
+            testID={testID ? `${testID}-edit` : undefined}
+            onPress={onEdit}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+          >
+            <Feather name="edit-2" size={15} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${customer.name}`}
+            testID={testID ? `${testID}-delete` : undefined}
+            onPress={onDelete}
+            hitSlop={8}
+            style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+          >
+            <Feather name="trash-2" size={15} color={colors.danger} />
+          </Pressable>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -159,4 +167,14 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: '700' },
   actions: { flexDirection: 'column', gap: 2, flexShrink: 0, paddingLeft: 2 },
   actionButton: { padding: 6, borderRadius: 8 },
+  selectionIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginLeft: 4,
+  },
 });
