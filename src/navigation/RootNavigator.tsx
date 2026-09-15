@@ -111,7 +111,16 @@ export function RootNavigator() {
         component={CustomInvoiceTypeScreen}
         options={{ title: 'Custom Invoice Type' }}
       />
-      <Stack.Screen name="ItemList" component={ItemListScreen} options={{ title: 'Items' }} />
+      <Stack.Screen
+        name="ItemList"
+        component={ItemListScreen}
+        options={({ route }) => ({
+          // In picker mode (`onSelectItem`) this screen is reused by the
+          // invoice-creation flow's "add from catalog" action rather than
+          // the plain Items tab (see `ItemListScreen`'s doc comment).
+          title: route.params?.onSelectItem ? 'Select Item' : 'Items',
+        })}
+      />
       <Stack.Screen
         name="CreateItem"
         component={CreateItemScreen}
