@@ -25,7 +25,12 @@ import {
 export interface SummarizeDashboardOptions {
   /** Injectable for tests; defaults to today (local ISO date) — see `domain/invoice/status.ts`. */
   today?: string;
-  /** How many rows `recentInvoices` keeps — defaults to `DEFAULT_RECENT_INVOICES_LIMIT`. */
+  /**
+   * Cap applied only when falling back to older invoices (no invoice issued
+   * today) — defaults to `DEFAULT_RECENT_INVOICES_LIMIT`. Every invoice
+   * issued today is always shown uncapped; see the doc comment on
+   * `recentInvoices` below.
+   */
   recentLimit?: number;
 }
 
@@ -45,6 +50,11 @@ function round2(value: number): number {
  * overpayment is allowed (see `domain/payment/validation.ts`), and an
  * overpaid invoice's excess must never silently cancel out another invoice's
  * genuine outstanding balance.
+ *
+ * `recentInvoices` shows every invoice issued today, uncapped — a busy day
+ * with 20 invoices shows all 20, not just a handful. `recentLimit` only
+ * applies as a fallback on a day with no invoices issued yet, to still show
+ * a short glanceable list of the most recent ones from prior days.
  */
 export function summarizeDashboard(
   entries: DashboardInvoiceEntry[],
@@ -55,6 +65,7 @@ export function summarizeDashboard(
   }
 
   const recentLimit = options.recentLimit ?? DEFAULT_RECENT_INVOICES_LIMIT;
+  const today = options.today ?? new Date().toISOString().slice(0, 10);
 
   let totalSales = 0;
   let totalPaid = 0;
@@ -69,7 +80,7 @@ export function summarizeDashboard(
       grandTotal: entry.grandTotal,
       amountPaid: entry.amountPaid,
       dueDate: entry.dueDate,
-      today: options.today,
+      today,
     });
     const remaining = remainingBalance(entry.grandTotal, entry.amountPaid);
 
@@ -88,13 +99,15 @@ export function summarizeDashboard(
     return { entry, status };
   });
 
-  const recentInvoices = [...withStatus]
-    .sort((a, b) => {
-      const byIssueDate = b.entry.issueDate.localeCompare(a.entry.issueDate);
-      return byIssueDate !== 0 ? byIssueDate : b.entry.createdAt.localeCompare(a.entry.createdAt);
-    })
-    .slice(0, recentLimit)
-    .map(({ entry, status }) => ({
+  const sortedByNewest = [...withStatus].sort((a, b) => {
+    const byIssueDate = b.entry.issueDate.localeCompare(a.entry.issueDate);
+    return byIssueDate !== 0 ? byIssueDate : b.entry.createdAt.localeCompare(a.entry.createdAt);
+  });
+
+  const issuedToday = sortedByNewest.filter(({ entry }) => entry.issueDate === today);
+
+  const recentInvoices = (issuedToday.length > 0 ? issuedToday : sortedByNewest.slice(0, recentLimit)).map(
+    ({ entry, status }) => ({
       invoiceId: entry.invoiceId,
       invoiceNumber: entry.invoiceNumber,
       customerName: entry.customerName,
@@ -103,7 +116,8 @@ export function summarizeDashboard(
       grandTotal: entry.grandTotal,
       amountPaid: entry.amountPaid,
       status,
-    }));
+    }),
+  );
 
   return {
     totalSales,

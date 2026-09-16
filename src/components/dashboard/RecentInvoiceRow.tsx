@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
+import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -35,6 +36,7 @@ export function RecentInvoiceRow({ entry, onPress, testID }: Props) {
   const dateLabel = describeDate(entry);
   const showProgress = entry.status === 'partial' && entry.grandTotal > 0;
   const progressPercent = showProgress ? Math.min(100, (entry.amountPaid / entry.grandTotal) * 100) : 0;
+  const currencySymbol = useCurrencySymbol();
 
   return (
     <Pressable
@@ -67,10 +69,10 @@ export function RecentInvoiceRow({ entry, onPress, testID }: Props) {
         )}
       </View>
       <View style={styles.trailing}>
-        <Text style={styles.total}>{entry.grandTotal.toFixed(2)}</Text>
+        <Text style={styles.total}>{currencySymbol}{entry.grandTotal.toFixed(2)}</Text>
         <View style={[styles.badge, { backgroundColor: STATUS_BACKGROUND[entry.status] }]}>
           <Text style={[styles.badgeText, { color: STATUS_TEXT[entry.status] }]} numberOfLines={1}>
-            {badgeLabel(entry)}
+            {badgeLabel(entry, currencySymbol)}
           </Text>
         </View>
       </View>
@@ -78,9 +80,9 @@ export function RecentInvoiceRow({ entry, onPress, testID }: Props) {
   );
 }
 
-function badgeLabel(entry: DashboardRecentInvoice): string {
+function badgeLabel(entry: DashboardRecentInvoice, currencySymbol: string): string {
   if (entry.status === 'partial') {
-    return `Part (${entry.amountPaid.toFixed(2)} pd)`;
+    return `Part (${currencySymbol}${entry.amountPaid.toFixed(2)} pd)`;
   }
   return { unpaid: 'Unpaid', paid: 'Paid', overdue: 'Overdue' }[entry.status];
 }

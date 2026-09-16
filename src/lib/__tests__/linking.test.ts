@@ -4,8 +4,10 @@ import {
   openEmail,
   openGoogleMaps,
   openPhone,
+  openSms,
   openWebsite,
   openWhatsApp,
+  shareViaWhatsApp,
   type LinkingClient,
 } from '../linking';
 
@@ -75,6 +77,18 @@ describe('linking helpers', () => {
     expect(ok).toBe(false);
     expect(client.opened).toEqual([]);
     expect(Alert.alert).toHaveBeenCalled();
+  });
+
+  it('builds a recipient-less wa.me link to share via WhatsApp', async () => {
+    const client = fakeClient(true);
+    await shareViaWhatsApp('Check this out', client);
+    expect(client.opened).toEqual(['https://wa.me/?text=Check%20this%20out']);
+  });
+
+  it('builds a recipient-less sms: link', async () => {
+    const client = fakeClient(true);
+    await openSms('Check this out', client);
+    expect(client.opened).toEqual(['sms:?&body=Check%20this%20out']);
   });
 
   it('alerts instead of throwing when the target app cannot be opened', async () => {

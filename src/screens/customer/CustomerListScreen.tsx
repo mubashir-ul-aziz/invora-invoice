@@ -11,6 +11,7 @@ import type { Customer, CustomerBalanceSummary } from '@/domain/customer/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerBalancesStore } from '@/state/customerBalancesStore';
 import { useCustomerStore } from '@/state/customerStore';
+import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerList'>;
@@ -59,6 +60,7 @@ export function CustomerListScreen({ navigation, route }: Props) {
   const onSelectCustomer = route.params?.onSelectCustomer;
   const { status, customers, filter, error, load, setFilter, remove } = useCustomerStore();
   const { balances, loadMany: loadBalances } = useCustomerBalancesStore();
+  const currencySymbol = useCurrencySymbol();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('name');
@@ -335,6 +337,25 @@ export function CustomerListScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen} testID="customer-list-screen">
+      {status === 'ready' && loadedBalances.length > 0 && (
+        <View style={styles.summaryBarWrap}>
+          <View style={styles.summaryBar} testID="customer-summary-bar">
+            <View style={styles.summaryColumn}>
+              <Text style={styles.summaryLabel}>Total Outstanding</Text>
+              <Text style={styles.summaryValueDanger}>{currencySymbol}{totalOutstanding.toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={[styles.summaryColumn, styles.summaryColumnEnd]}>
+              <Text style={styles.summaryLabel}>Settled Ratio</Text>
+              <View style={styles.summaryRatioRow}>
+                <Feather name="trending-up" size={14} color="#006243" />
+                <Text style={styles.summaryValue}>{settledRatio.toFixed(1)}%</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
       <View style={styles.controlBar}>
         <View style={styles.searchRow}>
           <View style={styles.searchPill}>
@@ -466,24 +487,6 @@ export function CustomerListScreen({ navigation, route }: Props) {
               testID={`customer-row-${customer.id}`}
             />
           )}
-          ListFooterComponent={
-            loadedBalances.length > 0 ? (
-              <View style={styles.summaryBar} testID="customer-summary-bar">
-                <View style={styles.summaryColumn}>
-                  <Text style={styles.summaryLabel}>Total Outstanding</Text>
-                  <Text style={styles.summaryValueDanger}>{totalOutstanding.toFixed(2)}</Text>
-                </View>
-                <View style={styles.summaryDivider} />
-                <View style={[styles.summaryColumn, styles.summaryColumnEnd]}>
-                  <Text style={styles.summaryLabel}>Settled Ratio</Text>
-                  <View style={styles.summaryRatioRow}>
-                    <Feather name="trending-up" size={14} color="#006243" />
-                    <Text style={styles.summaryValue}>{settledRatio.toFixed(1)}%</Text>
-                  </View>
-                </View>
-              </View>
-            ) : null
-          }
         />
       )}
 
@@ -507,7 +510,6 @@ export function CustomerListScreen({ navigation, route }: Props) {
           activeTab="customers"
           onDashboard={() => navigation.navigate('Dashboard')}
           onInvoices={() => navigation.navigate('InvoiceList')}
-          onBusiness={() => navigation.navigate('Business')}
           onSettings={() => navigation.navigate('Settings')}
         />
       )}
@@ -633,8 +635,8 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 270, marginBottom: 8 },
   listContent: { paddingHorizontal: 16, paddingBottom: 96 },
   separator: { height: 8 },
+  summaryBarWrap: { paddingHorizontal: 16, paddingTop: 16 },
   summaryBar: {
-    marginTop: 8,
     padding: 14,
     backgroundColor: colors.surface,
     borderRadius: 14,

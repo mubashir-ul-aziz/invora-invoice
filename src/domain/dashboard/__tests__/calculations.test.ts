@@ -73,7 +73,7 @@ describe('summarizeDashboard', () => {
     expect(summary.totalOutstanding).toBe(1100); // 600 + 200 + 300 + 0
   });
 
-  it('orders recentInvoices newest issue date first, tiebreaking by createdAt, and caps at the given limit', () => {
+  it('when falling back to prior days, orders recentInvoices newest issue date first, tiebreaking by createdAt, and caps at the given limit', () => {
     const entries = [
       entry({ invoiceId: 'a', issueDate: '2026-01-01', createdAt: '2026-01-01T10:00:00.000Z' }),
       entry({ invoiceId: 'b', issueDate: '2026-01-05', createdAt: '2026-01-05T10:00:00.000Z' }),
@@ -87,7 +87,7 @@ describe('summarizeDashboard', () => {
     expect(summary.recentInvoices).toHaveLength(3);
   });
 
-  it('defaults recentLimit to DEFAULT_RECENT_INVOICES_LIMIT', () => {
+  it('defaults recentLimit to DEFAULT_RECENT_INVOICES_LIMIT when falling back to prior days', () => {
     const entries = Array.from({ length: DEFAULT_RECENT_INVOICES_LIMIT + 3 }, (_, i) =>
       entry({ invoiceId: String(i), issueDate: `2026-01-${String(i + 1).padStart(2, '0')}` }),
     );
@@ -96,6 +96,42 @@ describe('summarizeDashboard', () => {
 
     expect(summary.recentInvoices).toHaveLength(DEFAULT_RECENT_INVOICES_LIMIT);
     expect(summary.invoiceCount).toBe(entries.length); // count is never capped by the recent-list limit
+  });
+
+  it('shows every invoice issued today uncapped, ignoring recentLimit entirely', () => {
+    const entries = Array.from({ length: DEFAULT_RECENT_INVOICES_LIMIT + 15 }, (_, i) =>
+      entry({
+        invoiceId: String(i),
+        issueDate: '2026-01-10',
+        createdAt: `2026-01-10T${String(i).padStart(2, '0')}:00:00.000Z`,
+      }),
+    );
+
+    const summary = summarizeDashboard(entries, { today: '2026-01-10' });
+
+    expect(summary.recentInvoices).toHaveLength(entries.length);
+    // Newest-created-first within today, same tiebreak rule as across days.
+    expect(summary.recentInvoices[0].invoiceId).toBe(String(entries.length - 1));
+  });
+
+  it('excludes prior-day invoices once at least one invoice exists for today, even under the fallback limit', () => {
+    const entries = [
+      entry({ invoiceId: 'yesterday', issueDate: '2026-01-09', createdAt: '2026-01-09T10:00:00.000Z' }),
+      entry({ invoiceId: 'today', issueDate: '2026-01-10', createdAt: '2026-01-10T10:00:00.000Z' }),
+    ];
+
+    const summary = summarizeDashboard(entries, { today: '2026-01-10' });
+
+    expect(summary.recentInvoices.map((r) => r.invoiceId)).toEqual(['today']);
+  });
+
+  it('defaults `today` to the real current date when not injected', () => {
+    const realToday = new Date().toISOString().slice(0, 10);
+    const entries = [entry({ invoiceId: 'x', issueDate: realToday, createdAt: `${realToday}T00:00:00.000Z` })];
+
+    const summary = summarizeDashboard(entries);
+
+    expect(summary.recentInvoices.map((r) => r.invoiceId)).toEqual(['x']);
   });
 
   it('each recent invoice carries its own computed status and numbers, not a re-derived total', () => {

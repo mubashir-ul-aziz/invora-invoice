@@ -61,11 +61,16 @@ export interface DashboardSummary {
   pendingCount: number;
   /** Count of invoices whose computed status is `'overdue'`. */
   overdueCount: number;
-  /** Newest-issue-date-first, capped at the configured limit — see `DEFAULT_RECENT_INVOICES_LIMIT`. */
+  /**
+   * Every invoice issued today, newest-created-first, uncapped — see the doc
+   * comment on `summarizeDashboard`. Falls back to the most recent invoices
+   * from prior days (capped at `DEFAULT_RECENT_INVOICES_LIMIT`) only when
+   * nothing has been issued today.
+   */
   recentInvoices: DashboardRecentInvoice[];
 }
 
-/** How many rows `recentInvoices` keeps by default — a short glanceable list, not a paginated history (that's Invoice List/Payment History's job). */
+/** How many rows `recentInvoices` falls back to showing when nothing's been issued today — a short glanceable list, not a paginated history (that's Invoice List/Payment History's job). */
 export const DEFAULT_RECENT_INVOICES_LIMIT = 5;
 
 export const EMPTY_DASHBOARD_SUMMARY: DashboardSummary = {

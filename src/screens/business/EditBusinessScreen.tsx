@@ -1,8 +1,9 @@
+import { Feather } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
@@ -35,6 +36,15 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EditBusiness' | 'EditBu
  * both the Business screen ("Business profile") and the Digital Card screen
  * ("Edit card") — see `RootNavigator`, which points both the `EditBusiness`
  * and `EditBusinessCard` routes at this same component.
+ *
+ * Restyled to match the Stitch "Business Details" design's card sections —
+ * Brand Identity & Logo, Business Details, Financial & Tax, Social Links &
+ * Maps — with every existing field/testID unchanged. The Stitch mock's
+ * "Industry / Tagline" field has no backing column anywhere in
+ * `BusinessProfile`/`BusinessCard`, so it's DESIGN ONLY (local state, never
+ * submitted); its phone field's "🇬🇧 +44" country-code prefix is likewise
+ * decorative — this app stores whatever the user types verbatim, same
+ * DESIGN ONLY treatment as Create/Edit Customer's phone field.
  */
 export function EditBusinessScreen({ navigation }: Props) {
   // Neither store is loaded here — same convention the two screens this
@@ -48,6 +58,9 @@ export function EditBusinessScreen({ navigation }: Props) {
   const profileStore = useBusinessProfileStore();
   const cardStore = useBusinessCardStore();
   const bothLoaded = profileStore.status === 'ready' && cardStore.status === 'ready';
+
+  // DESIGN ONLY: no backing field exists on `BusinessProfile`/`BusinessCard`.
+  const [tagline, setTagline] = useState('');
 
   const {
     control,
@@ -89,102 +102,162 @@ export function EditBusinessScreen({ navigation }: Props) {
       contentContainerStyle={styles.content}
       testID="edit-business-screen"
     >
-      <Controller
-        control={control}
-        name="logoUri"
-        render={({ field: { value, onChange } }) => (
-          <LogoPicker logoUri={value || null} onChange={(uri) => onChange(uri ?? '')} />
-        )}
-      />
+      {/* Brand Identity & Logo */}
+      <View style={styles.card}>
+        <Controller
+          control={control}
+          name="logoUri"
+          render={({ field: { value, onChange } }) => (
+            <LogoPicker logoUri={value || null} onChange={(uri) => onChange(uri ?? '')} />
+          )}
+        />
+      </View>
 
-      <Field name="businessName" label="Business name *" control={control} errors={errors} />
-      <Field name="ownerName" label="Owner / contact name" control={control} errors={errors} />
-      <Field
-        name="phone"
-        label="Phone"
-        control={control}
-        errors={errors}
-        keyboardType="phone-pad"
-      />
-      <Field
-        name="email"
-        label="Email"
-        control={control}
-        errors={errors}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <Field
-        name="website"
-        label="Website"
-        control={control}
-        errors={errors}
-        autoCapitalize="none"
-        keyboardType="url"
-      />
-      <Field name="address" label="Address" control={control} errors={errors} multiline />
-      <Field
-        name="currency"
-        label="Currency (3-letter code)"
-        control={control}
-        errors={errors}
-        autoCapitalize="characters"
-        maxLength={3}
-      />
-      <Field name="taxId" label="Tax / VAT number" control={control} errors={errors} />
-      <Field name="invoicePrefix" label="Invoice prefix" control={control} errors={errors} />
-      {/*
-        Read-only, not an editable input: the invoice sequence is reserved
-        and advanced exclusively by `BusinessRepository.reserveNextInvoiceNumber()`
-        at invoice-creation time (see `domain/business/types.ts`'s doc
-        comment on `formatNextInvoiceNumber`) — nothing in the app is allowed
-        to change it by hand, so this field is shown for visibility only.
-      */}
-      <Text style={styles.readOnlyLabel}>Next invoice number</Text>
-      <Text style={styles.readOnlyValue} testID="field-nextInvoiceNumber">
-        {formatNextInvoiceNumber(
-          profileStore.profile?.invoicePrefix ?? 'INV-',
-          profileStore.profile?.businessCode ?? '',
-          profileStore.profile?.nextInvoiceNumber ?? 1,
-        )}
-      </Text>
+      {/* Business Details */}
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <Feather name="briefcase" size={16} color={colors.primary} />
+          <Text style={styles.cardTitle}>Business Details</Text>
+        </View>
+        <Field name="businessName" label="Business Name *" control={control} errors={errors} />
+        {/* DESIGN ONLY: no industry/tagline field exists on `BusinessProfile`/`BusinessCard`. */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Industry / Tagline · DESIGN ONLY</Text>
+          <FormField
+            label=""
+            value={tagline}
+            onChangeText={setTagline}
+            placeholder="e.g. Architectural Design & Contracting"
+            testID="field-tagline-design-only"
+          />
+        </View>
+        <Field name="ownerName" label="Owner / Contact Name" control={control} errors={errors} />
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>Phone</Text>
+          <View style={styles.phoneRow}>
+            {/* DESIGN ONLY: no country-code field exists — the number is saved exactly as typed. */}
+            <View style={styles.countryBadge} accessibilityLabel="Country code — DESIGN ONLY, not stored">
+              <Text style={styles.countryBadgeText}>DESIGN ONLY</Text>
+            </View>
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <FormField
+                  value={typeof value === 'string' ? value : ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="phone-pad"
+                  error={errors.phone?.message}
+                  testID="field-phone"
+                  style={styles.phoneInput}
+                  label=""
+                />
+              )}
+            />
+          </View>
+        </View>
+        <Field
+          name="email"
+          label="Email Address"
+          control={control}
+          errors={errors}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <Field
+          name="website"
+          label="Website"
+          control={control}
+          errors={errors}
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+        <Field name="address" label="Business Address" control={control} errors={errors} multiline />
+      </View>
 
-      <Text style={styles.sectionTitle}>Social & sharing</Text>
-      <Text style={styles.sectionHint}>
-        Shown on the back of your digital business card, along with a QR code.
-      </Text>
-      <Field
-        name="whatsapp"
-        label="WhatsApp number"
-        control={control}
-        errors={errors}
-        keyboardType="phone-pad"
-      />
-      <Field
-        name="facebook"
-        label="Facebook page URL"
-        control={control}
-        errors={errors}
-        autoCapitalize="none"
-      />
-      <Field
-        name="instagram"
-        label="Instagram profile URL"
-        control={control}
-        errors={errors}
-        autoCapitalize="none"
-      />
-      <Field
-        name="googleMapsUrl"
-        label="Google Maps link (optional)"
-        control={control}
-        errors={errors}
-        autoCapitalize="none"
-      />
+      {/* Financial & Tax */}
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <Feather name="credit-card" size={16} color={colors.primary} />
+          <Text style={styles.cardTitle}>Financial &amp; Tax</Text>
+        </View>
+        <Field
+          name="currency"
+          label="Base Currency (3-letter code)"
+          control={control}
+          errors={errors}
+          autoCapitalize="characters"
+          maxLength={3}
+        />
+        <Field name="taxId" label="Tax / VAT Number" control={control} errors={errors} />
+        <Field name="invoicePrefix" label="Invoice Prefix" control={control} errors={errors} />
+        {/*
+          Read-only, not an editable input: the invoice sequence is reserved
+          and advanced exclusively by `BusinessRepository.reserveNextInvoiceNumber()`
+          at invoice-creation time (see `domain/business/types.ts`'s doc
+          comment on `formatNextInvoiceNumber`) — nothing in the app is allowed
+          to change it by hand, so this field is shown for visibility only.
+        */}
+        <View style={styles.readOnlyRow}>
+          <Text style={styles.readOnlyLabel}>Next invoice number</Text>
+          <Text style={styles.readOnlyValue} testID="field-nextInvoiceNumber">
+            {formatNextInvoiceNumber(
+              profileStore.profile?.invoicePrefix ?? 'INV-',
+              profileStore.profile?.businessCode ?? '',
+              profileStore.profile?.nextInvoiceNumber ?? 1,
+            )}
+          </Text>
+        </View>
+      </View>
+
+      {/* Social Links & Maps */}
+      <View style={styles.card}>
+        <View style={styles.cardHeaderRow}>
+          <Feather name="share-2" size={16} color={colors.primary} />
+          <Text style={styles.cardTitle}>Social Links &amp; Maps</Text>
+        </View>
+        <Text style={styles.sectionHint}>
+          Shown on the back of your digital business card, along with a QR code.
+        </Text>
+        <Field
+          name="whatsapp"
+          label="WhatsApp Business"
+          control={control}
+          errors={errors}
+          keyboardType="phone-pad"
+          placeholder="+44 ..."
+        />
+        <Field
+          name="facebook"
+          label="Facebook Page"
+          control={control}
+          errors={errors}
+          autoCapitalize="none"
+          placeholder="facebook.com/page"
+        />
+        <Field
+          name="instagram"
+          label="Instagram Handle"
+          control={control}
+          errors={errors}
+          autoCapitalize="none"
+          placeholder="@username"
+        />
+        <Field
+          name="googleMapsUrl"
+          label="Google Maps Location"
+          control={control}
+          errors={errors}
+          autoCapitalize="none"
+          placeholder="maps.google.com/..."
+        />
+      </View>
 
       <ActionButton
-        label={isSaving ? 'Saving…' : 'Save'}
+        label={isSaving ? 'Saving…' : 'Save Changes'}
         variant="primary"
+        icon="check"
         onPress={onSubmit}
         disabled={isSaving}
         testID="save-business"
@@ -228,8 +301,39 @@ function Field({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 8 },
-  sectionHint: { fontSize: 12, color: colors.textMuted, marginTop: -8 },
-  readOnlyLabel: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: -10 },
+
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+
+  fieldGroup: { gap: 6 },
+  label: { fontSize: 13, fontWeight: '600', color: colors.text },
+
+  phoneRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  countryBadge: {
+    height: 44,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countryBadgeText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
+  phoneInput: { flex: 1 },
+
+  sectionHint: { fontSize: 12, color: colors.textMuted, marginTop: -6 },
+
+  readOnlyRow: { gap: 2 },
+  readOnlyLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
   readOnlyValue: { fontSize: 15, color: colors.textMuted },
 });

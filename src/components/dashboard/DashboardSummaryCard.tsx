@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { DashboardSummary } from '@/domain/dashboard/types';
+import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -24,6 +25,7 @@ interface Props {
  */
 export function DashboardSummaryCard({ summary, testID }: Props) {
   const collectedPercent = summary.totalSales > 0 ? (summary.totalPaid / summary.totalSales) * 100 : 0;
+  const currencySymbol = useCurrencySymbol();
 
   return (
     <View style={styles.grid} testID={testID}>
@@ -31,6 +33,7 @@ export function DashboardSummaryCard({ summary, testID }: Props) {
         <MetricTile
           label="Total sales"
           value={formatAmount(summary.totalSales)}
+          currencySymbol={currencySymbol}
           icon="trending-up"
           iconBg="#E5EEFF"
           iconColor={colors.primary}
@@ -44,6 +47,7 @@ export function DashboardSummaryCard({ summary, testID }: Props) {
         <MetricTile
           label="Collected"
           value={formatAmount(summary.totalPaid)}
+          currencySymbol={currencySymbol}
           icon="check-circle"
           iconBg="#DFF7EC"
           iconColor="#0F9D58"
@@ -56,6 +60,7 @@ export function DashboardSummaryCard({ summary, testID }: Props) {
         <MetricTile
           label="Outstanding"
           value={formatAmount(summary.totalOutstanding)}
+          currencySymbol={currencySymbol}
           icon="clock"
           iconBg="#E9ECFB"
           iconColor="#565E74"
@@ -67,6 +72,7 @@ export function DashboardSummaryCard({ summary, testID }: Props) {
         <MetricTile
           label="Overdue"
           value={formatAmount(summary.totalOverdue)}
+          currencySymbol={currencySymbol}
           icon="alert-circle"
           iconBg="#FBE4E2"
           iconColor={colors.danger}
@@ -85,6 +91,7 @@ export function DashboardSummaryCard({ summary, testID }: Props) {
 function MetricTile({
   label,
   value,
+  currencySymbol,
   icon,
   iconBg,
   iconColor,
@@ -95,6 +102,7 @@ function MetricTile({
 }: {
   label: string;
   value: string;
+  currencySymbol: string;
   icon: keyof typeof Feather.glyphMap;
   iconBg: string;
   iconColor: string;
@@ -113,9 +121,14 @@ function MetricTile({
           <Feather name={icon} size={14} color={iconColor} />
         </View>
       </View>
-      <Text style={[styles.tileValue, emphasis && styles.tileValueEmphasis, danger && styles.tileValueDanger]}>
-        {value}
-      </Text>
+      <View style={styles.tileValueRow}>
+        <Text style={[styles.tileValue, emphasis && styles.tileValueEmphasis, danger && styles.tileValueDanger]}>
+          {currencySymbol}
+        </Text>
+        <Text style={[styles.tileValue, emphasis && styles.tileValueEmphasis, danger && styles.tileValueDanger]}>
+          {value}
+        </Text>
+      </View>
       {children}
     </View>
   );
@@ -140,6 +153,7 @@ const styles = StyleSheet.create({
   tileHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tileLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
   iconBox: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  tileValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 1 },
   tileValue: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 4 },
   tileValueEmphasis: { color: colors.primary },
   tileValueDanger: { color: colors.danger },

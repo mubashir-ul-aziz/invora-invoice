@@ -44,12 +44,10 @@ const COUNTRY_OPTIONS = [
  * submit (see `composeAddress` below), so the data still saves for real, just
  * through a friendlier entry form.
  *
- * Three Stitch elements have no backing field at all and are marked DESIGN
+ * Two Stitch elements have no backing field at all and are marked DESIGN
  * ONLY (rendered, interactive where harmless, but never submitted):
- * - The phone field's country-code badge (no `countryCode`/dial-code column;
- *   the phone number the user types is saved verbatim, same as before).
  * - "Net 14 Default Terms" (no default-payment-terms field on `Customer`).
- * - "Auto-send Payment Receipts" (no receipt-preference field on `Customer`).
+ * - "Net 7 Default Terms" (same; duplicated from the Net 14 toggle above).
  *
  * The notes counter uses the shared `NOTES_MAX_LENGTH` (500) rather than the
  * Stitch mock's 240 — that constant is validated by `customerFormSchema` and
@@ -77,7 +75,7 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
 
   // DESIGN ONLY: no backing fields on `Customer` — local UI state only, never submitted.
   const [net14Terms, setNet14Terms] = useState(true);
-  const [autoReceipts, setAutoReceipts] = useState(true);
+  const [net7Terms, setNet7Terms] = useState(true);
 
   const {
     control,
@@ -136,22 +134,11 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
     >
       {/* Top action sub-bar */}
       <View style={styles.subBar}>
-        <View>
-          <Text style={styles.subBarTitle}>New Customer</Text>
-          <View style={styles.subBarCaptionRow}>
-            <View style={styles.subBarDot} />
-            <Text style={styles.subBarCaption}>Step 1 of 1 · Direct Billing Profile</Text>
-          </View>
+        <Text style={styles.subBarTitle}>New Customer</Text>
+        <View style={styles.subBarCaptionRow}>
+          <View style={styles.subBarDot} />
+          <Text style={styles.subBarCaption}>Step 1 of 1 · Direct Billing Profile</Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          testID="action-cancel-top"
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.cancelPill, pressed && styles.pressed]}
-        >
-          <Text style={styles.cancelPillText}>Cancel</Text>
-        </Pressable>
       </View>
 
       {/* Card 1: Basic Information */}
@@ -184,24 +171,14 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
           )}
         />
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Direct Phone Number</Text>
-          <View style={styles.phoneRow}>
-            {/*
-              DESIGN ONLY: Stitch pairs the phone number with a country-code
-              badge (flag + dial code). `Customer` has no separate
-              countryCode/dial-code field, so this badge is decorative only —
-              it does not alter or prefix the phone value below, which is
-              saved exactly as typed (same as the screen's previous behavior).
-            */}
-            <View style={styles.countryBadge} accessibilityLabel="Country code selector — DESIGN ONLY, not stored">
-              <Text style={styles.countryBadgeText}>DESIGN ONLY</Text>
-            </View>
+        <View style={styles.rowTwoCol}>
+          <View style={styles.colHalf}>
             <Controller
               control={control}
               name="phone"
               render={({ field: { value, onChange, onBlur } }) => (
                 <FormField
+                  label="Phone Number"
                   value={typeof value === 'string' ? value : ''}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -209,39 +186,38 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
                   keyboardType="phone-pad"
                   error={errors.phone?.message}
                   testID="field-phone"
-                  style={styles.phoneInput}
-                  label=""
                 />
               )}
             />
           </View>
+          <View style={styles.colHalf}>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <View style={styles.fieldGroup}>
+                  <FormField
+                    label="Billing Email"
+                    value={typeof value === 'string' ? value : ''}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    placeholder="billing@clientcompany.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={errors.email?.message}
+                    testID="field-email"
+                  />
+                  <View style={styles.helperRow}>
+                    <Feather name="info" size={12} color={colors.primary} />
+                    <Text style={styles.helperText}>
+                      Automated invoices, receipts &amp; reminders will be sent here
+                    </Text>
+                  </View>
+                </View>
+              )}
+            />
+          </View>
         </View>
-
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { value, onChange, onBlur } }) => (
-            <View style={styles.fieldGroup}>
-              <FormField
-                label="Billing Email"
-                value={typeof value === 'string' ? value : ''}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                placeholder="billing@clientcompany.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={errors.email?.message}
-                testID="field-email"
-              />
-              <View style={styles.helperRow}>
-                <Feather name="info" size={12} color={colors.primary} />
-                <Text style={styles.helperText}>
-                  Automated invoices, receipts &amp; reminders will be sent here
-                </Text>
-              </View>
-            </View>
-          )}
-        />
       </View>
 
       {/* Card 2: Billing Address — composes into the single existing `address` field on submit. */}
@@ -357,18 +333,18 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
           />
         </View>
 
-        {/* DESIGN ONLY: no receipt-preference field exists on `Customer`; this toggle is local UI state and is never submitted. */}
+        {/* DESIGN ONLY: no default-payment-terms field exists on `Customer`; this toggle is local UI state and is never submitted. */}
         <View style={styles.toggleRow}>
           <View style={styles.toggleTextCol}>
-            <Text style={styles.toggleLabel}>Auto-send Payment Receipts</Text>
-            <Text style={styles.toggleCaption}>Deliver instant confirmation upon balance settlement</Text>
+            <Text style={styles.toggleLabel}>Net 7 Default Terms</Text>
+            <Text style={styles.toggleCaption}>Auto-apply 7 day due dates on new draft invoices</Text>
             <Text style={styles.designOnlyTag}>DESIGN ONLY</Text>
           </View>
           <Switch
-            value={autoReceipts}
-            onValueChange={setAutoReceipts}
+            value={net7Terms}
+            onValueChange={setNet7Terms}
             trackColor={{ true: colors.primary, false: colors.border }}
-            testID="toggle-auto-receipts-design-only"
+            testID="toggle-net7-design-only"
           />
         </View>
       </View>
@@ -433,13 +409,11 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   pressed: { opacity: 0.75 },
 
-  subBar: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  subBar: { gap: 8 },
   subBarTitle: { fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
   subBarCaptionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   subBarDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary },
   subBarCaption: { fontSize: 12, color: colors.textMuted },
-  cancelPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.surface },
-  cancelPillText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
   card: {
     backgroundColor: colors.surface,
@@ -469,17 +443,6 @@ const styles = StyleSheet.create({
 
   fieldGroup: { gap: 6 },
   label: { fontSize: 13, fontWeight: '600', color: colors.text },
-  phoneRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  countryBadge: {
-    height: 44,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countryBadgeText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
-  phoneInput: { flex: 1 },
   helperRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   helperText: { fontSize: 11, color: colors.textMuted, flexShrink: 1 },
 

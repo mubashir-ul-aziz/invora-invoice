@@ -8,6 +8,7 @@ import { AutoBackupRunner } from '@/components/backup/AutoBackupRunner';
 import { AppLockGate } from '@/components/security/AppLockGate';
 import { getDatabase } from '@/data/db/client';
 import { RootNavigator } from '@/navigation/RootNavigator';
+import { CurrencyProvider } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 export default function App() {
@@ -36,7 +37,9 @@ export default function App() {
       <NavigationContainer>
         <AppLockGate>
           <AutoBackupRunner>
-            <RootNavigator />
+            <CurrencyProvider>
+              <RootNavigator />
+            </CurrencyProvider>
           </AutoBackupRunner>
         </AppLockGate>
       </NavigationContainer>

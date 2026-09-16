@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CustomerBalanceStatus } from '@/domain/customer/activity';
 import type { Customer, CustomerBalanceSummary } from '@/domain/customer/types';
+import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -64,6 +65,7 @@ export function CustomerListRow({ customer, balance, balanceStatus, onPress, onE
   const avatarStyle = avatarStyleFor(customer.id);
   const badge = balanceStatus ? STATUS_BADGE[balanceStatus] : null;
   const selectable = !onEdit && !onDelete;
+  const currencySymbol = useCurrencySymbol();
 
   return (
     <Pressable
@@ -91,9 +93,12 @@ export function CustomerListRow({ customer, balance, balanceStatus, onPress, onE
       <View style={styles.balanceBlock}>
         {balance ? (
           <>
-            <Text style={[styles.amount, balance.outstanding > 0 && styles.amountDue]}>
-              {formatAmount(balance.outstanding)}
-            </Text>
+            <View style={styles.amountRow}>
+              <Text style={[styles.amount, balance.outstanding > 0 && styles.amountDue]}>{currencySymbol}</Text>
+              <Text style={[styles.amount, balance.outstanding > 0 && styles.amountDue]}>
+                {formatAmount(balance.outstanding)}
+              </Text>
+            </View>
             {!!badge && (
               <View style={[styles.badge, { backgroundColor: badge.bg }]}>
                 {badge.icon && <Feather name={badge.icon} size={10} color={badge.fg} />}
@@ -160,6 +165,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '700', color: colors.text },
   subtitle: { fontSize: 12, color: colors.textMuted },
   balanceBlock: { alignItems: 'flex-end', gap: 3, flexShrink: 0 },
+  amountRow: { flexDirection: 'row', alignItems: 'baseline', gap: 1 },
   amount: { fontSize: 15, fontWeight: '700', color: colors.textMuted },
   amountDue: { color: colors.danger },
   amountPlaceholder: { fontSize: 15, color: colors.placeholder },

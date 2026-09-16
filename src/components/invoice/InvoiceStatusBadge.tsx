@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { INVOICE_STATUS_LABELS } from '@/domain/invoice/status';
 import type { InvoiceStatus } from '@/domain/invoice/types';
@@ -8,6 +8,8 @@ import { colors } from '@/theme/colors';
 interface Props {
   status: InvoiceStatus;
   testID?: string;
+  /** Overrides the badge's default `alignSelf: 'flex-start'` — e.g. `flex-end` when it's the last item in a right-aligned trailing column. */
+  style?: StyleProp<ViewStyle>;
 }
 
 /** Exported so other invoice-status displays (e.g. the Dashboard's recent-invoices row) can match this badge's palette instead of redefining it. */
@@ -26,9 +28,9 @@ export const STATUS_TEXT: Record<InvoiceStatus, string> = {
 };
 
 /** A small colored pill for an invoice's computed status — never a stored field, see `domain/invoice/status.ts`. */
-export function InvoiceStatusBadge({ status, testID }: Props) {
+export function InvoiceStatusBadge({ status, testID, style }: Props) {
   return (
-    <View style={[styles.badge, { backgroundColor: STATUS_BACKGROUND[status] }]} testID={testID}>
+    <View style={[styles.badge, { backgroundColor: STATUS_BACKGROUND[status] }, style]} testID={testID}>
       <Text style={[styles.label, { color: STATUS_TEXT[status] }]}>{INVOICE_STATUS_LABELS[status]}</Text>
     </View>
   );

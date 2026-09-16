@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 
-type TabKey = 'dashboard' | 'invoices' | 'customers' | 'business' | 'settings';
+type TabKey = 'dashboard' | 'invoices' | 'customers' | 'settings';
 
 interface TabSpec {
   key: TabKey;
@@ -20,35 +20,33 @@ interface Props {
   onDashboard?: () => void;
   onInvoices?: () => void;
   onCustomers?: () => void;
-  onBusiness?: () => void;
   onSettings?: () => void;
 }
 
 /**
- * The Stitch design's bottom tab bar (Dashboard / Invoices / Customers /
- * Business), shared by every screen that reproduces it — Local to the
- * screens that render it, not the app's real navigation shell
- * (`RootNavigator`'s stack), so it doesn't replace that or affect any screen
- * that doesn't opt in; it just gives each screen the same quick-switch
- * affordance the Stitch mocks show, using routes that already exist.
+ * The Stitch design's bottom tab bar (Dashboard / Invoices / Customers),
+ * shared by every screen that reproduces it — Local to the screens that
+ * render it, not the app's real navigation shell (`RootNavigator`'s stack),
+ * so it doesn't replace that or affect any screen that doesn't opt in; it
+ * just gives each screen the same quick-switch affordance the Stitch mocks
+ * show, using routes that already exist.
  *
- * The Stitch mocks' nav only has 4 tabs; a 5th "Settings" tab is kept here so
- * the previously-existing "jump to Settings" action (covered by
- * `DashboardScreen.test.tsx`) stays reachable from Dashboard.
+ * A "Settings" tab is kept here so the previously-existing "jump to
+ * Settings" action (covered by `DashboardScreen.test.tsx`) stays reachable
+ * from Dashboard. The Stitch mocks' "Business" tab was dropped from this bar
+ * at product request; `Business` is still reachable via the dashboard header.
  */
 export function DashboardBottomNav({
   activeTab = 'dashboard',
   onDashboard,
   onInvoices,
   onCustomers,
-  onBusiness,
   onSettings,
 }: Props) {
   const tabs: TabSpec[] = [
     { key: 'dashboard', label: 'Dashboard', icon: 'grid', onPress: onDashboard, testID: 'nav-dashboard' },
     { key: 'invoices', label: 'Invoices', icon: 'file-text', onPress: onInvoices, testID: 'action-invoices' },
     { key: 'customers', label: 'Customers', icon: 'users', onPress: onCustomers, testID: 'action-customers' },
-    { key: 'business', label: 'Business', icon: 'briefcase', onPress: onBusiness, testID: 'action-business' },
     { key: 'settings', label: 'Settings', icon: 'settings', onPress: onSettings, testID: 'action-settings' },
   ];
 

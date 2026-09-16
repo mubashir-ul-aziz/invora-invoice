@@ -26,7 +26,10 @@ export function DateSectionHeader({ label, testID }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { alignItems: 'center', paddingVertical: 8 },
+  // Opaque, screen-matching background: once `stickySectionHeadersEnabled`
+  // pins this header to the top while scrolling, rows scrolling underneath
+  // would otherwise show through the transparent gaps beside the pill.
+  wrapper: { alignItems: 'center', paddingVertical: 8, backgroundColor: colors.background },
   pill: {
     backgroundColor: colors.surface,
     borderWidth: 1,

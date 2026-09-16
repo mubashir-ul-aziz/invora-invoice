@@ -224,7 +224,7 @@ describe('DashboardScreen', () => {
     });
   });
 
-  it('navigates to Invoices, Customers, Business, and Settings', async () => {
+  it('navigates to Invoices, Customers, and Settings', async () => {
     mockDashboardStore = createDashboardStore(new InMemoryDashboardRepository());
     const view = await renderScreen();
 
@@ -234,9 +234,6 @@ describe('DashboardScreen', () => {
 
     fireEvent.press(view.getByTestId('action-customers'));
     expect(navigation.navigate).toHaveBeenCalledWith('CustomerList');
-
-    fireEvent.press(view.getByTestId('action-business'));
-    expect(navigation.navigate).toHaveBeenCalledWith('Business');
 
     fireEvent.press(view.getByTestId('action-settings'));
     expect(navigation.navigate).toHaveBeenCalledWith('Settings');

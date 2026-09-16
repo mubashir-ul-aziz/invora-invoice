@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { CustomerActivityEntry } from '@/domain/customer/types';
+import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 /** One row on the Customer History screen — an invoice or a payment, newest-first. */
 export function CustomerActivityRow({ entry, testID }: Props) {
   const isInvoice = entry.type === 'invoice';
+  const currencySymbol = useCurrencySymbol();
   return (
     <View style={styles.row} testID={testID}>
       <View
@@ -27,7 +29,7 @@ export function CustomerActivityRow({ entry, testID }: Props) {
         <Text style={styles.date}>{formatDate(entry.date)}</Text>
       </View>
       <View style={styles.amountColumn}>
-        <Text style={styles.amount}>{entry.amount.toFixed(2)}</Text>
+        <Text style={styles.amount}>{currencySymbol}{entry.amount.toFixed(2)}</Text>
         {!!entry.status && <Text style={styles.status}>{entry.status}</Text>}
       </View>
     </View>

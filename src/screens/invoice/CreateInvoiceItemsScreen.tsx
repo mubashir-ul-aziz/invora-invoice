@@ -1,6 +1,7 @@
+import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { OptionPicker } from '@/components/business/OptionPicker';
@@ -23,11 +24,29 @@ import { colors } from '@/theme/colors';
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateInvoiceItems'>;
 
 /**
- * "Create Invoice – Items". Fields on each line dynamically follow the
- * invoice's selected Pricing Method (`resolveInvoiceFieldConfig`) — this
- * screen never hard-codes which fields exist. Also reused, unchanged, as the
- * items-editing step for Edit Invoice and Duplicate Invoice (both seed
- * `invoiceDraftStore` before navigating here).
+ * "Create Invoice – Items", restyled to match the Stitch "Line Items"
+ * design: a real Step 2 of 3 progress tracker, a "Bill to" client chip, the
+ * Pricing Method card, line-item cards with running totals, and a sticky
+ * Subtotal/VAT/Total summary ending in "Continue to Review".
+ *
+ * Fields on each line dynamically follow the invoice's selected Pricing
+ * Method (`resolveInvoiceFieldConfig`) — this screen never hard-codes which
+ * fields exist. Also reused, unchanged, as the items-editing step for Edit
+ * Invoice and Duplicate Invoice (both seed `invoiceDraftStore` before
+ * navigating here) — hence "Step 2 of 3" only renders in `create` mode; an
+ * in-progress edit/duplicate isn't a fresh 3-step wizard.
+ *
+ * "Add Discount" / "Add Shipping / Fee" as invoice-level extras have no
+ * backing capability and are DESIGN ONLY: discount and tax are real, but
+ * per-*line* (`InvoiceItemSnapshot.discountPercent`/`taxPercent`, edited via
+ * Edit Invoice Line), and there's no invoice-level shipping/fee line anywhere
+ * in the domain model. Both buttons are interactive-but-inert, explaining the
+ * real per-line equivalent instead of pretending to add an invoice-wide extra.
+ * The Stitch mock's "Standard VAT (20%) applied automatically" toggle implies
+ * one invoice-wide tax switch; this app's real tax is per-line (and often
+ * per-method-default from the catalog item), so it isn't reproduced as a
+ * single toggle — the real per-line tax is what `InvoiceTotalsSummary`'s VAT
+ * row below already sums for real.
  */
 export function CreateInvoiceItemsScreen({ navigation }: Props) {
   const draft = useInvoiceDraftStore();
@@ -153,107 +172,288 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      testID="create-invoice-items-screen"
-    >
-      <View style={styles.customerRow}>
-        <Text style={styles.customerLabel}>Bill to</Text>
-        <Text style={styles.customerName}>{draft.customer.name}</Text>
-      </View>
-
-      {draft.mode === 'edit' ? (
-        // The pricing method is fixed once an invoice is saved (`Invoice.invoiceTypeId`'s
-        // doc comment) — `InvoiceUpdateInput` doesn't even accept a new one, so
-        // showing an interactive picker here would let the user "change" a value
-        // that's silently ignored at save time. A read-only summary instead.
-        <View style={styles.customerRow} testID="invoice-type-readonly">
-          <Text style={styles.customerLabel}>Pricing Method</Text>
-          <Text style={styles.customerName}>{getInvoiceTypeDefinition(draft.invoiceTypeId).label}</Text>
+    <View style={styles.screen}>
+      {draft.mode === 'create' && (
+        <View style={styles.stepBar}>
+          <View style={styles.stepBarTopRow}>
+            <View style={styles.stepBadgeRow}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <Text style={styles.stepLabel}>Step 2 of 3</Text>
+            </View>
+            <Text style={styles.stepNextLabel}>Next: Payment &amp; Review</Text>
+          </View>
+          <View style={styles.stepProgressRow}>
+            <View style={[styles.stepSegment, styles.stepSegmentDone]} />
+            <View style={[styles.stepSegment, styles.stepSegmentDone]} />
+            <View style={styles.stepSegment} />
+          </View>
         </View>
-      ) : (
-        <OptionPicker
-          label="Pricing Method"
-          options={PRICING_METHOD_OPTIONS}
-          value={draft.invoiceTypeId}
-          onChange={handleInvoiceTypeChange}
-          testID="invoice-type-picker"
-        />
       )}
 
-      <View style={styles.itemsSection}>
-        <Text style={styles.sectionTitle}>Items</Text>
-        {draft.items.length === 0 && (
-          <Text style={styles.emptyText} testID="invoice-items-empty">
-            No items added yet.
-          </Text>
-        )}
-        {draft.items.map((line, index) => {
-          const calc = calculateLineTotal(
-            {
-              quantity: line.quantity,
-              weight: line.weight,
-              length: line.length,
-              width: line.width,
-              height: line.height,
-              unitPrice: line.unitPrice,
-              discountPercent: line.discountPercent,
-              taxPercent: line.taxPercent,
-            },
-            draft.invoiceTypeId,
-          );
-          return (
-            <InvoiceLineRow
-              key={index}
-              itemName={line.itemName}
-              quantity={line.quantity}
-              unit={line.unit}
-              measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
-              unitPrice={line.unitPrice}
-              lineTotal={calc.lineTotal}
-              onPress={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
-              onEdit={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
-              onDelete={() => handleRemoveLine(index)}
-              testID={`invoice-line-${index}`}
-            />
-          );
-        })}
-        <View style={styles.addRow}>
-          <ActionButton label="+ Add item" onPress={handleAddFromCatalog} testID="action-add-item" />
-          <ActionButton label="+ Add custom line" onPress={handleAddManualLine} testID="action-add-manual-line" />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        testID="create-invoice-items-screen"
+      >
+        <View style={styles.customerRow}>
+          <View style={styles.customerIcon}>
+            <Feather name="briefcase" size={16} color={colors.primary} />
+          </View>
+          <View style={styles.customerTextCol}>
+            <Text style={styles.customerLabel}>BILL TO</Text>
+            <Text style={styles.customerName} numberOfLines={1}>
+              {draft.customer.name}
+            </Text>
+          </View>
         </View>
+
+        {draft.mode === 'edit' ? (
+          // The pricing method is fixed once an invoice is saved (`Invoice.invoiceTypeId`'s
+          // doc comment) — `InvoiceUpdateInput` doesn't even accept a new one, so
+          // showing an interactive picker here would let the user "change" a value
+          // that's silently ignored at save time. A read-only summary instead.
+          <View style={styles.readonlyCard} testID="invoice-type-readonly">
+            <Text style={styles.customerLabel}>Pricing Method</Text>
+            <Text style={styles.customerName}>{getInvoiceTypeDefinition(draft.invoiceTypeId).label}</Text>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <OptionPicker
+              label="Pricing Method"
+              options={PRICING_METHOD_OPTIONS}
+              value={draft.invoiceTypeId}
+              onChange={handleInvoiceTypeChange}
+              testID="invoice-type-picker"
+            />
+          </View>
+        )}
+
+        <View style={styles.itemsSection}>
+          <View style={styles.itemsHeaderRow}>
+            <View style={styles.itemsHeaderLeft}>
+              <Text style={styles.sectionTitle}>Invoice Items</Text>
+              <Text style={styles.itemsCountText}>
+                ({draft.items.length} item{draft.items.length === 1 ? '' : 's'} added)
+              </Text>
+            </View>
+          </View>
+
+          {draft.items.length === 0 && (
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIconCircle}>
+                <Feather name="package" size={22} color={colors.textMuted} />
+              </View>
+              <Text style={styles.emptyTitle} testID="invoice-items-empty">
+                No items added yet
+              </Text>
+              <Text style={styles.emptySubtitle}>Tap below to add catalog items or enter custom services.</Text>
+            </View>
+          )}
+
+          {draft.items.map((line, index) => {
+            const calc = calculateLineTotal(
+              {
+                quantity: line.quantity,
+                weight: line.weight,
+                length: line.length,
+                width: line.width,
+                height: line.height,
+                unitPrice: line.unitPrice,
+                discountPercent: line.discountPercent,
+                taxPercent: line.taxPercent,
+              },
+              draft.invoiceTypeId,
+            );
+            return (
+              <InvoiceLineRow
+                key={index}
+                itemName={line.itemName}
+                quantity={line.quantity}
+                unit={line.unit}
+                measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
+                unitPrice={line.unitPrice}
+                lineTotal={calc.lineTotal}
+                onPress={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
+                onEdit={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
+                onDelete={() => handleRemoveLine(index)}
+                testID={`invoice-line-${index}`}
+              />
+            );
+          })}
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add Line Item"
+            testID="action-add-item"
+            onPress={handleAddFromCatalog}
+            style={({ pressed }) => [styles.addItemButton, pressed && styles.pressed]}
+          >
+            <Feather name="plus-circle" size={18} color={colors.primary} />
+            <Text style={styles.addItemButtonText}>Add Line Item</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add custom line"
+            testID="action-add-manual-line"
+            onPress={handleAddManualLine}
+            style={({ pressed }) => [styles.addManualButton, pressed && styles.pressed]}
+          >
+            <Feather name="edit-3" size={15} color={colors.textMuted} />
+            <Text style={styles.addManualButtonText}>Add custom line</Text>
+          </Pressable>
+
+          <View style={styles.designOnlyRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add discount — DESIGN ONLY, no invoice-level discount exists"
+              testID="action-add-discount-design-only"
+              onPress={() =>
+                Alert.alert('Not available', 'Discount is set per line item (in Edit Invoice Line), not for the whole invoice.')
+              }
+              style={styles.designOnlyChip}
+            >
+              <Feather name="percent" size={14} color={colors.textMuted} />
+              <Text style={styles.designOnlyChipText}>Add Discount · DESIGN ONLY</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add shipping or fee — DESIGN ONLY, no such field exists"
+              testID="action-add-shipping-design-only"
+              onPress={() => Alert.alert('Not available', 'There is no invoice-level shipping/fee line in this app yet.')}
+              style={styles.designOnlyChip}
+            >
+              <Feather name="truck" size={14} color={colors.textMuted} />
+              <Text style={styles.designOnlyChipText}>Add Shipping · DESIGN ONLY</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.dock}>
+        {draft.items.length > 0 && <InvoiceTotalsSummary totals={totals} testID="invoice-items-totals" />}
+        <ActionButton
+          label="Continue to review"
+          variant="primary"
+          onPress={handleContinue}
+          testID="action-continue-to-review"
+        />
       </View>
-
-      {draft.items.length > 0 && <InvoiceTotalsSummary totals={totals} testID="invoice-items-totals" />}
-
-      <ActionButton
-        label="Continue to review"
-        variant="primary"
-        onPress={handleContinue}
-        testID="action-continue-to-review"
-      />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16, gap: 16, paddingBottom: 40 },
+  scroll: { flex: 1 },
+  content: { padding: 16, gap: 14, paddingBottom: 24 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
+  pressed: { opacity: 0.75 },
+
+  stepBar: { padding: 16, paddingBottom: 10, gap: 8, backgroundColor: colors.background },
+  stepBarTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stepNumber: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  stepNumberText: { fontSize: 10, fontWeight: '700', color: colors.primaryText },
+  stepLabel: { fontSize: 11, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.4 },
+  stepNextLabel: { fontSize: 11, color: colors.textMuted },
+  stepProgressRow: { flexDirection: 'row', gap: 6 },
+  stepSegment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  stepSegmentDone: { backgroundColor: colors.primary },
+
   customerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: colors.surface,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  customerIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  customerTextCol: { flex: 1, minWidth: 0 },
+  customerLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.4 },
+  customerName: { fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 1 },
+
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  readonlyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
     padding: 14,
     gap: 4,
   },
-  customerLabel: { fontSize: 12, color: colors.textMuted },
-  customerName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  itemsSection: { gap: 10 },
+
+  itemsSection: { gap: 8 },
+  itemsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  itemsHeaderLeft: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexShrink: 1 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  emptyText: { color: colors.textMuted },
-  addRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  itemsCountText: { fontSize: 12, color: colors.textMuted },
+
+  emptyCard: { alignItems: 'center', gap: 4, padding: 24, backgroundColor: colors.surface, borderRadius: 14 },
+  emptyIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  emptySubtitle: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
+
+  addItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  addItemButtonText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  addManualButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
+    borderRadius: 10,
+  },
+  addManualButtonText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+
+  designOnlyRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  designOnlyChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    height: 36,
+    borderRadius: 8,
+  },
+  designOnlyChipText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
+
+  dock: {
+    gap: 10,
+    padding: 12,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
 });

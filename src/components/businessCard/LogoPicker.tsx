@@ -1,3 +1,4 @@
+import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +10,7 @@ interface Props {
   onChange: (uri: string | null) => void;
 }
 
-/** Picks an image from the device library — works fully offline. */
+/** Picks an image from the device library — works fully offline. Restyled to match the Stitch "camera badge" logo tile, same real `expo-image-picker` flow underneath. */
 export function LogoPicker({ logoUri, onChange }: Props) {
   const pickLogo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -46,11 +47,19 @@ export function LogoPicker({ logoUri, onChange }: Props) {
           <Image source={{ uri: logoUri }} style={styles.logo} testID="logo-preview" />
         ) : (
           <View style={styles.placeholder} testID="logo-placeholder">
+            <Feather name="image" size={26} color={colors.textMuted} />
             <Text style={styles.placeholderText}>Add logo</Text>
           </View>
         )}
+        <View style={styles.cameraBadge}>
+          <Feather name="camera" size={14} color={colors.primaryText} />
+        </View>
       </Pressable>
-      {logoUri && (
+      <Pressable accessibilityRole="button" onPress={pickLogo}>
+        <Text style={styles.uploadLink}>Upload new logo</Text>
+      </Pressable>
+      <Text style={styles.caption}>PNG or JPG</Text>
+      {!!logoUri && (
         <Pressable onPress={() => onChange(null)} accessibilityRole="button" testID="logo-remove">
           <Text style={styles.remove}>Remove logo</Text>
         </Pressable>
@@ -60,20 +69,31 @@ export function LogoPicker({ logoUri, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', gap: 8 },
+  container: { alignItems: 'center', gap: 4 },
   tap: { alignItems: 'center' },
   logo: { width: 88, height: 88, borderRadius: 16 },
   placeholder: {
     width: 88,
     height: 88,
     borderRadius: 16,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  placeholderText: { color: colors.textMuted, fontSize: 11, textAlign: 'center' },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  placeholderText: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
-  remove: { color: colors.danger, fontSize: 13 },
+  uploadLink: { color: colors.primary, fontSize: 14, fontWeight: '700', marginTop: 8 },
+  caption: { fontSize: 11, color: colors.textMuted },
+  remove: { color: colors.danger, fontSize: 13, marginTop: 4 },
 });

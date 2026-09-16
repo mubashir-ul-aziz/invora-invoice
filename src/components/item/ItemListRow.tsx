@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { Item } from '@/domain/item/types';
+import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -15,8 +16,8 @@ interface Props {
   testID?: string;
 }
 
-/** Per-Pricing-Method icon + tint, matching the Stitch mock's varied per-category card icons — picked deterministically from `invoiceTypeId` so a method always renders the same way. */
-const METHOD_STYLE: Record<InvoiceTypeId, { icon: keyof typeof Feather.glyphMap; bg: string; fg: string }> = {
+/** Per-Pricing-Method icon + tint, matching the Stitch mock's varied per-category card icons — picked deterministically from `invoiceTypeId` so a method always renders the same way. Exported so other Pricing-Method displays (e.g. `InvoiceTypeCard`) reuse the same mapping instead of redefining it. */
+export const METHOD_STYLE: Record<InvoiceTypeId, { icon: keyof typeof Feather.glyphMap; bg: string; fg: string }> = {
   general: { icon: 'box', bg: '#E5EEFF', fg: colors.primary },
   quantity: { icon: 'hash', bg: '#E5EEFF', fg: colors.primary },
   weight: { icon: 'anchor', bg: '#DAE2FD', fg: '#3F465C' },
@@ -42,6 +43,7 @@ const METHOD_STYLE: Record<InvoiceTypeId, { icon: keyof typeof Feather.glyphMap;
 export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) {
   const methodDef = getInvoiceTypeDefinition(item.invoiceTypeId);
   const methodStyle = METHOD_STYLE[item.invoiceTypeId];
+  const currencySymbol = useCurrencySymbol();
 
   const detailParts = [item.sku ? `SKU ${item.sku}` : null, methodDef.label].filter(Boolean);
 
@@ -75,7 +77,7 @@ export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) 
       </View>
 
       <View style={styles.valueBlock}>
-        <Text style={styles.price}>{item.defaultPrice.toFixed(2)}</Text>
+        <Text style={styles.price}>{currencySymbol}{item.defaultPrice.toFixed(2)}</Text>
         {/* DESIGN ONLY: Stitch shows a real-looking stock figure here ("In Stock", "82 packs") that `Item` has no field to back — see this file's doc comment. */}
         <Text style={styles.designOnly} testID={testID ? `${testID}-stock-design-only` : undefined}>
           DESIGN ONLY

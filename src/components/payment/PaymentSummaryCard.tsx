@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { InvoicePaymentSummary } from '@/domain/payment/calculations';
+import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -17,14 +18,15 @@ interface Props {
  * itself, mirroring how `InvoiceTotalsSummary` never sums invoice lines.
  */
 export function PaymentSummaryCard({ summary, testID }: Props) {
+  const currencySymbol = useCurrencySymbol();
   return (
     <View style={styles.card} testID={testID}>
-      <Row label="Invoice total" value={summary.grandTotal} testID="payment-summary-total" />
-      <Row label="Paid" value={summary.amountPaid} testID="payment-summary-paid" />
+      <Row label="Invoice total" value={summary.grandTotal} currencySymbol={currencySymbol} testID="payment-summary-total" />
+      <Row label="Paid" value={summary.amountPaid} currencySymbol={currencySymbol} testID="payment-summary-paid" />
       {summary.overpaid > 0 ? (
-        <Row label="Overpaid" value={summary.overpaid} emphasis testID="payment-summary-overpaid" />
+        <Row label="Overpaid" value={summary.overpaid} currencySymbol={currencySymbol} emphasis testID="payment-summary-overpaid" />
       ) : (
-        <Row label="Remaining" value={summary.remaining} emphasis testID="payment-summary-remaining" />
+        <Row label="Remaining" value={summary.remaining} currencySymbol={currencySymbol} emphasis testID="payment-summary-remaining" />
       )}
     </View>
   );
@@ -33,18 +35,20 @@ export function PaymentSummaryCard({ summary, testID }: Props) {
 function Row({
   label,
   value,
+  currencySymbol,
   emphasis,
   testID,
 }: {
   label: string;
   value: number;
+  currencySymbol: string;
   emphasis?: boolean;
   testID?: string;
 }) {
   return (
     <View style={styles.row} testID={testID}>
       <Text style={[styles.label, emphasis && styles.emphasisLabel]}>{label}</Text>
-      <Text style={[styles.value, emphasis && styles.emphasisValue]}>{value.toFixed(2)}</Text>
+      <Text style={[styles.value, emphasis && styles.emphasisValue]}>{currencySymbol}{value.toFixed(2)}</Text>
     </View>
   );
 }

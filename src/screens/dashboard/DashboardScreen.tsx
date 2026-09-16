@@ -9,7 +9,6 @@ import { DashboardGreetingHeader } from '@/components/dashboard/DashboardGreetin
 import { DashboardQuickActions } from '@/components/dashboard/DashboardQuickActions';
 import { DashboardStatusBreakdown } from '@/components/dashboard/DashboardStatusBreakdown';
 import { DashboardSummaryCard } from '@/components/dashboard/DashboardSummaryCard';
-import { DashboardSyncBanner } from '@/components/dashboard/DashboardSyncBanner';
 import { RecentInvoiceRow } from '@/components/dashboard/RecentInvoiceRow';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
@@ -29,17 +28,19 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
  * a greeting header, a 3-tile quick-actions row, a 2x2 key-metrics grid, a
  * status-breakdown strip, and a recent-invoices list, plus a screen-local
  * bottom nav mirroring the Stitch mock's tab bar. See the doc comments on
- * `DashboardGreetingHeader`, `DashboardSummaryCard`, and `DashboardSyncBanner`
- * for exactly which Stitch elements have no backend support and are marked
- * DESIGN ONLY instead of showing invented numbers.
+ * `DashboardGreetingHeader` and `DashboardSummaryCard` for exactly which
+ * Stitch elements have no backend support and are marked DESIGN ONLY instead
+ * of showing invented numbers.
  *
  * Total Sales / Paid / Outstanding / Overdue / invoice counts
  * (`DashboardSummaryCard`, `DashboardStatusBreakdown`) and the recent-
  * invoices list come from `dashboardStore`, the only consumer of
  * `domain/dashboard/calculations.ts` — nothing on this screen sums an
- * invoice or a payment itself. `recentInvoices` is capped at a handful of
- * rows (see `DEFAULT_RECENT_INVOICES_LIMIT`), so it's rendered with a plain
- * `.map()` inside the same `ScrollView` as everything else, not a nested
+ * invoice or a payment itself. `recentInvoices` shows every invoice issued
+ * today uncapped (falling back to a handful of the most recent ones — see
+ * `DEFAULT_RECENT_INVOICES_LIMIT` — only when nothing's been issued today),
+ * so it's rendered with a plain `.map()` inside the same `ScrollView` as
+ * everything else, not a nested
  * `FlatList` (which React Native warns against inside a scroll view of the
  * same orientation) — Invoice List/Payment History remain the place for a
  * long, virtualized, paginated history.
@@ -161,14 +162,11 @@ export function DashboardScreen({ navigation }: Props) {
             </View>
           )}
         </View>
-
-        <DashboardSyncBanner />
       </ScrollView>
 
       <DashboardBottomNav
         onInvoices={() => navigation.navigate('InvoiceList')}
         onCustomers={() => navigation.navigate('CustomerList')}
-        onBusiness={() => navigation.navigate('Business')}
         onSettings={() => navigation.navigate('Settings')}
       />
     </View>

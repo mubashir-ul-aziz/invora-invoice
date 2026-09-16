@@ -68,6 +68,20 @@ export function openWhatsApp(
   return open(`https://wa.me/${digits}${text}`, 'WhatsApp is not available on this device.', client);
 }
 
+/** Opens WhatsApp's compose UI pre-filled with `message`, with no fixed recipient — for "share this via WhatsApp" actions, as opposed to `openWhatsApp` (which messages one specific business phone number). */
+export function shareViaWhatsApp(message: string, client?: LinkingClient): Promise<boolean> {
+  return open(
+    `https://wa.me/?text=${encodeURIComponent(message)}`,
+    'WhatsApp is not available on this device.',
+    client,
+  );
+}
+
+/** Opens the device's SMS/iMessage composer pre-filled with `message`, with no fixed recipient. */
+export function openSms(message: string, client?: LinkingClient): Promise<boolean> {
+  return open(`sms:?&body=${encodeURIComponent(message)}`, 'Messaging is not available on this device.', client);
+}
+
 export function openFacebook(url: string, client?: LinkingClient): Promise<boolean> {
   return open(normalizeUrl(url), 'Facebook could not be opened.', client);
 }

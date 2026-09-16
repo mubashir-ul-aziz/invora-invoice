@@ -10,45 +10,62 @@ type InvoiceDetailsFormControl = Control<InvoiceDetailsFormValues, unknown, Invo
 interface Props {
   control: InvoiceDetailsFormControl;
   errors: Record<string, { message?: string } | undefined>;
+  /**
+   * Which subset to render — `'all'` (default) for screens that show every
+   * field together; `'dates'`/`'notes'` let a caller (Invoice Review's
+   * restyle) split issue/due date into one card and notes/terms into a
+   * separate collapsible section without duplicating any `Controller`.
+   */
+  section?: 'all' | 'dates' | 'notes';
 }
 
 /** Issue date / due date / notes / terms — the Invoice Review step's own fields, shared by create/edit/duplicate. */
-export function InvoiceDetailsFormFields({ control, errors }: Props) {
+export function InvoiceDetailsFormFields({ control, errors, section = 'all' }: Props) {
+  const showDates = section === 'all' || section === 'dates';
+  const showNotes = section === 'all' || section === 'notes';
   return (
     <>
-      <Controller
-        control={control}
-        name="issueDate"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <DateField
-            label="Invoice date *"
-            value={typeof value === 'string' ? value : ''}
-            onChange={onChange}
-            onBlur={onBlur}
-            error={errors.issueDate?.message}
-            maximumDate={null}
-            testID="field-issueDate"
+      {showDates && (
+        <>
+          <Controller
+            control={control}
+            name="issueDate"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <DateField
+                label="Invoice date *"
+                value={typeof value === 'string' ? value : ''}
+                onChange={onChange}
+                onBlur={onBlur}
+                error={errors.issueDate?.message}
+                maximumDate={null}
+                testID="field-issueDate"
+              />
+            )}
           />
-        )}
-      />
-      <Controller
-        control={control}
-        name="dueDate"
-        render={({ field: { value, onChange, onBlur } }) => (
-          <DateField
-            label="Due date"
-            value={typeof value === 'string' ? value : ''}
-            onChange={onChange}
-            onBlur={onBlur}
-            error={errors.dueDate?.message}
-            maximumDate={null}
-            minimumDate={new Date()}
-            testID="field-dueDate"
+          <Controller
+            control={control}
+            name="dueDate"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <DateField
+                label="Due date"
+                value={typeof value === 'string' ? value : ''}
+                onChange={onChange}
+                onBlur={onBlur}
+                error={errors.dueDate?.message}
+                maximumDate={null}
+                minimumDate={new Date()}
+                testID="field-dueDate"
+              />
+            )}
           />
-        )}
-      />
-      <Field name="notes" label="Notes" control={control} errors={errors} multiline />
-      <Field name="terms" label="Terms" control={control} errors={errors} multiline />
+        </>
+      )}
+      {showNotes && (
+        <>
+          <Field name="notes" label="Notes" control={control} errors={errors} multiline />
+          <Field name="terms" label="Terms" control={control} errors={errors} multiline />
+        </>
+      )}
     </>
   );
 }
