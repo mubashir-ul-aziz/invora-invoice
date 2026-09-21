@@ -127,6 +127,8 @@ export const item = sqliteTable(
     /** Unit of sale, e.g. "pcs", "kg", "hr". Free text, not a fixed enum. */
     unit: text('unit'),
     defaultPrice: real('default_price').notNull().default(0),
+    /** `'unit'` = `default_price` is per unit; `'total'` = it is the whole item's price. Pre-existing rows are `'unit'` — see `ITEM_COLUMN_UPGRADES`. */
+    priceMode: text('price_mode').notNull().default('unit'),
     /** Percentage (0–100); null = no default tax for this item. */
     taxRate: real('tax_rate'),
     weight: real('weight'),
@@ -268,6 +270,15 @@ export const invoiceItem = sqliteTable(
     height: real('height'),
     lengthUnit: text('length_unit'),
     timeUnit: text('time_unit'),
+    /**
+     * `'unit'` (subtotal = calculated quantity × `unit_price`) or `'total'`
+     * (the user entered a whole-line Total Item Price, stored as `subtotal`
+     * itself — there is deliberately no separate total-price column; `unit_price`
+     * is `0` for those lines). Rows that predate this column are `'unit'` via
+     * the default, so existing invoices read back unchanged. See
+     * `INVOICE_ITEM_COLUMN_UPGRADES`.
+     */
+    priceMode: text('price_mode').notNull().default('unit'),
     unitPrice: real('unit_price').notNull(),
     discountPercent: real('discount_percent'),
     taxPercent: real('tax_percent'),
@@ -448,6 +459,7 @@ export const CREATE_TABLES_SQL = `
     sku TEXT,
     unit TEXT,
     default_price REAL NOT NULL DEFAULT 0,
+    price_mode TEXT NOT NULL DEFAULT 'unit',
     tax_rate REAL,
     weight REAL,
     weight_unit TEXT,
@@ -509,6 +521,7 @@ export const CREATE_TABLES_SQL = `
     height REAL,
     length_unit TEXT,
     time_unit TEXT,
+    price_mode TEXT NOT NULL DEFAULT 'unit',
     unit_price REAL NOT NULL,
     discount_percent REAL,
     tax_percent REAL,
@@ -604,6 +617,7 @@ export const BUSINESS_COLUMN_UPGRADES: { column: string; definition: string }[] 
 export const ITEM_COLUMN_UPGRADES: { column: string; definition: string }[] = [
   { column: 'weight_unit', definition: 'TEXT' },
   { column: 'length_unit', definition: 'TEXT' },
+  { column: 'price_mode', definition: "TEXT NOT NULL DEFAULT 'unit'" },
 ];
 
 /**
@@ -617,6 +631,7 @@ export const INVOICE_ITEM_COLUMN_UPGRADES: { column: string; definition: string 
   { column: 'weight_unit', definition: 'TEXT' },
   { column: 'length_unit', definition: 'TEXT' },
   { column: 'time_unit', definition: 'TEXT' },
+  { column: 'price_mode', definition: "TEXT NOT NULL DEFAULT 'unit'" },
 ];
 
 /**

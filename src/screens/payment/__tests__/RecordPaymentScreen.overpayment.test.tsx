@@ -50,7 +50,7 @@ function makeInput(overrides: Partial<InvoiceInput> = {}): InvoiceInput {
 
 /** One resolver-triggered submission per file — see the note in `RecordPaymentScreen.save.test.tsx`. */
 describe('RecordPaymentScreen overpayment', () => {
-  it('allows recording a payment larger than the remaining balance', async () => {
+  it('rejects typing a payment amount larger than the remaining balance', async () => {
     const invoices = new InMemoryInvoiceRepository();
     const created = await invoices.create('INV-1', makeInput()); // grand total 500
     const payments = new InMemoryPaymentRepository();
@@ -63,12 +63,16 @@ describe('RecordPaymentScreen overpayment', () => {
 
     await waitFor(() => expect(view.getByTestId('field-amount')).toBeTruthy());
     fireEvent.changeText(view.getByTestId('field-amount'), '800');
+
+    expect(view.getByTestId('field-amount').props.value).toBe('');
+
+    fireEvent.changeText(view.getByTestId('field-amount'), '500');
     fireEvent.changeText(view.getByTestId('field-paymentDate'), '2026-06-05');
     fireEvent.press(view.getByTestId('save-payment'));
 
     await waitFor(async () => expect(await payments.listByInvoice(created.id)).toHaveLength(1));
     const [recorded] = await payments.listByInvoice(created.id);
-    expect(recorded.amount).toBe(800);
+    expect(recorded.amount).toBe(500);
     expect(navigation.navigate).toHaveBeenCalledWith('InvoiceDetail', { invoiceId: created.id });
   });
 });

@@ -195,8 +195,10 @@ describe('CreateInvoiceItemsScreen', () => {
       .addLine({ ...EMPTY_INVOICE_ITEM_INPUT, itemName: 'Box', length: 10, width: 5, height: 2 });
     const view = await renderScreen();
 
-    await waitFor(() => expect(view.getByTestId('invoice-type-picker-general')).toBeTruthy());
-    fireEvent.press(view.getByTestId('invoice-type-picker-general'));
+    await waitFor(() => expect(view.getByTestId('invoice-type-picker-trigger')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-type-picker-trigger'));
+    await waitFor(() => expect(view.getByTestId('invoice-type-picker-option-general')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-type-picker-option-general'));
 
     expect(alertSpy).toHaveBeenCalled();
     expect(useInvoiceDraftStore.getState().invoiceTypeId).toBe('general');
@@ -217,8 +219,10 @@ describe('CreateInvoiceItemsScreen', () => {
       .addLine({ ...EMPTY_INVOICE_ITEM_INPUT, itemName: 'Widget', quantity: 3, unitPrice: 10 });
     const view = await renderScreen();
 
-    await waitFor(() => expect(view.getByTestId('invoice-type-picker-quantity')).toBeTruthy());
-    fireEvent.press(view.getByTestId('invoice-type-picker-quantity'));
+    await waitFor(() => expect(view.getByTestId('invoice-type-picker-trigger')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-type-picker-trigger'));
+    await waitFor(() => expect(view.getByTestId('invoice-type-picker-option-quantity')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-type-picker-option-quantity'));
 
     expect(alertSpy).toHaveBeenCalled();
     expect(useInvoiceDraftStore.getState().invoiceTypeId).toBe('quantity');

@@ -171,53 +171,48 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
           )}
         />
 
-        <View style={styles.rowTwoCol}>
-          <View style={styles.colHalf}>
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { value, onChange, onBlur } }) => (
-                <FormField
-                  label="Phone Number"
-                  value={typeof value === 'string' ? value : ''}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="+44 7700 900123"
-                  keyboardType="phone-pad"
-                  error={errors.phone?.message}
-                  testID="field-phone"
-                />
-              )}
+        <Controller
+          control={control}
+          name="phone"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <FormField
+              label="Phone Number"
+              value={typeof value === 'string' ? value : ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="+44 7700 900123"
+              keyboardType="phone-pad"
+              error={errors.phone?.message}
+              testID="field-phone"
             />
-          </View>
-          <View style={styles.colHalf}>
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { value, onChange, onBlur } }) => (
-                <View style={styles.fieldGroup}>
-                  <FormField
-                    label="Billing Email"
-                    value={typeof value === 'string' ? value : ''}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="billing@clientcompany.com"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    error={errors.email?.message}
-                    testID="field-email"
-                  />
-                  <View style={styles.helperRow}>
-                    <Feather name="info" size={12} color={colors.primary} />
-                    <Text style={styles.helperText}>
-                      Automated invoices, receipts &amp; reminders will be sent here
-                    </Text>
-                  </View>
-                </View>
-              )}
-            />
-          </View>
-        </View>
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { value, onChange, onBlur } }) => (
+            <View style={styles.fieldGroup}>
+              <FormField
+                label="Billing Email"
+                value={typeof value === 'string' ? value : ''}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="billing@clientcompany.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                error={errors.email?.message}
+                testID="field-email"
+              />
+              <View style={styles.helperRow}>
+                <Feather name="info" size={12} color={colors.primary} />
+                <Text style={styles.helperText}>
+                  Automated invoices, receipts &amp; reminders will be sent here
+                </Text>
+              </View>
+            </View>
+          )}
+        />
       </View>
 
       {/* Card 2: Billing Address — composes into the single existing `address` field on submit. */}

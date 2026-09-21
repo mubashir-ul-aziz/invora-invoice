@@ -43,6 +43,8 @@ describe('invoiceLineToFormDefaults', () => {
       height: '',
       lengthUnit: '',
       timeUnit: '',
+      priceMode: 'unit',
+      totalPrice: '',
       unitPrice: '12.5',
       discountPercent: '5',
       taxPercent: '8',
@@ -65,7 +67,9 @@ describe('formValuesToInvoiceLineInput', () => {
       height: null,
       lengthUnit: null,
       timeUnit: null,
+      priceMode: 'unit' as const,
       unitPrice: 10,
+      totalPrice: null,
       discountPercent: null,
       taxPercent: 8,
     };
@@ -91,12 +95,74 @@ describe('formValuesToInvoiceLineInput', () => {
       height: null,
       lengthUnit: null,
       timeUnit: null,
+      priceMode: 'unit' as const,
       unitPrice: 50,
+      totalPrice: null,
       discountPercent: null,
       taxPercent: null,
     };
     const result = formValuesToInvoiceLineInput(values, null, GENERAL_CONFIG);
     expect(result.itemId).toBeNull();
+  });
+
+  const baseValues = {
+    itemName: 'Slab',
+    description: null,
+    sku: null,
+    quantity: null,
+    unit: null,
+    weight: null,
+    weightUnit: null,
+    length: 10,
+    width: 10,
+    height: null,
+    lengthUnit: 'ft',
+    timeUnit: null,
+    discountPercent: null,
+    taxPercent: null,
+  };
+
+  it('keeps only the Total Item Price for a total-priced line (unit price zeroed, no stale value)', () => {
+    const result = formValuesToInvoiceLineInput(
+      { ...baseValues, priceMode: 'total', unitPrice: 12, totalPrice: 900 },
+      null,
+      GENERAL_CONFIG,
+    );
+    expect(result.priceMode).toBe('total');
+    expect(result.totalPrice).toBe(900);
+    expect(result.unitPrice).toBe(0);
+  });
+
+  it('keeps only the Unit Price for a unit-priced line (a leftover total price is dropped)', () => {
+    const result = formValuesToInvoiceLineInput(
+      { ...baseValues, priceMode: 'unit', unitPrice: 8, totalPrice: 900 },
+      null,
+      GENERAL_CONFIG,
+    );
+    expect(result.priceMode).toBe('unit');
+    expect(result.unitPrice).toBe(8);
+    expect(result.totalPrice).toBeNull();
+  });
+});
+
+describe('invoiceLineToFormDefaults price mode', () => {
+  it('defaults a new/legacy line to unit mode with its unit price', () => {
+    const defaults = invoiceLineToFormDefaults({ ...EMPTY_INVOICE_ITEM_INPUT, unitPrice: 25 });
+    expect(defaults.priceMode).toBe('unit');
+    expect(defaults.unitPrice).toBe('25');
+    expect(defaults.totalPrice).toBe('');
+  });
+
+  it('loads a total-priced line back with its Total Item Price and a blank unit price', () => {
+    const defaults = invoiceLineToFormDefaults({
+      ...EMPTY_INVOICE_ITEM_INPUT,
+      priceMode: 'total',
+      unitPrice: 0,
+      totalPrice: 900,
+    });
+    expect(defaults.priceMode).toBe('total');
+    expect(defaults.totalPrice).toBe('900');
+    expect(defaults.unitPrice).toBe('');
   });
 });
 

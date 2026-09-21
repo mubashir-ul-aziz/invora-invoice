@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { PriceMode } from '@/domain/invoice/types';
 import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
@@ -9,6 +10,8 @@ interface Props {
   itemName: string;
   quantity: number | null;
   unit: string | null;
+  /** Absent means `'unit'`. A `'total'` line shows its measurement with a "Total item price" tag instead of `quantity × unit price`, since no unit price exists for it. */
+  priceMode?: PriceMode;
   unitPrice: number;
   /**
    * Method-aware measurement description (e.g. "5m × 4m (20 m²)" for an AREA
@@ -47,6 +50,7 @@ export function InvoiceLineRow({
   itemName,
   quantity,
   unit,
+  priceMode,
   unitPrice,
   measurementLabel,
   lineTotal,
@@ -57,9 +61,14 @@ export function InvoiceLineRow({
 }: Props) {
   const currencySymbol = useCurrencySymbol();
   const quantityLabel = measurementLabel ?? (quantity != null ? `${formatNumber(quantity)}${unit ? ` ${unit}` : ''}` : null);
-  const subtitle = quantityLabel
-    ? `${quantityLabel} × ${currencySymbol}${unitPrice.toFixed(2)}`
-    : `${currencySymbol}${unitPrice.toFixed(2)} each`;
+  const subtitle =
+    priceMode === 'total'
+      ? quantityLabel
+        ? `${quantityLabel} · Total item price`
+        : 'Total item price'
+      : quantityLabel
+        ? `${quantityLabel} × ${currencySymbol}${unitPrice.toFixed(2)}`
+        : `${currencySymbol}${unitPrice.toFixed(2)} each`;
   const editable = !!onEdit || !!onDelete;
 
   return (

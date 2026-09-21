@@ -410,6 +410,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
                 quantity={line.quantity}
                 unit={line.unit}
                 measurementLabel={describeLineMeasurement(line.pricingMethodId ?? invoice.invoiceTypeId, line)}
+                priceMode={line.priceMode}
                 unitPrice={line.unitPrice}
                 lineTotal={line.lineTotal}
                 testID={`invoice-detail-line-${line.id}`}
@@ -454,15 +455,14 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
 
         {/* Supplemental Invoice Details grid */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Invoice Details</Text>
+          <View style={styles.balancesHeaderRow}>
+            <Text style={styles.sectionTitle}>Invoice Details</Text>
+            <Text style={styles.currencyTag}>{currencyLabel}</Text>
+          </View>
           <View style={styles.detailsGrid}>
-            <View style={styles.detailsCell}>
+            <View style={styles.detailsCellFull}>
               <Text style={styles.metaLabel}>Payment Terms</Text>
               <Text style={styles.metaValue}>{invoice.terms || 'Not set'}</Text>
-            </View>
-            <View style={styles.detailsCell}>
-              <Text style={styles.metaLabel}>Currency</Text>
-              <Text style={styles.metaValue}>{currencyLabel}</Text>
             </View>
           </View>
         </View>
@@ -499,6 +499,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
             label="Record Payment"
             icon="dollar-sign"
             variant="primary"
+            disabled={!!paymentSummary && paymentSummary.remaining <= 0}
             onPress={() => navigation.navigate('RecordPayment', { invoiceId })}
             testID="action-record-payment"
           />
@@ -684,7 +685,7 @@ const styles = StyleSheet.create({
   emptyPaymentsSubtitle: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
 
   detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  detailsCell: { width: '45%', gap: 2 },
+  detailsCellFull: { width: '100%', gap: 2 },
 
   textCard: {
     backgroundColor: colors.surface,

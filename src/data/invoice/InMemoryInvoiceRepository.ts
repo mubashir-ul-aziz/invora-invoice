@@ -1,4 +1,4 @@
-import { calculateLineTotal } from '@/domain/invoice/calculations';
+import { calculateLineTotal, toLineCalcInput } from '@/domain/invoice/calculations';
 import { invoiceMatchesFilter, sortInvoices } from '@/domain/invoice/filtering';
 import { assertLinesMatchPricingMethod } from '@/domain/invoice/integrity';
 import {
@@ -9,6 +9,7 @@ import {
   type InvoiceItemInput,
   type InvoiceItemSnapshot,
   type InvoiceUpdateInput,
+  normalizePriceMode,
 } from '@/domain/invoice/types';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { generateLocalId } from '@/lib/id';
@@ -26,19 +27,8 @@ import type { InvoiceRepository } from './InvoiceRepository';
 function buildLineSnapshots(lines: InvoiceItemInput[], pricingMethodId: InvoiceTypeId): InvoiceItemSnapshot[] {
   assertLinesMatchPricingMethod(pricingMethodId, lines);
   return lines.map((line) => {
-    const calc = calculateLineTotal(
-      {
-        quantity: line.quantity,
-        weight: line.weight,
-        length: line.length,
-        width: line.width,
-        height: line.height,
-        unitPrice: line.unitPrice,
-        discountPercent: line.discountPercent,
-        taxPercent: line.taxPercent,
-      },
-      pricingMethodId,
-    );
+    const calc = calculateLineTotal(toLineCalcInput(line), pricingMethodId);
+    const priceMode = normalizePriceMode(line.priceMode);
     return {
       id: generateLocalId('line_'),
       itemId: line.itemId,
@@ -54,7 +44,9 @@ function buildLineSnapshots(lines: InvoiceItemInput[], pricingMethodId: InvoiceT
       height: line.height,
       lengthUnit: line.lengthUnit,
       timeUnit: line.timeUnit,
-      unitPrice: line.unitPrice,
+      priceMode,
+      unitPrice: priceMode === 'total' ? 0 : line.unitPrice,
+      totalPrice: priceMode === 'total' ? calc.subtotal : null,
       discountPercent: line.discountPercent,
       taxPercent: line.taxPercent,
       pricingMethodId,

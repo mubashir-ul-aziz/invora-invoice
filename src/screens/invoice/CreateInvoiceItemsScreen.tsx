@@ -4,10 +4,10 @@ import React, { useEffect } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
-import { OptionPicker } from '@/components/business/OptionPicker';
+import { DropdownPicker } from '@/components/business/DropdownPicker';
 import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
-import { calculateInvoiceTotals, calculateLineTotal } from '@/domain/invoice/calculations';
+import { calculateInvoiceTotals, calculateLineTotal, toLineCalcInput } from '@/domain/invoice/calculations';
 import {
   canSafelyConvertPricingMethod,
   invoiceLineFromItem,
@@ -62,19 +62,7 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
     customFieldKeys: selection?.customFieldKeys ?? [],
   });
 
-  const totals = calculateInvoiceTotals(
-    draft.items.map((line) => ({
-      quantity: line.quantity,
-      weight: line.weight,
-      length: line.length,
-      width: line.width,
-      height: line.height,
-      unitPrice: line.unitPrice,
-      discountPercent: line.discountPercent,
-      taxPercent: line.taxPercent,
-    })),
-    draft.invoiceTypeId,
-  );
+  const totals = calculateInvoiceTotals(draft.items.map(toLineCalcInput), draft.invoiceTypeId);
 
   /**
    * §19 of the brief: an invoice with zero items can switch Pricing Method
@@ -220,7 +208,7 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
           </View>
         ) : (
           <View style={styles.card}>
-            <OptionPicker
+            <DropdownPicker
               label="Pricing Method"
               options={PRICING_METHOD_OPTIONS}
               value={draft.invoiceTypeId}
@@ -253,19 +241,7 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
           )}
 
           {draft.items.map((line, index) => {
-            const calc = calculateLineTotal(
-              {
-                quantity: line.quantity,
-                weight: line.weight,
-                length: line.length,
-                width: line.width,
-                height: line.height,
-                unitPrice: line.unitPrice,
-                discountPercent: line.discountPercent,
-                taxPercent: line.taxPercent,
-              },
-              draft.invoiceTypeId,
-            );
+            const calc = calculateLineTotal(toLineCalcInput(line), draft.invoiceTypeId);
             return (
               <InvoiceLineRow
                 key={index}
@@ -273,6 +249,7 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
                 quantity={line.quantity}
                 unit={line.unit}
                 measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
+                priceMode={line.priceMode}
                 unitPrice={line.unitPrice}
                 lineTotal={calc.lineTotal}
                 onPress={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
@@ -336,6 +313,7 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
         <ActionButton
           label="Continue to review"
           variant="primary"
+          icon="arrow-right"
           onPress={handleContinue}
           testID="action-continue-to-review"
         />

@@ -1,6 +1,7 @@
 import { escapeHtml, escapeHtmlMultiline } from './escapeHtml';
-import { getPdfItemColumns } from './itemColumns';
+import { getPdfItemColumns, type PdfItemColumn } from './itemColumns';
 import { formatMoney } from './money';
+import { PDF_FOOTER_RESERVE } from './pageFooter';
 import type { InvoicePdfData } from './types';
 
 /**
@@ -17,66 +18,91 @@ import type { InvoicePdfData } from './types';
 const TEMPLATE_CSS: Record<InvoicePdfData['template'], string> = {
   classic: `
     body.tpl-classic { font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; }
-    .tpl-classic .header { border-bottom: 2px solid #1a1a1a; padding-bottom: 16px; }
-    .tpl-classic .invoice-title { font-size: 26px; letter-spacing: 2px; text-transform: uppercase; }
-    .tpl-classic table.items { border: 1px solid #1a1a1a; border-collapse: collapse; }
-    .tpl-classic table.items th, .tpl-classic table.items td { border: 1px solid #999; padding: 8px 10px; }
-    .tpl-classic table.items th { background: #f0f0f0; }
-    .tpl-classic .totals-table td { padding: 4px 10px; }
-    .tpl-classic .grand-total { font-size: 16px; font-weight: bold; border-top: 2px solid #1a1a1a; }
+    .tpl-classic .header { border-bottom: 2px solid #1a1a1a; padding-bottom: 10px; }
+    .tpl-classic .invoice-title { font-size: 21px; letter-spacing: 1.5px; text-transform: uppercase; }
+    .tpl-classic table.line-items { border: 1px solid #1a1a1a; }
+    .tpl-classic table.line-items th, .tpl-classic table.line-items td { border: 1px solid #ccc; }
+    .tpl-classic table.line-items th { background: #f0f0f0; }
+    .tpl-classic .grand-total td { border-top: 2px solid #1a1a1a; }
   `,
   modern: `
     body.tpl-modern { font-family: 'Helvetica Neue', Arial, sans-serif; color: #171923; }
-    .tpl-modern .header { background: #2952CC; color: #fff; padding: 24px; border-radius: 10px; }
-    .tpl-modern .header .muted { color: #E3E9FF; }
-    .tpl-modern .invoice-title { font-size: 24px; font-weight: 700; }
-    .tpl-modern table.items { border-collapse: collapse; width: 100%; }
-    .tpl-modern table.items th { background: #EEF2FF; color: #2952CC; text-align: left; padding: 10px; }
-    .tpl-modern table.items td { padding: 10px; border-bottom: 1px solid #E2E5EC; }
-    .tpl-modern .totals-table td { padding: 5px 10px; }
-    .tpl-modern .grand-total { font-size: 17px; font-weight: 700; color: #2952CC; }
+    .tpl-modern .header { background: #2952CC; color: #fff; padding: 14px 18px; border-radius: 10px; }
+    .tpl-modern .header .muted, .tpl-modern .header .invoice-number { color: #E3E9FF; }
+    .tpl-modern .invoice-title { font-size: 20px; font-weight: 700; }
+    .tpl-modern table.line-items th { background: #EEF2FF; color: #2952CC; }
+    .tpl-modern table.line-items td { border-bottom: 1px solid #E2E5EC; }
+    .tpl-modern .grand-total td { color: #2952CC; }
   `,
   compact: `
-    body.tpl-compact { font-family: Arial, Helvetica, sans-serif; color: #171923; font-size: 11px; }
-    .tpl-compact .header { border-bottom: 1px solid #999; padding-bottom: 8px; }
-    .tpl-compact .invoice-title { font-size: 16px; font-weight: 700; }
-    .tpl-compact table.items { border-collapse: collapse; width: 100%; font-size: 10.5px; }
-    .tpl-compact table.items th { text-align: left; border-bottom: 1px solid #999; padding: 4px 6px; }
-    .tpl-compact table.items td { padding: 4px 6px; border-bottom: 1px solid #eee; }
-    .tpl-compact .totals-table td { padding: 2px 6px; }
-    .tpl-compact .grand-total { font-size: 12px; font-weight: 700; }
+    body.tpl-compact { font-family: Arial, Helvetica, sans-serif; color: #171923; }
+    .tpl-compact .header { border-bottom: 1px solid #999; padding-bottom: 6px; }
+    .tpl-compact .invoice-title { font-size: 19px; font-weight: 700; }
+    .tpl-compact table.line-items th { border-bottom: 1px solid #999; }
+    .tpl-compact table.line-items td { border-bottom: 1px solid #eee; }
   `,
 };
 
 const BASE_CSS = `
+  @page { margin: 0 0 ${PDF_FOOTER_RESERVE}px 0; }
   * { box-sizing: border-box; }
-  body { margin: 24px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
-  .logo { max-height: 64px; max-width: 160px; object-fit: contain; margin-bottom: 8px; }
-  .muted { color: #666; font-size: 12px; }
-  .section { margin-top: 20px; }
-  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 4px; }
-  table.items { width: 100%; margin-top: 12px; }
-  table.items th { text-align: left; }
+  body { margin: 26px 30px; font-family: Arial, Helvetica, sans-serif; font-size: 8px; line-height: 1.4; color: #1a1a1a; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+  .logo { max-height: 48px; max-width: 140px; object-fit: contain; margin-bottom: 6px; }
+  .business-name { font-size: 14px; font-weight: 700; }
+  .invoice-title { font-size: 19px; font-weight: 700; }
+  .invoice-number { font-size: 9px; font-weight: 600; color: #444; margin-top: 2px; }
+  .muted { color: #666; font-size: 7.5px; line-height: 1.4; }
+  .section { margin-top: 12px; }
+  .section-title {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #888;
+    margin-bottom: 4px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  .customer-name { font-size: 9px; font-weight: 700; }
+  .details-row { font-size: 8.5px; margin-top: 2px; }
+
+  /* Item table: a <colgroup> gives every column a fixed percentage of the
+     full content width (page width minus body margin) computed from each
+     column's relative weight (see itemColumns.ts) — so with table-layout:
+     fixed the table always fits within the page and never clips, no matter
+     how many optional columns a pricing method (e.g. Volume) turns on. Long
+     text wraps inside its own cell instead of forcing horizontal overflow. */
+  table.items { width: 100%; margin-top: 8px; border-collapse: collapse; table-layout: fixed; }
+  table.items th { text-align: left; font-size: 7.5px; font-weight: 700; padding: 5px 6px; vertical-align: bottom; }
+  table.items td { font-size: 7.5px; padding: 5px 6px; vertical-align: middle; }
   table.items td.num, table.items th.num { text-align: right; }
-  .item-desc { display: block; font-size: 11px; color: #666; }
-  /* The line-items table specifically (not the payments table further down,
-     which reuses the plain .items class): each item stays on one row, and
-     the table scrolls horizontally rather than wrapping a row's cells onto a
-     second line when a pricing method with more columns (e.g. Volume) needs
-     more width than a small screen/paper width gives it. */
-  .table-scroll { overflow-x: auto; margin-top: 12px; }
-  table.line-items { min-width: 480px; border-collapse: collapse; }
-  table.line-items th, table.line-items td { white-space: nowrap; }
-  table.line-items td:first-child, table.line-items th:first-child { white-space: normal; }
-  .totals { display: flex; justify-content: flex-end; margin-top: 16px; }
-  table.totals-table { min-width: 260px; }
+  table.line-items th, table.line-items td { white-space: normal; word-break: break-word; }
+  table.line-items th.num, table.line-items td.num { white-space: nowrap; }
+  table.line-items tbody tr { page-break-inside: avoid; break-inside: avoid; }
+  table.line-items thead { display: table-header-group; }
+  .item-name { font-size: 8.5px; font-weight: 600; }
+  .item-desc { display: block; font-size: 6.5px; font-weight: 400; color: #777; line-height: 1.3; margin-top: 1px; }
+
+  .totals { display: flex; justify-content: flex-end; margin-top: 12px; page-break-inside: avoid; break-inside: avoid; }
+  table.totals-table { min-width: 220px; font-size: 8px; }
+  table.totals-table td { padding: 3px 8px; }
   table.totals-table td:first-child { color: #555; }
-  table.totals-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
-  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; background: #EEF2FF; color: #2952CC; }
-  .notes-terms { display: flex; gap: 24px; margin-top: 24px; }
-  .notes-terms > div { flex: 1; }
-  .two-col { display: flex; justify-content: space-between; gap: 24px; }
+  table.totals-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-size: 9px; }
+  table.totals-table tr.grand-total td { font-size: 11px; font-weight: 700; }
+  .status-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 8px; font-weight: 700; background: #EEF2FF; color: #2952CC; }
+
+  .payment-history { margin-top: 14px; page-break-inside: avoid; break-inside: avoid; }
+  table.payments th { font-size: 7.5px; font-weight: 700; }
+  table.payments td { font-size: 7.5px; }
+  table.payments td.num, table.payments th.num { white-space: nowrap; }
+  table.payments td:first-child, table.payments th:first-child { white-space: nowrap; }
+  table.payments td:nth-child(2), table.payments th:nth-child(2) { white-space: nowrap; }
+  table.payments td:nth-child(3), table.payments th:nth-child(3) { white-space: normal; word-break: break-word; }
+
+  .notes-terms { display: flex; gap: 20px; margin-top: 14px; page-break-inside: avoid; break-inside: avoid; }
+  .notes-terms > div { flex: 1; font-size: 7.5px; line-height: 1.4; }
+  .two-col { display: flex; justify-content: space-between; gap: 20px; }
 `;
 
 function addressBlock(lines: (string | null)[]): string {
@@ -91,10 +117,25 @@ function formatDate(isoDate: string): string {
   return Number.isNaN(date.getTime()) ? isoDate : date.toLocaleDateString();
 }
 
+/**
+ * Column percentages for the item table's `<colgroup>`, computed from each
+ * column's relative `width` weight (see `itemColumns.ts`) so they always sum
+ * to 100% regardless of how many optional columns are present — this, plus
+ * `table-layout: fixed` in the CSS, is what guarantees the table never runs
+ * past the page's right margin.
+ */
+function columnWidthPercentages(columns: PdfItemColumn[]): number[] {
+  const totalWeight = columns.reduce((sum, col) => sum + col.width, 0);
+  return columns.map((col) => (col.width / totalWeight) * 100);
+}
+
 /** The only place invoice PDF HTML is generated — see the module doc comment for why one shared builder serves all three templates. */
 export function renderInvoiceHtml(data: InvoicePdfData): string {
   const columns = getPdfItemColumns(data.fieldConfig);
   const hasDescriptionField = data.fieldConfig.fields.some((field) => field.key === 'description');
+  const columnWidths = columnWidthPercentages(columns);
+
+  const colgroup = columnWidths.map((pct) => `<col style="width:${pct.toFixed(2)}%" />`).join('');
 
   const headerRow = columns
     .map((col) => `<th class="${col.align === 'right' ? 'num' : ''}">${escapeHtml(col.label)}</th>`)
@@ -106,10 +147,11 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
         .map((col) => {
           const value = col.render(item, data.currency);
           const isNameColumn = col.key === 'itemName';
+          const cellValue = isNameColumn ? `<span class="item-name">${escapeHtml(value)}</span>` : escapeHtml(value);
           const description = isNameColumn && hasDescriptionField && item.description
             ? `<span class="item-desc">${escapeHtml(item.description)}</span>`
             : '';
-          return `<td class="${col.align === 'right' ? 'num' : ''}">${escapeHtml(value)}${description}</td>`;
+          return `<td class="${col.align === 'right' ? 'num' : ''}">${cellValue}${description}</td>`;
         })
         .join('');
       return `<tr>${cells}</tr>`;
@@ -124,9 +166,10 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
     .join('');
 
   const paymentHistorySection = data.payments.length
-    ? `<div class="section">
+    ? `<div class="section payment-history">
     <div class="section-title">Payment History</div>
-    <table class="items">
+    <table class="items payments">
+      <colgroup><col style="width:16%" /><col style="width:22%" /><col style="width:42%" /><col style="width:20%" /></colgroup>
       <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="num">Amount</th></tr></thead>
       <tbody>${paymentRows}</tbody>
     </table>
@@ -148,7 +191,7 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
   <div class="header">
     <div>
       ${data.logoDataUri ? `<img class="logo" src="${data.logoDataUri}" />` : ''}
-      <div><strong>${escapeHtml(data.business.businessName)}</strong></div>
+      <div class="business-name">${escapeHtml(data.business.businessName)}</div>
       <div class="muted">${addressBlock([
         data.business.address,
         data.business.phone,
@@ -159,30 +202,29 @@ export function renderInvoiceHtml(data: InvoicePdfData): string {
     </div>
     <div style="text-align:right">
       <div class="invoice-title">Invoice</div>
-      <div class="muted">${escapeHtml(data.invoiceNumber)}</div>
-      <div style="margin-top:8px" class="status-badge">${escapeHtml(data.statusLabel)}</div>
+      <div class="invoice-number">${escapeHtml(data.invoiceNumber)}</div>
+      <div style="margin-top:6px" class="status-badge">${escapeHtml(data.statusLabel)}</div>
     </div>
   </div>
 
   <div class="section two-col">
     <div>
       <div class="section-title">Bill to</div>
-      <div><strong>${escapeHtml(data.customer.name)}</strong></div>
+      <div class="customer-name">${escapeHtml(data.customer.name)}</div>
       <div class="muted">${addressBlock([data.customer.address, data.customer.phone, data.customer.email, data.customer.website])}</div>
     </div>
     <div style="text-align:right">
       <div class="section-title">Details</div>
-      <div>Invoice date: ${escapeHtml(formatDate(data.issueDate))}</div>
-      ${data.dueDate ? `<div>Due date: ${escapeHtml(formatDate(data.dueDate))}</div>` : ''}
+      <div class="details-row">Invoice date: ${escapeHtml(formatDate(data.issueDate))}</div>
+      ${data.dueDate ? `<div class="details-row">Due date: ${escapeHtml(formatDate(data.dueDate))}</div>` : ''}
     </div>
   </div>
 
-  <div class="table-scroll">
-    <table class="items line-items">
-      <thead><tr>${headerRow}</tr></thead>
-      <tbody>${bodyRows}</tbody>
-    </table>
-  </div>
+  <table class="items line-items">
+    <colgroup>${colgroup}</colgroup>
+    <thead><tr>${headerRow}</tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
 
   <div class="totals">
     <table class="totals-table">

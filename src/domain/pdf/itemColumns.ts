@@ -9,6 +9,16 @@ export interface PdfItemColumn {
   label: string;
   align: 'left' | 'right';
   render: (item: InvoiceItemSnapshot, currency: string) => string;
+  /**
+   * Relative width weight for the PDF's item table (a `<colgroup>` percentage
+   * is `weight / sum(all present columns' weights)` — see `renderInvoiceHtml`).
+   * Weights, not fixed pixel widths, are what let the table always fit the
+   * page regardless of how many optional columns a given invoice type turns
+   * on: Item Name stays the widest (it also carries the description
+   * sub-line), price/total columns get slightly more room for currency
+   * strings, and compact columns (Qty/Unit) stay narrow.
+   */
+  width: number;
 }
 
 /** Appends a unit suffix to a formatted measurement, e.g. `withUnit('25', 'kg') === '25 kg'` — `''` when there's nothing to show yet. */
@@ -27,49 +37,56 @@ const OPTIONAL_COLUMNS: Record<
   Exclude<FieldKey, 'itemName' | 'description' | 'unitPrice' | 'weightUnit' | 'lengthUnit' | 'timeUnit'>,
   PdfItemColumn
 > = {
-  sku: { key: 'sku', label: 'SKU', align: 'left', render: (item) => item.sku ?? '' },
+  sku: { key: 'sku', label: 'SKU', align: 'left', render: (item) => item.sku ?? '', width: 1.1 },
   quantity: {
     key: 'quantity',
     label: 'Qty',
     align: 'right',
     render: (item) => `${(item.quantity ?? 1).toString()}${item.timeUnit ? ` ${item.timeUnit}` : ''}`,
+    width: 0.8,
   },
-  unit: { key: 'unit', label: 'Unit', align: 'left', render: (item) => item.unit ?? '' },
+  unit: { key: 'unit', label: 'Unit', align: 'left', render: (item) => item.unit ?? '', width: 0.7 },
   weight: {
     key: 'weight',
     label: 'Weight',
     align: 'right',
     render: (item) => withUnit(item.weight, item.weightUnit),
+    width: 0.9,
   },
   length: {
     key: 'length',
     label: 'Length',
     align: 'right',
     render: (item) => withUnit(item.length, item.lengthUnit),
+    width: 0.9,
   },
   width: {
     key: 'width',
     label: 'Width',
     align: 'right',
     render: (item) => withUnit(item.width, item.lengthUnit),
+    width: 0.9,
   },
   height: {
     key: 'height',
     label: 'Height',
     align: 'right',
     render: (item) => withUnit(item.height, item.lengthUnit),
+    width: 0.9,
   },
   discount: {
     key: 'discount',
     label: 'Discount',
     align: 'right',
     render: (item, currency) => (item.discountAmount ? `-${formatMoney(item.discountAmount, currency)}` : '—'),
+    width: 1.0,
   },
   tax: {
     key: 'tax',
     label: 'Tax',
     align: 'right',
     render: (item, currency) => (item.taxAmount ? formatMoney(item.taxAmount, currency) : '—'),
+    width: 0.9,
   },
 };
 
@@ -78,13 +95,16 @@ const ITEM_NAME_COLUMN: PdfItemColumn = {
   label: 'Item',
   align: 'left',
   render: (item) => item.itemName,
+  width: 2.6,
 };
 
 const UNIT_PRICE_COLUMN: PdfItemColumn = {
   key: 'unitPrice',
   label: 'Unit price',
   align: 'right',
-  render: (item, currency) => formatMoney(item.unitPrice, currency),
+  // A Total Item Price line has no unit price (stored as 0) — show a dash rather than a misleading "$0.00".
+  render: (item, currency) => (item.priceMode === 'total' ? '—' : formatMoney(item.unitPrice, currency)),
+  width: 1.5,
 };
 
 const TOTAL_COLUMN: PdfItemColumn = {
@@ -92,6 +112,7 @@ const TOTAL_COLUMN: PdfItemColumn = {
   label: 'Total',
   align: 'right',
   render: (item, currency) => formatMoney(item.lineTotal, currency),
+  width: 1.5,
 };
 
 /**

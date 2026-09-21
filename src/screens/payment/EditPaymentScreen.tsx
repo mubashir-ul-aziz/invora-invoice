@@ -176,12 +176,16 @@ function EditPaymentForm({
   onDelete: () => void;
 }) {
   const currencySymbol = useCurrencySymbol();
+  // The edited amount replaces, not adds to, its own current contribution to
+  // `amountPaid` — so the cap is the remaining balance plus what this payment
+  // already counts for, not the remaining balance alone.
+  const maxAmount = summary ? summary.remaining + payment.amount : null;
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PaymentFormValues, unknown, PaymentFormOutput>({
-    resolver: zodResolver(paymentFormSchemaWithMinDate(invoiceIssueDate)),
+    resolver: zodResolver(paymentFormSchemaWithMinDate(invoiceIssueDate, maxAmount)),
     defaultValues: paymentToFormDefaults(payment),
   });
 
@@ -283,7 +287,7 @@ function EditPaymentForm({
         Original recorded receipt was {currencySymbol}{payment.amount.toFixed(2)} on {formatDate(payment.paymentDate)}.
       </Text>
 
-      <PaymentFormFields control={control} errors={errors} minPaymentDate={invoiceIssueDate} />
+      <PaymentFormFields control={control} errors={errors} minPaymentDate={invoiceIssueDate} maxAmount={maxAmount} />
 
       {/* Danger Zone */}
       <View style={styles.dangerCard}>

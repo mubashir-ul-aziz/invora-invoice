@@ -1,3 +1,4 @@
+import type { PriceMode } from '@/domain/invoice/types';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 
 /**
@@ -19,8 +20,15 @@ export interface Item {
   sku: string | null;
   /** Unit of sale, e.g. "pcs", "kg", "hr". Free text, not a fixed enum. */
   unit: string | null;
-  /** The price used to prefill a new invoice line; always editable per-line afterwards. */
+  /**
+   * The price used to prefill a new invoice line; always editable per-line
+   * afterwards. Its meaning follows `priceMode`: a per-unit price for
+   * `'unit'`, the item's whole (Total Item) price for `'total'` — one field,
+   * not two, so the catalog never carries a stale "other" price.
+   */
   defaultPrice: number;
+  /** How `defaultPrice` is applied on an invoice line (see `PriceMode`). Optional — absent means `'unit'`, so every pre-feature item/fixture is unchanged. */
+  priceMode?: PriceMode;
   /** Percentage (0–100); null = no default tax for this item. */
   taxRate: number | null;
   weight: number | null;
@@ -59,6 +67,7 @@ export const EMPTY_ITEM_INPUT: ItemInput = {
   sku: null,
   unit: null,
   defaultPrice: 0,
+  priceMode: 'unit',
   taxRate: null,
   weight: null,
   weightUnit: null,

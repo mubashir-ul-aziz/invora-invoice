@@ -9,8 +9,8 @@ describe('unitsFor', () => {
     expect(unitsFor('length').map((u) => u.value)).toEqual(['m', 'cm', 'mm', 'ft', 'in', 'yd']);
   });
 
-  it('lists the time units the brief requires (minute/hour/day)', () => {
-    expect(unitsFor('time').map((u) => u.value)).toEqual(['minute', 'hour', 'day']);
+  it('lists the time units the brief requires (minute/hour/day/week)', () => {
+    expect(unitsFor('time').map((u) => u.value)).toEqual(['minute', 'hour', 'day', 'week']);
   });
 });
 
@@ -37,6 +37,14 @@ describe('convertMeasurement', () => {
 
   it('converts hours to minutes', () => {
     expect(convertMeasurement(2, 'hour', 'minute', 'time')).toBe(120);
+  });
+
+  it('converts a business day (8 hr) to hours', () => {
+    expect(convertMeasurement(1, 'day', 'hour', 'time')).toBe(8);
+  });
+
+  it('converts a business week (40 hr) to a business day (8 hr)', () => {
+    expect(convertMeasurement(1, 'week', 'day', 'time')).toBe(5);
   });
 
   it('returns the value unchanged when units already match', () => {

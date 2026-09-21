@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { OptionPicker } from '@/components/business/OptionPicker';
+import { DropdownPicker } from '@/components/business/DropdownPicker';
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
 import { baseUnitOptionsFor, mergeUnitOptions, type UnitFieldKind } from '@/domain/invoiceType/customUnits';
@@ -71,7 +71,7 @@ export function UnitOptionPicker({ label, kind, value, onChange, testID }: Props
 
   return (
     <>
-      <OptionPicker
+      <DropdownPicker
         label={label}
         options={[...options, { value: ADD_CUSTOM_UNIT, label: '+ Add custom unit' }]}
         value={value}

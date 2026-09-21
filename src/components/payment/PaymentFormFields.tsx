@@ -28,6 +28,12 @@ interface Props {
   onFullPay?: () => void;
   /** When provided (alongside `onFullPay`), shows a "50%" preset chip that fills in half the remaining balance. Record Payment only. */
   onHalfPay?: () => void;
+  /**
+   * The most this payment's amount can be — keystrokes that would push the
+   * field above it are rejected outright, matching `paymentFormSchemaWithMinDate`'s
+   * `maxAmount` refine. `undefined`/`null` (invoice not loaded yet) applies no cap.
+   */
+  maxAmount?: number | null;
 }
 
 /**
@@ -45,12 +51,12 @@ interface Props {
  * `field-method`, `field-reference`, `field-notes`, `full-pay-button`
  * directly.
  */
-export function PaymentFormFields({ control, errors, minPaymentDate, onFullPay, onHalfPay }: Props) {
+export function PaymentFormFields({ control, errors, minPaymentDate, onFullPay, onHalfPay, maxAmount }: Props) {
   return (
     <>
       {/* Amount Received */}
       <View style={styles.card}>
-        <PriceField name="amount" label="Amount Received *" control={control} errors={errors} />
+        <PriceField name="amount" label="Amount Received *" control={control} errors={errors} maxAmount={maxAmount} />
         {!!onFullPay && (
           <View style={styles.presetRow}>
             <Pressable
@@ -142,36 +148,54 @@ function PriceField({
   label,
   control,
   errors,
+  maxAmount,
 }: {
   name: keyof PaymentFormValues;
   label: string;
   control: PaymentFormControl;
   errors: Record<string, { message?: string } | undefined>;
+  maxAmount?: number | null;
 }) {
   const currencySymbol = useCurrencySymbol();
   return (
     <Controller
       control={control}
       name={name}
-      render={({ field: { value, onChange, onBlur } }) => (
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{label}</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceCurrency}>{currencySymbol}</Text>
-            <FormField
-              label=""
-              value={typeof value === 'string' ? value : String(value ?? '')}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              keyboardType="decimal-pad"
-              error={errors[name]?.message}
-              testID={`field-${name}`}
-              style={styles.priceInput}
-            />
+      render={({ field: { value, onChange, onBlur } }) => {
+        // Rejects any keystroke that would push the amount above `maxAmount`
+        // (the invoice's remaining balance) — mirrors `paymentFormSchemaWithMinDate`'s
+        // `maxAmount` refine, which still guards submission as a backstop.
+        const handleChangeText = (text: string) => {
+          if (typeof maxAmount === 'number' && text.trim() !== '') {
+            const parsed = Number(text);
+            if (!Number.isNaN(parsed) && parsed > maxAmount) {
+              return;
+            }
+          }
+          onChange(text);
+        };
+        return (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>{label}</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceCurrency}>{currencySymbol}</Text>
+              <View style={styles.priceInputWrapper}>
+                <FormField
+                  label=""
+                  value={typeof value === 'string' ? value : String(value ?? '')}
+                  onChangeText={handleChangeText}
+                  onBlur={onBlur}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  error={errors[name]?.message}
+                  testID={`field-${name}`}
+                  style={styles.priceInput}
+                />
+              </View>
+            </View>
           </View>
-        </View>
-      )}
+        );
+      }}
     />
   );
 }
@@ -226,7 +250,8 @@ const styles = StyleSheet.create({
 
   priceRow: { flexDirection: 'row', alignItems: 'center' },
   priceCurrency: { position: 'absolute', left: 12, zIndex: 1, fontSize: 22, fontWeight: '700', color: colors.primary },
-  priceInput: { flex: 1, paddingLeft: 30, fontSize: 22, fontWeight: '700' },
+  priceInputWrapper: { flex: 1 },
+  priceInput: { paddingLeft: 30, fontSize: 22, fontWeight: '700' },
 
   presetRow: { flexDirection: 'row', gap: 8 },
   presetChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.background },

@@ -24,7 +24,10 @@ export function invoiceLineToFormDefaults(line: InvoiceItemInput | null) {
     height: input.height != null ? String(input.height) : '',
     lengthUnit: input.lengthUnit ?? '',
     timeUnit: input.timeUnit ?? '',
-    unitPrice: String(input.unitPrice ?? 0),
+    priceMode: input.priceMode ?? 'unit',
+    // A total-priced line has no unit price to show (it's stored as 0), so leave it blank for when the user switches back to Unit Price.
+    unitPrice: input.priceMode === 'total' ? '' : String(input.unitPrice ?? 0),
+    totalPrice: input.priceMode === 'total' && input.totalPrice != null ? String(input.totalPrice) : '',
     discountPercent: input.discountPercent != null ? String(input.discountPercent) : '',
     taxPercent: input.taxPercent != null ? String(input.taxPercent) : '',
   };
@@ -58,7 +61,10 @@ export function formValuesToInvoiceLineInput(
     height: has(fieldConfig, 'height') ? values.height : null,
     lengthUnit: has(fieldConfig, 'lengthUnit') ? values.lengthUnit : null,
     timeUnit: has(fieldConfig, 'timeUnit') ? values.timeUnit : null,
-    unitPrice: values.unitPrice,
+    priceMode: values.priceMode,
+    // Only the active mode's price is kept — the other is zeroed/nulled so it can never linger and be misread later.
+    unitPrice: values.priceMode === 'total' ? 0 : (values.unitPrice ?? 0),
+    totalPrice: values.priceMode === 'total' ? (values.totalPrice ?? 0) : null,
     discountPercent: has(fieldConfig, 'discount') ? (values.discountPercent ?? 0) : null,
     taxPercent: has(fieldConfig, 'tax') ? values.taxPercent : null,
   };

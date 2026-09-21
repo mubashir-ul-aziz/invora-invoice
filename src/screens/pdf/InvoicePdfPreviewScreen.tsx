@@ -6,7 +6,12 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
 import { STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
-import { PdfLineItemRow, PDF_ITEM_CELL_WIDTH } from '@/components/pdf/PdfLineItemRow';
+import {
+  PdfLineItemRow,
+  PDF_ITEM_CELL_WIDTH,
+  PDF_ITEM_NAME_CELL_WIDTH,
+  PDF_ROW_NUMBER_CELL_WIDTH,
+} from '@/components/pdf/PdfLineItemRow';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import { TemplatePreview } from '@/components/settings/TemplateCard';
 import { getCurrencySymbol } from '@/domain/business/currency';
@@ -217,37 +222,61 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Items</Text>
-              {/*
-                Every item stays on one row (`PdfLineItemRow`'s fixed-width cells,
-                no wrapping) — this horizontal ScrollView is what keeps the table
-                readable on a narrow phone instead of squeezing or wrapping
-                columns: it scrolls sideways for the extra columns a pricing
-                method with more fields (e.g. Volume) adds, rather than breaking
-                a line item across multiple visual rows.
-              */}
-              <ScrollView horizontal showsHorizontalScrollIndicator testID="pdf-preview-items-scroll">
-                <View>
+              <View style={styles.itemsTableRow}>
+                {/*
+                  Row numbers live outside the horizontal ScrollView below, so
+                  this column stays pinned to the left edge while the rest of
+                  the table scrolls sideways underneath it — the sticky effect
+                  RN's ScrollView has no built-in support for otherwise.
+                */}
+                <View style={styles.itemsRowNumberColumn}>
                   <View style={styles.itemsHeaderRow}>
-                    {columns.map((column) => (
-                      <Text
-                        key={column.key}
-                        style={[styles.itemsHeaderCell, column.align === 'right' && styles.itemsHeaderCellRight]}
-                      >
-                        {column.label}
-                      </Text>
-                    ))}
+                    <Text style={[styles.itemsHeaderCell, styles.itemsRowNumberCell]}>#</Text>
                   </View>
-                  {data.items.map((item) => (
-                    <PdfLineItemRow
-                      key={item.id}
-                      item={item}
-                      columns={columns}
-                      currency={data.currency}
-                      testID={`pdf-preview-line-${item.id}`}
-                    />
+                  {data.items.map((item, index) => (
+                    <View key={item.id} style={styles.itemsRowNumberBody}>
+                      <Text style={[styles.itemsRowNumberValue, styles.itemsRowNumberCell]} numberOfLines={1}>
+                        {index + 1}
+                      </Text>
+                    </View>
                   ))}
                 </View>
-              </ScrollView>
+                {/*
+                  Every item stays on one row (`PdfLineItemRow`'s fixed-width cells,
+                  no wrapping) — this horizontal ScrollView is what keeps the table
+                  readable on a narrow phone instead of squeezing or wrapping
+                  columns: it scrolls sideways for the extra columns a pricing
+                  method with more fields (e.g. Volume) adds, rather than breaking
+                  a line item across multiple visual rows.
+                */}
+                <ScrollView horizontal showsHorizontalScrollIndicator testID="pdf-preview-items-scroll">
+                  <View>
+                    <View style={styles.itemsHeaderRow}>
+                      {columns.map((column) => (
+                        <Text
+                          key={column.key}
+                          style={[
+                            styles.itemsHeaderCell,
+                            column.key === 'itemName' && styles.itemsHeaderCellWide,
+                            column.align === 'right' && styles.itemsHeaderCellRight,
+                          ]}
+                        >
+                          {column.label}
+                        </Text>
+                      ))}
+                    </View>
+                    {data.items.map((item) => (
+                      <PdfLineItemRow
+                        key={item.id}
+                        item={item}
+                        columns={columns}
+                        currency={data.currency}
+                        testID={`pdf-preview-line-${item.id}`}
+                      />
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
             </View>
 
             <InvoiceTotalsSummary totals={data.totals} testID="pdf-preview-totals" />
@@ -493,7 +522,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 2,
   },
-  headerRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  headerRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   logo: { width: 56, height: 56, borderRadius: 8 },
   headerText: { flex: 1, gap: 2 },
   businessName: { fontSize: 16, fontWeight: '700', color: colors.text },
@@ -503,15 +532,28 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 13, color: colors.textMuted },
   summaryValue: { fontSize: 13, color: colors.text, flexShrink: 1, textAlign: 'right' },
   section: { gap: 4, marginTop: 6 },
+  itemsTableRow: { flexDirection: 'row' },
+  itemsRowNumberColumn: { borderRightWidth: 1, borderRightColor: colors.border },
+  itemsRowNumberBody: {
+    width: PDF_ROW_NUMBER_CELL_WIDTH,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    justifyContent: 'center',
+  },
+  itemsRowNumberValue: { fontSize: 13, color: colors.text },
+  itemsRowNumberCell: { width: PDF_ROW_NUMBER_CELL_WIDTH, paddingRight: 8, textAlign: 'center' },
   itemsHeaderRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 6 },
   itemsHeaderCell: {
     width: PDF_ITEM_CELL_WIDTH,
+    paddingLeft: 3,
     paddingRight: 8,
     fontSize: 11,
     fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
   },
+  itemsHeaderCellWide: { width: PDF_ITEM_NAME_CELL_WIDTH },
   itemsHeaderCellRight: { textAlign: 'right' },
   textBlock: { gap: 4, marginTop: 6 },
 

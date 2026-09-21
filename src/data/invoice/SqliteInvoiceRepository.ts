@@ -1,6 +1,6 @@
 import { asc, eq, inArray } from 'drizzle-orm';
 
-import { calculateLineTotal } from '@/domain/invoice/calculations';
+import { calculateLineTotal, toLineCalcInput } from '@/domain/invoice/calculations';
 import { invoiceMatchesFilter, sortInvoices } from '@/domain/invoice/filtering';
 import { assertLinesMatchPricingMethod } from '@/domain/invoice/integrity';
 import {
@@ -11,6 +11,7 @@ import {
   type InvoiceItemInput,
   type InvoiceItemSnapshot,
   type InvoiceUpdateInput,
+  normalizePriceMode,
 } from '@/domain/invoice/types';
 import { normalizeLegacyInvoiceTypeId, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { generateLocalId } from '@/lib/id';
@@ -23,6 +24,7 @@ import type { InvoiceRepository } from './InvoiceRepository';
 type Tx = Parameters<Parameters<ReturnType<typeof getDrizzle>['transaction']>[0]>[0];
 
 function toLineSnapshot(row: typeof invoiceItem.$inferSelect): InvoiceItemSnapshot {
+  const priceMode = normalizePriceMode(row.priceMode);
   return {
     id: row.id,
     itemId: row.itemId,
@@ -39,7 +41,10 @@ function toLineSnapshot(row: typeof invoiceItem.$inferSelect): InvoiceItemSnapsh
     height: row.height,
     lengthUnit: row.lengthUnit,
     timeUnit: row.timeUnit,
+    priceMode,
     unitPrice: row.unitPrice,
+    // A Total Item Price is stored as the line's subtotal — see `invoiceItem.priceMode`.
+    totalPrice: priceMode === 'total' ? row.subtotal : null,
     discountPercent: row.discountPercent,
     taxPercent: row.taxPercent,
     subtotal: row.subtotal,
@@ -240,19 +245,8 @@ function insertLineRows(tx: Tx, invoiceId: string, lines: InvoiceItemInput[], in
   tx.insert(invoiceItem)
     .values(
       lines.map((line, index) => {
-        const calc = calculateLineTotal(
-          {
-            quantity: line.quantity,
-            weight: line.weight,
-            length: line.length,
-            width: line.width,
-            height: line.height,
-            unitPrice: line.unitPrice,
-            discountPercent: line.discountPercent,
-            taxPercent: line.taxPercent,
-          },
-          invoiceTypeId,
-        );
+        const calc = calculateLineTotal(toLineCalcInput(line), invoiceTypeId);
+        const priceMode = normalizePriceMode(line.priceMode);
         return {
           id: generateLocalId('line_'),
           invoiceId,
@@ -271,7 +265,9 @@ function insertLineRows(tx: Tx, invoiceId: string, lines: InvoiceItemInput[], in
           height: line.height,
           lengthUnit: line.lengthUnit,
           timeUnit: line.timeUnit,
-          unitPrice: line.unitPrice,
+          priceMode,
+          // A total-priced line has no unit price — never persist a stale one.
+          unitPrice: priceMode === 'total' ? 0 : line.unitPrice,
           discountPercent: line.discountPercent,
           taxPercent: line.taxPercent,
           subtotal: calc.subtotal,

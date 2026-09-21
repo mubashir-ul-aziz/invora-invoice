@@ -2,6 +2,28 @@ import type { FieldKey } from '@/domain/invoiceType/fieldCatalog';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 
 /**
+ * How one line is priced — chosen per line, independent of the invoice's
+ * (single) Pricing Method:
+ *
+ * - `'unit'`: `calculated quantity × unitPrice` (the original behaviour).
+ * - `'total'`: the user enters the whole price of the line (`totalPrice`) and
+ *   it is used as the line subtotal as-is — never multiplied by the quantity.
+ *
+ * Absent on a line (every record that predates this field) reads as `'unit'`.
+ */
+export type PriceMode = 'unit' | 'total';
+
+export const PRICE_MODE_OPTIONS: { value: PriceMode; label: string }[] = [
+  { value: 'unit', label: 'Unit Price' },
+  { value: 'total', label: 'Total Item Price' },
+];
+
+/** Normalizes a raw persisted value into a valid `PriceMode` — anything unrecognised (or a pre-feature row) is `'unit'`. */
+export function normalizePriceMode(value: string | null | undefined): PriceMode {
+  return value === 'total' ? 'total' : 'unit';
+}
+
+/**
  * A **frozen historical record** of one invoice line, copied from an `Item`
  * (or typed manually) at the moment it was added to the invoice — see the
  * "IMPORTANT SNAPSHOT RULE" in `MVP_BUILD_PLAN.md` §6.2. `itemId` is kept
@@ -51,7 +73,17 @@ export interface InvoiceItemSnapshot {
   lengthUnit?: string | null;
   /** Unit `quantity` is in when it's being used as a duration (`TimeUnit` — minute/hour/day), null unless the TIME method is in use. Optional, same reasoning as `weightUnit`. */
   timeUnit?: string | null;
+  /** Optional, same reasoning as `weightUnit`: absent means `'unit'` (see `PriceMode`). */
+  priceMode?: PriceMode;
+  /** Price per billable unit. Meaningful only when `priceMode` is `'unit'`; always `0` for a `'total'` line. */
   unitPrice: number;
+  /**
+   * The Total Item Price the user entered — set only when `priceMode` is
+   * `'total'`, null otherwise. It is the line's pre-discount/pre-tax amount:
+   * once saved it is persisted as the line's `subtotal` (no separate column),
+   * and read back from there.
+   */
+  totalPrice?: number | null;
   /** Percentage (0–100); null = no discount on this line, or the field isn't in use. */
   discountPercent: number | null;
   /** Percentage (0–100); null = no tax on this line, or the field isn't in use. */
@@ -82,7 +114,9 @@ export const EMPTY_INVOICE_ITEM_INPUT: InvoiceItemInput = {
   height: null,
   lengthUnit: null,
   timeUnit: null,
+  priceMode: 'unit',
   unitPrice: 0,
+  totalPrice: null,
   discountPercent: null,
   taxPercent: null,
 };

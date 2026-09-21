@@ -21,7 +21,7 @@ export type MeasurementKind = 'weight' | 'length' | 'time';
 
 export type WeightUnit = 'kg' | 'g' | 'lb' | 'oz';
 export type LengthUnit = 'm' | 'cm' | 'mm' | 'ft' | 'in' | 'yd';
-export type TimeUnit = 'minute' | 'hour' | 'day';
+export type TimeUnit = 'minute' | 'hour' | 'day' | 'week';
 
 export interface UnitOption<TUnit extends string> {
   value: TUnit;
@@ -48,11 +48,16 @@ export const LENGTH_UNITS: UnitOption<LengthUnit>[] = [
   { value: 'yd', label: 'yd', toBaseFactor: 0.9144 },
 ];
 
-/** Base unit: minute. */
+/**
+ * Base unit: minute. `day` and `week` are business/work units (an 8-hour
+ * workday, a 40-hour workweek) rather than calendar time, matching how
+ * time-based billing (e.g. hourly labor) is normally priced.
+ */
 export const TIME_UNITS: UnitOption<TimeUnit>[] = [
   { value: 'minute', label: 'minute', toBaseFactor: 1 },
-  { value: 'hour', label: 'hour', toBaseFactor: 60 },
-  { value: 'day', label: 'day', toBaseFactor: 1440 },
+  { value: 'hour', label: 'hr', toBaseFactor: 60 },
+  { value: 'day', label: 'day (8 hr)', toBaseFactor: 480 },
+  { value: 'week', label: 'week (40 hr)', toBaseFactor: 2400 },
 ];
 
 export const DEFAULT_WEIGHT_UNIT: WeightUnit = 'kg';

@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { FormField } from '@/components/businessCard/FormField';
+import { PriceModeToggle } from '@/components/shared/PriceModeToggle';
 import { UnitOptionPicker } from '@/components/shared/UnitOptionPicker';
 import { getFieldDefinition } from '@/domain/invoiceType/fieldCatalog';
 import type { UnitFieldKind } from '@/domain/invoiceType/customUnits';
@@ -34,14 +35,6 @@ interface Props {
   lockedInvoiceTypeId?: InvoiceTypeId | null;
 }
 
-/** Matches the Stitch "Create/Edit Item" Category dropdown's fixed option list — DESIGN ONLY, see below. */
-const DESIGN_ONLY_CATEGORY_OPTIONS = [
-  { value: 'materials', label: 'Materials & Supplies' },
-  { value: 'labor', label: 'Labor & Services' },
-  { value: 'rental', label: 'Equipment Rental' },
-  { value: 'hardware', label: 'Hardware' },
-];
-
 /** Matches the Stitch "Tax / VAT Rate" dropdown's fixed tiers — these presets write into the real `taxRate` field (see `TaxRateField`), they aren't decorative. */
 const TAX_RATE_PRESETS = [
   { value: '20', label: 'Standard 20%' },
@@ -62,21 +55,20 @@ const TAX_RATE_PRESETS = [
  * `field-length`, `field-width`, `field-height`, `field-lengthUnit` and must
  * keep working.
  *
- * Which of Weight/Length/Width/Height/their unit dropdowns are shown is
- * driven by the selected Pricing Method (reusing
+ * Which of Billing Unit/Weight/Length/Width/Height/their unit dropdowns are
+ * shown is driven by the selected Pricing Method (reusing
  * `relevantOptionalFieldsForInvoiceType`), and for "Custom" additionally by
- * the business's own custom field selection. The price field's label follows
+ * the business's own custom field selection — e.g. Weight only shows the
+ * Weight-unit dropdown (kg/g/lb/oz), never the generic Billing Unit one, and
+ * vice versa for General/Quantity/Service. The price field's label follows
  * the method too (e.g. "Price per weight unit" for Weight) via
  * `getFieldLabel`, instead of a single generic "Default price" that doesn't
  * say what it's a price *of*.
  *
- * Two Stitch elements have no backing field on `Item`/the `item` table and
- * are DESIGN ONLY (rendered, interactive where harmless, never submitted):
- * - The Category dropdown (Materials/Labor/Rental/Hardware) — `Item` has no
- *   category column; this app's real categorization axis is Pricing Method
- *   (`invoiceTypeId`), which is a real, fully-wired field below instead.
- * - The barcode-scan button next to SKU — no camera/barcode-scanning
- *   integration exists. The SKU text field itself is real and submitted.
+ * The barcode-scan button next to SKU has no backing field on `Item`/the
+ * `item` table and is DESIGN ONLY (rendered, interactive where harmless,
+ * never submitted) — no camera/barcode-scanning integration exists. The SKU
+ * text field itself is real and submitted.
  *
  * The Tax/VAT preset chips are NOT design-only — they're a convenience that
  * writes straight into the real `taxRate` field (same one the freeform input
@@ -85,8 +77,8 @@ const TAX_RATE_PRESETS = [
  */
 export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) {
   const invoiceTypeId = useWatch({ control, name: 'invoiceTypeId' });
+  const priceMode = useWatch({ control, name: 'priceMode' });
   const { selection, load: loadInvoiceType } = useInvoiceTypeStore();
-  const [designOnlyCategory, setDesignOnlyCategory] = useState('materials');
   const [scannedSku, setScannedSku] = useState(false);
 
   useEffect(() => {
@@ -98,6 +90,18 @@ export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) 
     invoiceTypeId,
     invoiceTypeId === 'custom' ? selection?.customFieldKeys : undefined,
   );
+  const showUnit = relevantFields.includes('unit');
+
+  // Clears a stale generic unit (e.g. "kg" left over from Weight) the moment
+  // the Billing Unit field stops being relevant for the newly-picked Pricing
+  // Method, so it can never be silently saved against the wrong method.
+  const { field: unitField } = useController({ control, name: 'unit' });
+  useEffect(() => {
+    if (!showUnit && unitField.value) {
+      unitField.onChange('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showUnit]);
 
   const hasMeasurementFields =
     relevantFields.includes('weight') ||
@@ -124,22 +128,23 @@ export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>SKU / Barcode</Text>
           <View style={styles.skuRow}>
-            <Controller
-              control={control}
-              name="sku"
-              render={({ field: { value, onChange, onBlur } }) => (
-                <FormField
-                  value={typeof value === 'string' ? value : ''}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="e.g. WOD-8821"
-                  error={errors.sku?.message}
-                  testID="field-sku"
-                  style={styles.skuInput}
-                  label=""
-                />
-              )}
-            />
+            <View style={styles.skuInputWrapper}>
+              <Controller
+                control={control}
+                name="sku"
+                render={({ field: { value, onChange, onBlur } }) => (
+                  <FormField
+                    value={typeof value === 'string' ? value : ''}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    placeholder="e.g. WOD-8821"
+                    error={errors.sku?.message}
+                    testID="field-sku"
+                    label=""
+                  />
+                )}
+              />
+            </View>
             {/* DESIGN ONLY: no camera/barcode-scanning integration exists — this button is decorative, the SKU field itself is real and submitted. */}
             <Pressable
               accessibilityRole="button"
@@ -152,17 +157,6 @@ export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) 
             </Pressable>
           </View>
           {scannedSku && <Text style={styles.designOnlyInline}>DESIGN ONLY — scanning is not connected to a camera</Text>}
-        </View>
-
-        {/* DESIGN ONLY: `Item` has no category column — this app's real categorization axis is Pricing Method, below. */}
-        <View accessibilityLabel="Category — DESIGN ONLY, no such field exists on Item">
-          <OptionPicker
-            label="Category · DESIGN ONLY"
-            options={DESIGN_ONLY_CATEGORY_OPTIONS}
-            value={designOnlyCategory}
-            onChange={setDesignOnlyCategory}
-            testID="field-category-design-only"
-          />
         </View>
       </View>
 
@@ -177,14 +171,23 @@ export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) 
           </View>
         </View>
 
+        <Controller
+          control={control}
+          name="priceMode"
+          render={({ field: { value, onChange } }) => (
+            <PriceModeToggle value={value === 'total' ? 'total' : 'unit'} onChange={onChange} testID="field-priceMode" />
+          )}
+        />
+
+        {/* One price field for both modes (`defaultPrice`) — only its label changes, so the same testID/validation/column serve either. */}
         <PriceField
           name="defaultPrice"
-          label={`${getFieldLabel(invoiceTypeId, 'unitPrice')} *`}
+          label={priceMode === 'total' ? 'Total Item Price *' : `${getFieldLabel(invoiceTypeId, 'unitPrice')} *`}
           control={control}
           errors={errors}
         />
 
-        <SelectField name="unit" fieldKey="unit" control={control} />
+        {showUnit && <SelectField name="unit" fieldKey="unit" control={control} />}
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Tax / VAT Rate</Text>
@@ -357,17 +360,19 @@ function PriceField({
           <Text style={styles.label}>{label}</Text>
           <View style={styles.priceRow}>
             <Text style={styles.priceCurrency}>{currencySymbol}</Text>
-            <FormField
-              label=""
-              value={typeof value === 'string' ? value : String(value ?? '')}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              keyboardType="decimal-pad"
-              error={errors[name]?.message}
-              testID={`field-${name}`}
-              style={styles.priceInput}
-            />
+            <View style={styles.priceInputWrapper}>
+              <FormField
+                label=""
+                value={typeof value === 'string' ? value : String(value ?? '')}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                error={errors[name]?.message}
+                testID={`field-${name}`}
+                style={styles.priceInput}
+              />
+            </View>
           </View>
         </View>
       )}
@@ -474,7 +479,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
 
   skuRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  skuInput: { flex: 1 },
+  skuInputWrapper: { flex: 1 },
   scanButton: {
     width: 44,
     height: 44,
@@ -487,7 +492,8 @@ const styles = StyleSheet.create({
 
   priceRow: { flexDirection: 'row', alignItems: 'center' },
   priceCurrency: { position: 'absolute', left: 12, zIndex: 1, fontSize: 18, fontWeight: '700', color: colors.primary },
-  priceInput: { flex: 1, paddingLeft: 26, fontSize: 18, fontWeight: '700' },
+  priceInputWrapper: { flex: 1 },
+  priceInput: { paddingLeft: 26, fontSize: 18, fontWeight: '700' },
 
   taxPresetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   taxChip: {

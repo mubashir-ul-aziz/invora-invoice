@@ -51,7 +51,10 @@ export function invoiceLineFromItem(item: Item, fieldConfig: InvoiceFieldConfig)
     height: has(fieldConfig, 'height') ? item.height : null,
     lengthUnit: has(fieldConfig, 'lengthUnit') ? (item.lengthUnit ?? defaultUnitFor(fieldConfig, 'lengthUnit')) : null,
     timeUnit: has(fieldConfig, 'timeUnit') ? defaultUnitFor(fieldConfig, 'timeUnit') : null,
-    unitPrice: item.defaultPrice,
+    // The item's price follows its own mode: a per-unit price prefills Unit Price, a whole-item price prefills Total Item Price. Either can still be switched while editing the line.
+    priceMode: item.priceMode === 'total' ? 'total' : 'unit',
+    unitPrice: item.priceMode === 'total' ? 0 : item.defaultPrice,
+    totalPrice: item.priceMode === 'total' ? item.defaultPrice : null,
     discountPercent: has(fieldConfig, 'discount') ? 0 : null,
     taxPercent: has(fieldConfig, 'tax') ? item.taxRate : null,
   };

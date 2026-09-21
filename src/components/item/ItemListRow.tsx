@@ -67,10 +67,16 @@ export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) 
           {detailParts.join(' · ')}
         </Text>
         <View style={styles.badgeRow}>
-          {!!item.unit && (
+          {item.priceMode === 'total' ? (
             <View style={styles.unitBadge}>
-              <Text style={styles.unitBadgeText}>per {item.unit}</Text>
+              <Text style={styles.unitBadgeText}>Total price</Text>
             </View>
+          ) : (
+            !!item.unit && (
+              <View style={styles.unitBadge}>
+                <Text style={styles.unitBadgeText}>per {item.unit}</Text>
+              </View>
+            )
           )}
           <Text style={styles.taxText}>{item.taxRate != null ? `Tax: ${item.taxRate}%` : 'No tax set'}</Text>
         </View>

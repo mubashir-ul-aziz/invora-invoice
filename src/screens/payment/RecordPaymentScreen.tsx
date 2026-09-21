@@ -33,9 +33,9 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
  * invoice's own real payment rows. The amount field itself always starts
  * blank (see `paymentToFormDefaults`) rather than prefilled with the
  * remaining balance, so the payer has to type the actual amount instead of
- * accidentally submitting the full balance — and it's **not** capped at that
- * balance either way, since overpayment is allowed rather than blocked (see
- * `domain/payment/validation.ts`).
+ * accidentally submitting the full balance — and it's capped at that balance
+ * (`summary.remaining`), both as the field's own input guard and as the
+ * form schema's backstop (see `domain/payment/validation.ts`).
  *
  * Restyled to match the Stitch "Record Payment" design: a Linked Invoice
  * card (real status badge + total/outstanding, from the same `detail`/
@@ -150,7 +150,7 @@ function RecordPaymentForm({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<PaymentFormValues, unknown, PaymentFormOutput>({
-    resolver: zodResolver(paymentFormSchemaWithMinDate(detail.invoice.issueDate)),
+    resolver: zodResolver(paymentFormSchemaWithMinDate(detail.invoice.issueDate, summary.remaining)),
     defaultValues: paymentToFormDefaults(null),
   });
 
@@ -232,6 +232,7 @@ function RecordPaymentForm({
           minPaymentDate={detail.invoice.issueDate}
           onFullPay={handleFullPay}
           onHalfPay={handleHalfPay}
+          maxAmount={summary.remaining}
         />
 
         {/* DESIGN ONLY: recording a payment never sends an email — no receipt-on-save capability exists. */}

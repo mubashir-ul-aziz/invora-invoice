@@ -80,6 +80,6 @@ describe('itemFormSchema', () => {
 
 describe('itemToFormDefaults', () => {
   it('defaults to the empty-item shape when no item exists yet', () => {
-    expect(itemToFormDefaults(null)).toEqual({ ...validValues(), name: '', defaultPrice: '0' });
+    expect(itemToFormDefaults(null)).toEqual({ ...validValues(), name: '', defaultPrice: '0', priceMode: 'unit' });
   });
 });

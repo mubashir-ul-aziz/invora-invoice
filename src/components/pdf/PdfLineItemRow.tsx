@@ -15,6 +15,12 @@ interface Props {
 /** Fixed width for every item-table cell (header and body alike), so columns always line up and a row never needs to wrap. */
 export const PDF_ITEM_CELL_WIDTH = 110;
 
+/** Item Name is the column readers scan first, so it gets 70% more width than every other fixed-width column. */
+export const PDF_ITEM_NAME_CELL_WIDTH = PDF_ITEM_CELL_WIDTH * 1.7;
+
+/** Fixed width of the sticky row-number column shown to the left of the scrollable columns. */
+export const PDF_ROW_NUMBER_CELL_WIDTH = 32;
+
 /**
  * One line of the in-app PDF preview's item table — renders exactly the
  * columns `getPdfItemColumns()` resolved for this invoice's field config
@@ -30,7 +36,10 @@ export function PdfLineItemRow({ item, columns, currency, testID }: Props) {
   return (
     <View style={styles.row} testID={testID}>
       {columns.map((column) => (
-        <View key={column.key} style={styles.cell}>
+        <View
+          key={column.key}
+          style={[styles.cell, column.key === 'itemName' && styles.cellWide]}
+        >
           <Text
             style={[styles.cellValue, column.align === 'right' && styles.cellValueRight]}
             numberOfLines={1}
@@ -51,7 +60,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  cell: { width: PDF_ITEM_CELL_WIDTH, paddingRight: 8, justifyContent: 'center' },
+  cell: { width: PDF_ITEM_CELL_WIDTH, paddingLeft: 3, paddingRight: 8, justifyContent: 'center' },
+  cellWide: { width: PDF_ITEM_NAME_CELL_WIDTH },
   cellValue: { fontSize: 13, color: colors.text },
   cellValueRight: { textAlign: 'right' },
 });

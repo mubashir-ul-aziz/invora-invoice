@@ -3,11 +3,13 @@ import React from 'react';
 import { Controller, useController, useWatch, type Control } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { OptionPicker } from '@/components/business/OptionPicker';
+import { DropdownPicker } from '@/components/business/DropdownPicker';
 import { FormField } from '@/components/businessCard/FormField';
+import { PriceModeToggle } from '@/components/shared/PriceModeToggle';
 import { UnitOptionPicker } from '@/components/shared/UnitOptionPicker';
 import { calculateLineTotal } from '@/domain/invoice/calculations';
 import type { InvoiceLineFormOutput, InvoiceLineFormValues } from '@/domain/invoice/validation';
+import { describeCalculatedQuantity } from '@/domain/invoiceType/calculators';
 import type { UnitFieldKind } from '@/domain/invoiceType/customUnits';
 import { getFieldDefinition } from '@/domain/invoiceType/fieldCatalog';
 import { PRICING_METHOD_OPTIONS, getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
@@ -55,6 +57,12 @@ const DISCOUNT_PRESETS = ['0', '5', '10'];
  * on `field-itemName`, `field-quantity`, `field-weight`, `field-length`,
  * `field-unitPrice`, etc. directly.
  *
+ * The Pricing card also carries a per-line Unit Price / Total Item Price
+ * toggle (`priceMode`, independent of the invoice's single Pricing Method):
+ * Unit Price shows `field-unitPrice` (quantity × price); Total Item Price
+ * swaps it for `field-totalPrice`, used as the line subtotal as-is. The
+ * measurement fields stay visible in both modes.
+ *
  * New real addition: a "Line Total Preview" card computed live via
  * `calculateLineTotal` (the same function `CreateInvoiceItemsScreen`/
  * `InvoiceReviewScreen` use to freeze the real snapshot at save time) — this
@@ -76,13 +84,14 @@ export function InvoiceLineFormFields({
   const label = (key: Parameters<typeof getFieldLabel>[1]) => getFieldLabel(fieldConfig.invoiceTypeId, key);
   const hasDimensions = has('weight') || has('length') || has('width') || has('height');
   const currencySymbol = useCurrencySymbol();
+  const priceMode = useWatch({ control, name: 'priceMode' });
 
   return (
     <>
       {/* Pricing Method */}
       <View style={styles.card}>
         {pricingMethodEditable && onPricingMethodChange ? (
-          <OptionPicker
+          <DropdownPicker
             label="Pricing Method"
             options={PRICING_METHOD_OPTIONS}
             value={fieldConfig.invoiceTypeId}
@@ -126,7 +135,12 @@ export function InvoiceLineFormFields({
           <Feather name="dollar-sign" size={16} color={colors.primary} />
           <Text style={styles.cardTitle}>Pricing</Text>
         </View>
-        <PriceField name="unitPrice" label={`${label('unitPrice')} *`} control={control} errors={errors} />
+        <PriceModeField control={control} />
+        {priceMode === 'total' ? (
+          <PriceField name="totalPrice" label="Total Item Price *" control={control} errors={errors} />
+        ) : (
+          <PriceField name="unitPrice" label={`${label('unitPrice')} *`} control={control} errors={errors} />
+        )}
         {has('tax') && (
           <Field name="taxPercent" label={`${label('tax')} (%)`} control={control} errors={errors} keyboardType="decimal-pad" />
         )}
@@ -198,19 +212,32 @@ function LineTotalPreview({ control, fieldConfig }: { control: InvoiceLineFormCo
     return Number.isFinite(n) ? n : null;
   };
 
+  const isTotalMode = values.priceMode === 'total';
+  const measurements = {
+    quantity: toNum(values.quantity),
+    weight: toNum(values.weight),
+    length: toNum(values.length),
+    width: toNum(values.width),
+    height: toNum(values.height),
+  };
   const calc = calculateLineTotal(
     {
-      quantity: toNum(values.quantity),
-      weight: toNum(values.weight),
-      length: toNum(values.length),
-      width: toNum(values.width),
-      height: toNum(values.height),
+      ...measurements,
+      priceMode: isTotalMode ? 'total' : 'unit',
       unitPrice: toNum(values.unitPrice) ?? 0,
+      totalPrice: toNum(values.totalPrice),
       discountPercent: toNum(values.discountPercent),
       taxPercent: toNum(values.taxPercent),
     },
     fieldConfig.invoiceTypeId,
   );
+  const quantityText = describeCalculatedQuantity(fieldConfig.invoiceTypeId, {
+    ...measurements,
+    unit: values.unit ?? null,
+    weightUnit: values.weightUnit ?? null,
+    lengthUnit: values.lengthUnit ?? null,
+    timeUnit: values.timeUnit ?? null,
+  });
 
   return (
     <View style={styles.previewCard} testID="invoice-line-total-preview">
@@ -220,6 +247,21 @@ function LineTotalPreview({ control, fieldConfig }: { control: InvoiceLineFormCo
           <Text style={styles.previewTitle}>Line Total Preview</Text>
         </View>
       </View>
+      <View style={styles.previewRow}>
+        <Text style={styles.previewRowLabel}>Quantity</Text>
+        <Text style={styles.previewRowValue} testID="invoice-line-preview-quantity">{quantityText}</Text>
+      </View>
+      {isTotalMode ? (
+        <View style={styles.previewRow}>
+          <Text style={styles.previewRowLabel}>Total Item Price (not multiplied by quantity)</Text>
+          <Text style={styles.previewRowValue} testID="invoice-line-preview-subtotal">{currencySymbol}{calc.subtotal.toFixed(2)}</Text>
+        </View>
+      ) : (
+        <View style={styles.previewRow}>
+          <Text style={styles.previewRowLabel}>{`× ${currencySymbol}${(toNum(values.unitPrice) ?? 0).toFixed(2)} unit price`}</Text>
+          <Text style={styles.previewRowValue} testID="invoice-line-preview-subtotal">{currencySymbol}{calc.subtotal.toFixed(2)}</Text>
+        </View>
+      )}
       {calc.discountAmount > 0 && (
         <View style={styles.previewRow}>
           <Text style={styles.previewRowLabel}>Discount</Text>
@@ -235,6 +277,12 @@ function LineTotalPreview({ control, fieldConfig }: { control: InvoiceLineFormCo
       </View>
     </View>
   );
+}
+
+/** Per-line Unit Price / Total Item Price switch — writes the real `priceMode` form field. Both prices stay in form state, so toggling never loses what was typed. */
+function PriceModeField({ control }: { control: InvoiceLineFormControl }) {
+  const { field } = useController({ control, name: 'priceMode' });
+  return <PriceModeToggle value={field.value === 'total' ? 'total' : 'unit'} onChange={field.onChange} testID="field-priceMode" />;
 }
 
 /** One Discount preset chip — writes its value straight into the real `discountPercent` field on press. */

@@ -1,10 +1,10 @@
 import { relevantOptionalFieldsForInvoiceType } from '../relevantFields';
 
 describe('relevantOptionalFieldsForInvoiceType', () => {
-  it('shows no physical fields for general/quantity/service', () => {
-    expect(relevantOptionalFieldsForInvoiceType('general')).toEqual([]);
-    expect(relevantOptionalFieldsForInvoiceType('quantity')).toEqual([]);
-    expect(relevantOptionalFieldsForInvoiceType('service')).toEqual([]);
+  it('shows only the generic unit field for general/quantity/service', () => {
+    expect(relevantOptionalFieldsForInvoiceType('general')).toEqual(['unit']);
+    expect(relevantOptionalFieldsForInvoiceType('quantity')).toEqual(['unit']);
+    expect(relevantOptionalFieldsForInvoiceType('service')).toEqual(['unit']);
   });
 
   it('shows weight + weightUnit for the weight method', () => {
@@ -34,6 +34,7 @@ describe('relevantOptionalFieldsForInvoiceType', () => {
 
   it('shows every physical field for custom when no selection is known yet', () => {
     expect(relevantOptionalFieldsForInvoiceType('custom')).toEqual([
+      'unit',
       'weight',
       'weightUnit',
       'length',
@@ -49,5 +50,8 @@ describe('relevantOptionalFieldsForInvoiceType', () => {
       'weight',
     ]);
     expect(relevantOptionalFieldsForInvoiceType('custom', ['itemName', 'unitPrice'])).toEqual([]);
+    expect(relevantOptionalFieldsForInvoiceType('custom', ['itemName', 'unit', 'tax'])).toEqual([
+      'unit',
+    ]);
   });
 });

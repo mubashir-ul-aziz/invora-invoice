@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import type { InvoiceTemplate } from '@/domain/business/types';
 import { colors } from '@/theme/colors';
@@ -66,25 +66,61 @@ export function TemplateCard({ template, label, description, selected, onPress, 
   );
 }
 
-/** Decorative but accurate mini preview — mirrors each template's real look in `renderInvoiceHtml.ts`. Exported so other screens picking a template (e.g. Invoice PDF Preview's own template grid) reuse the same swatch instead of redrawing it. */
+const COMPACT_ACCENT = '#3F465C';
+
+/** A skeleton "line/bar" placeholder — the wireframe building block every template swatch below is made of. */
+function Bar({
+  width,
+  height = 3,
+  color = colors.placeholder,
+  opacity = 1,
+  style,
+}: {
+  width: number | `${number}%`;
+  height?: number;
+  color?: string;
+  opacity?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return <View style={[{ width, height, borderRadius: height / 2, backgroundColor: color, opacity }, style]} />;
+}
+
+function Divider({ opacity = 0.7 }: { opacity?: number }) {
+  return <View style={[styles.previewDivider, { opacity }]} />;
+}
+
+/**
+ * Decorative mini preview — a scale-independent wireframe (skeleton bars, not
+ * literal rendered text) so it stays legible both in the small 3-up template
+ * picker grid (Invoice PDF Preview) and the larger single-column list
+ * (Invoice Templates). Matches the Stitch design's own skeleton-bar swatch —
+ * real business-name/line-item text at these sizes overflowed and wrapped.
+ * Exported so other screens picking a template reuse the same swatch instead
+ * of redrawing it.
+ */
 export function TemplatePreview({ template }: { template: InvoiceTemplate }) {
   if (template === 'classic') {
     return (
       <View style={styles.previewFrame}>
-        <View style={styles.previewSheetClassic}>
-          <View style={styles.previewClassicHeaderRow}>
-            <Text style={styles.previewClassicBusiness}>YOUR BUSINESS</Text>
-            <Text style={styles.previewClassicMeta}>INVOICE #0001</Text>
-          </View>
-          <View style={styles.previewDivider} />
+        <View style={styles.previewGroup}>
+          <Bar width="55%" height={5} />
+          <Bar width="75%" height={3} opacity={0.6} style={styles.previewGapSm} />
+        </View>
+        <View style={styles.previewGroup}>
+          <Divider />
           <View style={styles.previewRow}>
-            <Text style={styles.previewClassicItem}>Line item</Text>
-            <Text style={styles.previewClassicItem}>120.00</Text>
+            <Bar width="40%" height={3} />
+            <Bar width="18%" height={3} />
           </View>
+          <Divider opacity={0.35} />
           <View style={styles.previewRow}>
-            <Text style={styles.previewClassicItem}>Line item</Text>
-            <Text style={styles.previewClassicItem}>80.00</Text>
+            <Bar width="32%" height={3} />
+            <Bar width="18%" height={3} />
           </View>
+          <Divider />
+        </View>
+        <View style={styles.previewRowEnd}>
+          <Bar width="32%" height={5} />
         </View>
       </View>
     );
@@ -92,31 +128,44 @@ export function TemplatePreview({ template }: { template: InvoiceTemplate }) {
   if (template === 'modern') {
     return (
       <View style={styles.previewFrame}>
-        <View style={styles.previewSheetModern}>
-          <View style={styles.previewModernBand}>
-            <Text style={styles.previewModernBandText}>YOUR BUSINESS</Text>
-          </View>
-          <View style={styles.previewRow}>
-            <Text style={styles.previewModernItem}>Line item</Text>
-            <Text style={styles.previewModernAmount}>120.00</Text>
+        <View style={styles.previewRow}>
+          <Bar width={7} height={7} color={colors.primary} style={styles.previewSquare} />
+          <Bar width="40%" height={5} color={colors.primary} />
+        </View>
+        <View style={styles.previewGroup}>
+          <Bar width="100%" height={7} color={colors.surface} />
+          <View style={styles.previewGapSm}>
+            <Bar width="100%" height={3} opacity={0.5} />
+            <Bar width="85%" height={3} opacity={0.4} style={styles.previewGapXs} />
           </View>
           <View style={styles.previewModernTotalRow}>
-            <Text style={styles.previewModernTotalLabel}>Total</Text>
-            <Text style={styles.previewModernTotalValue}>200.00</Text>
+            <Bar width="25%" height={3} color={colors.primary} />
+            <Bar width="30%" height={5} color={colors.primary} />
           </View>
+        </View>
+        <View style={styles.previewRow}>
+          <Bar width={6} height={6} color={colors.border} style={styles.previewSquare} />
+          <Bar width="50%" height={3} opacity={0.6} />
         </View>
       </View>
     );
   }
   return (
     <View style={styles.previewFrame}>
-      <View style={styles.previewSheetCompact}>
-        {['01', '02', '03', '04'].map((n) => (
-          <View key={n} style={styles.previewCompactRow}>
-            <Text style={styles.previewCompactItem}>{n}. Line item</Text>
-            <Text style={styles.previewCompactItem}>40.00</Text>
-          </View>
+      <View style={styles.previewRow}>
+        <Bar width="33%" height={3} color={COMPACT_ACCENT} />
+        <Bar width="25%" height={3} color={COMPACT_ACCENT} />
+      </View>
+      <View style={styles.previewGroup}>
+        <Divider />
+        {[0, 1, 2, 3].map((n) => (
+          <Bar key={n} width="100%" height={3} opacity={0.55} style={n > 0 ? styles.previewGapXs : undefined} />
         ))}
+        <Divider />
+      </View>
+      <View style={styles.previewRow}>
+        <Bar width="25%" height={3} color={COMPACT_ACCENT} />
+        <Bar width="30%" height={5} color={COMPACT_ACCENT} />
       </View>
     </View>
   );
@@ -155,40 +204,29 @@ const styles = StyleSheet.create({
   activeText: { fontSize: 10, fontWeight: '700', color: colors.primary, letterSpacing: 0.4 },
   description: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
 
-  previewFrame: { backgroundColor: colors.background, borderRadius: 10, padding: 10 },
-
-  previewSheetClassic: { backgroundColor: colors.surface, borderRadius: 6, padding: 10, gap: 6 },
-  previewClassicHeaderRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  previewClassicBusiness: { fontSize: 9, fontWeight: '700', color: colors.text, letterSpacing: 0.5 },
-  previewClassicMeta: { fontSize: 8, color: colors.textMuted },
+  previewFrame: {
+    aspectRatio: 0.78,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: '9%',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+  previewGroup: { gap: 4 },
+  previewGapSm: { marginTop: 4 },
+  previewGapXs: { marginTop: 2 },
+  previewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  previewRowEnd: { flexDirection: 'row', justifyContent: 'flex-end' },
+  previewSquare: { borderRadius: 2 },
   previewDivider: { height: 1, backgroundColor: colors.border },
-  previewRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  previewClassicItem: { fontSize: 8, color: colors.text },
-
-  previewSheetModern: { backgroundColor: colors.surface, borderRadius: 6, padding: 8, gap: 6, overflow: 'hidden' },
-  previewModernBand: { backgroundColor: colors.primary, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 5 },
-  previewModernBandText: { fontSize: 8, fontWeight: '700', color: colors.primaryText, letterSpacing: 0.3 },
-  previewModernItem: { fontSize: 8, color: colors.text },
-  previewModernAmount: { fontSize: 8, fontWeight: '700', color: colors.primary },
   previewModernTotalRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.background,
+    backgroundColor: '#DCE9FF',
     borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    marginTop: 4,
   },
-  previewModernTotalLabel: { fontSize: 8, fontWeight: '600', color: colors.text },
-  previewModernTotalValue: { fontSize: 8, fontWeight: '700', color: colors.primary },
-
-  previewSheetCompact: { backgroundColor: colors.surface, borderRadius: 6, padding: 8, gap: 2 },
-  previewCompactRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.background,
-    borderRadius: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  previewCompactItem: { fontSize: 7, color: colors.text },
 });

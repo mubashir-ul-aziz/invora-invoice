@@ -11,7 +11,7 @@ import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { formatNextInvoiceNumber } from '@/domain/business/types';
-import { calculateInvoiceTotals, calculateLineTotal } from '@/domain/invoice/calculations';
+import { calculateInvoiceTotals, calculateLineTotal, toLineCalcInput } from '@/domain/invoice/calculations';
 import { formValuesToInvoiceDetails, invoiceToDetailsFormDefaults } from '@/domain/invoice/formMapping';
 import {
   invoiceDetailsFormSchema,
@@ -84,19 +84,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
     defaultValues: invoiceToDetailsFormDefaults(draft),
   });
 
-  const totals = calculateInvoiceTotals(
-    draft.items.map((line) => ({
-      quantity: line.quantity,
-      weight: line.weight,
-      length: line.length,
-      width: line.width,
-      height: line.height,
-      unitPrice: line.unitPrice,
-      discountPercent: line.discountPercent,
-      taxPercent: line.taxPercent,
-    })),
-    draft.invoiceTypeId,
-  );
+  const totals = calculateInvoiceTotals(draft.items.map(toLineCalcInput), draft.invoiceTypeId);
 
   const invoiceNumberLabel =
     draft.mode === 'edit'
@@ -243,19 +231,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
         </View>
         <View style={styles.itemsList}>
           {draft.items.map((line, index) => {
-            const calc = calculateLineTotal(
-              {
-                quantity: line.quantity,
-                weight: line.weight,
-                length: line.length,
-                width: line.width,
-                height: line.height,
-                unitPrice: line.unitPrice,
-                discountPercent: line.discountPercent,
-                taxPercent: line.taxPercent,
-              },
-              draft.invoiceTypeId,
-            );
+            const calc = calculateLineTotal(toLineCalcInput(line), draft.invoiceTypeId);
             return (
               <InvoiceLineRow
                 key={index}
@@ -263,6 +239,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
                 quantity={line.quantity}
                 unit={line.unit}
                 measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
+                priceMode={line.priceMode}
                 unitPrice={line.unitPrice}
                 lineTotal={calc.lineTotal}
                 testID={`review-line-${index}`}

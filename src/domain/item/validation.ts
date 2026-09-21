@@ -45,6 +45,12 @@ const baseItemFormSchema = z.object({
   description: optionalTrimmed(),
   sku: optionalTrimmed(),
   unit: optionalTrimmed(),
+  /** Absent reads as `'unit'`, so forms/tests that predate the toggle validate as before. */
+  priceMode: z
+    .enum(['unit', 'total'])
+    .optional()
+    .transform((value) => value ?? 'unit'),
+  // Per-unit price or whole-item price, depending on `priceMode` — the label changes, the rule doesn't.
   defaultPrice: requiredDecimalField('price'),
   taxRate: optionalPercentField,
   weight: optionalDecimalField('weight'),

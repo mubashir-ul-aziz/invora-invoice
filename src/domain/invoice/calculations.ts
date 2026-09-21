@@ -1,6 +1,8 @@
 import { derivePricingQuantity } from '@/domain/invoiceType/calculators';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 
+import type { InvoiceItemInput, PriceMode } from './types';
+
 /**
  * The **only** place invoice line/total arithmetic is implemented. Per the
  * brief ("business calculations must not live inside UI components"), every
@@ -30,7 +32,11 @@ export interface LineCalcInput {
   length?: number | null;
   width?: number | null;
   height?: number | null;
+  /** Absent means `'unit'` — every caller that predates the Total Item Price feature keeps quantity × price. */
+  priceMode?: PriceMode;
   unitPrice: number;
+  /** The whole-line price. Only read when `priceMode` is `'total'`; used as the subtotal as-is, never multiplied by the quantity. */
+  totalPrice?: number | null;
   /** Percentage (0–100); null = no discount. */
   discountPercent: number | null;
   /** Percentage (0–100); null = no tax. */
@@ -77,6 +83,12 @@ function round2(value: number): number {
  * `pricingMethodId` defaults to `'general'` (plain quantity × price) so
  * existing call sites that don't yet know the method keep their prior
  * behavior unchanged.
+ *
+ * Each line independently picks a price mode. `'unit'` (the default) is the
+ * formula above; `'total'` takes the entered Total Item Price as the
+ * subtotal directly — the calculated quantity is still derived (so it can be
+ * shown) but is deliberately **not** part of the subtotal. Discount and tax
+ * apply on top of either.
  */
 export function calculateLineTotal(
   input: LineCalcInput,
@@ -89,12 +101,41 @@ export function calculateLineTotal(
     width: input.width ?? null,
     height: input.height ?? null,
   });
-  const subtotal = round2(calculatedQuantity * input.unitPrice);
+  const subtotal =
+    input.priceMode === 'total' ? round2(input.totalPrice ?? 0) : round2(calculatedQuantity * input.unitPrice);
   const discountAmount = round2(subtotal * ((input.discountPercent ?? 0) / 100));
   const taxableAmount = subtotal - discountAmount;
   const taxAmount = round2(taxableAmount * ((input.taxPercent ?? 0) / 100));
   const lineTotal = round2(taxableAmount + taxAmount);
   return { calculatedQuantity, subtotal, discountAmount, taxAmount, lineTotal };
+}
+
+/**
+ * A line's editable fields -> `calculateLineTotal`'s input. Every call site
+ * that prices a line (repositories, Create Items, Review, the line editor's
+ * live preview) goes through this instead of hand-copying the field list, so
+ * a pricing field can never be forgotten at one of them — which, for
+ * `priceMode`/`totalPrice`, would silently multiply a Total Item Price by the
+ * quantity.
+ */
+export function toLineCalcInput(
+  line: Pick<
+    InvoiceItemInput,
+    'quantity' | 'weight' | 'length' | 'width' | 'height' | 'priceMode' | 'unitPrice' | 'totalPrice' | 'discountPercent' | 'taxPercent'
+  >,
+): LineCalcInput {
+  return {
+    quantity: line.quantity,
+    weight: line.weight,
+    length: line.length,
+    width: line.width,
+    height: line.height,
+    priceMode: line.priceMode,
+    unitPrice: line.unitPrice,
+    totalPrice: line.totalPrice,
+    discountPercent: line.discountPercent,
+    taxPercent: line.taxPercent,
+  };
 }
 
 /** Sums any list of already-computed line results — never recomputes them. See the module doc comment above. */

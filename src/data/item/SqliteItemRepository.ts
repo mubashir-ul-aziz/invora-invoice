@@ -1,5 +1,6 @@
 import { and, eq, like, or } from 'drizzle-orm';
 
+import { normalizePriceMode } from '@/domain/invoice/types';
 import { normalizeLegacyInvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { EMPTY_ITEM_FILTER, type Item, type ItemFilter, type ItemInput } from '@/domain/item/types';
 import { generateLocalId } from '@/lib/id';
@@ -16,6 +17,7 @@ function toItem(row: typeof item.$inferSelect): Item {
     sku: row.sku,
     unit: row.unit,
     defaultPrice: row.defaultPrice,
+    priceMode: normalizePriceMode(row.priceMode),
     taxRate: row.taxRate,
     weight: row.weight,
     weightUnit: row.weightUnit,
@@ -83,6 +85,7 @@ export class SqliteItemRepository implements ItemRepository {
       sku: input.sku,
       unit: input.unit,
       defaultPrice: input.defaultPrice,
+      priceMode: normalizePriceMode(input.priceMode),
       taxRate: input.taxRate,
       weight: input.weight,
       weightUnit: input.weightUnit,
@@ -116,6 +119,7 @@ export class SqliteItemRepository implements ItemRepository {
         sku: input.sku,
         unit: input.unit,
         defaultPrice: input.defaultPrice,
+        priceMode: normalizePriceMode(input.priceMode),
         taxRate: input.taxRate,
         weight: input.weight,
         weightUnit: input.weightUnit,

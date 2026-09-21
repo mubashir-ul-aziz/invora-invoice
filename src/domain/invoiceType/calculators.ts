@@ -44,6 +44,44 @@ export function describeLineMeasurement(
 }
 
 /**
+ * The billable quantity a line resolves to, with its unit — e.g. "200 ft²"
+ * for AREA (length × width), "25 kg" for WEIGHT, "8 hour" for TIME. Shown
+ * beside the price so the calculation is visible in both price modes; in
+ * Total Item Price mode it is display-only (never part of the line total).
+ */
+export function describeCalculatedQuantity(
+  pricingMethodId: InvoiceTypeId,
+  measurements: PricingMeasurements & { unit?: string | null; weightUnit?: string | null; lengthUnit?: string | null; timeUnit?: string | null },
+): string {
+  const { calculationKind } = getInvoiceTypeDefinition(pricingMethodId);
+  const quantity = derivePricingQuantity(pricingMethodId, measurements);
+  const lengthUnit = measurements.lengthUnit ?? '';
+  let suffix: string;
+  switch (calculationKind) {
+    case 'weight':
+      suffix = measurements.weightUnit ?? '';
+      break;
+    case 'length':
+      suffix = lengthUnit;
+      break;
+    case 'area':
+      suffix = lengthUnit ? `${lengthUnit}²` : '';
+      break;
+    case 'volume':
+      suffix = lengthUnit ? `${lengthUnit}³` : '';
+      break;
+    case 'time':
+      suffix = measurements.timeUnit ?? '';
+      break;
+    case 'quantityTimesPrice':
+    default:
+      suffix = measurements.unit ?? '';
+      break;
+  }
+  return `${fmt(quantity)}${suffix ? ` ${suffix}` : ''}`;
+}
+
+/**
  * The raw measurement fields a line can carry — a superset of every pricing
  * method's inputs. `domain/invoice/calculations.ts`'s `calculateLineTotal`
  * is the only caller; this module's whole job is turning these raw inputs

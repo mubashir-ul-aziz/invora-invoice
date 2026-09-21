@@ -19,13 +19,6 @@ const optionalTrimmed = () =>
     .nullable()
     .transform((value) => (value ? value : null));
 
-const requiredDecimalField = (label: string) =>
-  z
-    .string()
-    .trim()
-    .refine((value) => /^\d+(\.\d+)?$/.test(value), { message: `Enter a valid ${label}.` })
-    .transform((value) => Number(value));
-
 const optionalDecimalField = (label: string) =>
   optionalTrimmed()
     .refine((value) => value === null || /^\d+(\.\d+)?$/.test(value), {
@@ -52,13 +45,39 @@ const baseInvoiceLineFormSchema = z.object({
   height: optionalDecimalField('height'),
   lengthUnit: optionalTrimmed(),
   timeUnit: optionalTrimmed(),
-  unitPrice: requiredDecimalField('unit price'),
+  /** Absent/blank reads as `'unit'`, so every form/test that predates the Total Item Price toggle validates as before. */
+  priceMode: z
+    .enum(['unit', 'total'])
+    .optional()
+    .transform((value) => value ?? 'unit'),
+  // Which of the two is required depends on `priceMode` — see `priceModeRules`.
+  unitPrice: optionalDecimalField('unit price'),
+  totalPrice: optionalDecimalField('total item price'),
   discountPercent: optionalPercentField,
   taxPercent: optionalPercentField,
 });
 
-/** The base schema with no pricing-method-specific requirements layered on — used where the method isn't known/relevant (e.g. some existing tests). */
-export const invoiceLineFormSchema = baseInvoiceLineFormSchema;
+/**
+ * Unit Price is required only for a `'unit'` line and Total Item Price only
+ * for a `'total'` line — the two are never both required, and a leftover
+ * value typed under the other mode is ignored (and zeroed on save by
+ * `formValuesToInvoiceLineInput`), not validated.
+ */
+const priceModeRules = (
+  values: { priceMode: 'unit' | 'total'; unitPrice: number | null; totalPrice: number | null },
+  ctx: z.RefinementCtx,
+) => {
+  if (values.priceMode === 'total') {
+    if (values.totalPrice === null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['totalPrice'], message: 'Enter a valid total item price.' });
+    }
+  } else if (values.unitPrice === null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['unitPrice'], message: 'Enter a valid unit price.' });
+  }
+};
+
+/** The base schema with only the price-mode rules layered on — used where the method isn't known/relevant (e.g. some existing tests). */
+export const invoiceLineFormSchema = baseInvoiceLineFormSchema.superRefine(priceModeRules);
 
 /**
  * Per-Pricing-Method requirements (§20 of the brief), layered onto the base
@@ -71,7 +90,7 @@ export const invoiceLineFormSchema = baseInvoiceLineFormSchema;
  */
 export function invoiceLineFormSchemaForPricingMethod(pricingMethodId: InvoiceTypeId) {
   const { calculationKind } = getInvoiceTypeDefinition(pricingMethodId);
-  return baseInvoiceLineFormSchema.superRefine((values, ctx) => {
+  return baseInvoiceLineFormSchema.superRefine(priceModeRules).superRefine((values, ctx) => {
     const positive = (value: number | null, field: keyof typeof values, message: string) => {
       if (value === null || value <= 0) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message });
