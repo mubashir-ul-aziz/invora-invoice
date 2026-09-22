@@ -10,6 +10,7 @@ import { DashboardQuickActions } from '@/components/dashboard/DashboardQuickActi
 import { DashboardStatusBreakdown } from '@/components/dashboard/DashboardStatusBreakdown';
 import { DashboardSummaryCard } from '@/components/dashboard/DashboardSummaryCard';
 import { RecentInvoiceRow } from '@/components/dashboard/RecentInvoiceRow';
+import { UsageMeter } from '@/components/subscription/UsageMeter';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
@@ -19,6 +20,7 @@ import { useDashboardStore } from '@/state/dashboardStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { useSubscription } from '@/state/useSubscription';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
@@ -57,6 +59,7 @@ export function DashboardScreen({ navigation }: Props) {
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
   const { profile: businessProfile, load: loadBusinessProfile } = useBusinessProfileStore();
+  const subscription = useSubscription();
 
   useEffect(() => {
     load();
@@ -69,6 +72,11 @@ export function DashboardScreen({ navigation }: Props) {
   }, [navigation]);
 
   const handleCreateInvoice = () => {
+    // Early feedback only: at the monthly limit, go straight to Pricing. The real limit is enforced when the invoice is saved.
+    subscription.guardInvoiceCreation(navigation, startCreateInvoice);
+  };
+
+  const startCreateInvoice = () => {
     const invoiceTypeId = invoiceTypeSelection?.invoiceTypeId ?? 'general';
     const termsDays = invoiceSettings?.defaultPaymentTermsDays ?? null;
     const terms = termsDays != null ? (PAYMENT_TERMS_OPTIONS.find((o) => o.value === termsDays)?.label ?? null) : null;
@@ -122,6 +130,19 @@ export function DashboardScreen({ navigation }: Props) {
           onRecordPayment={handleRecordPayment}
         />
 
+        {!!subscription.usage && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View plans and invoice usage"
+            testID="dashboard-usage"
+            onPress={() => navigation.navigate('Pricing')}
+            style={styles.usageCard}
+          >
+            <UsageMeter usage={subscription.usage} />
+            <Feather name="chevron-right" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
+
         <DashboardSummaryCard summary={summary} testID="dashboard-summary" />
 
         <DashboardStatusBreakdown summary={summary} testID="dashboard-status-breakdown" />
@@ -156,6 +177,7 @@ export function DashboardScreen({ navigation }: Props) {
                   key={entry.invoiceId}
                   entry={entry}
                   onPress={() => handleOpenInvoice(entry)}
+                  locked={!subscription.canAccessHistoricalInvoice(entry.createdAt)}
                   testID={`dashboard-recent-invoice-${entry.invoiceId}`}
                 />
               ))}
@@ -180,6 +202,14 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: colors.background },
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
+  usageCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+  },
   section: { gap: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

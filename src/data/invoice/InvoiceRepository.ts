@@ -23,4 +23,10 @@ export interface InvoiceRepository {
   /** Customer and invoice type are fixed at creation — see `InvoiceUpdateInput`. */
   update(id: string, input: InvoiceUpdateInput): Promise<Invoice>;
   delete(id: string): Promise<void>;
+  /**
+   * How many invoices have a `createdAt` in `[startMs, endMs)` — a cheap
+   * `COUNT(*)`, used by the monthly invoice-limit check so it never loads
+   * every invoice and its lines just to count them.
+   */
+  countCreatedBetween(startMs: number, endMs: number): Promise<number>;
 }

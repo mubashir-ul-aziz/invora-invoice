@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { InvoiceStatusBadge, STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
+import { LockedBadge } from '@/components/subscription/LockedBadge';
 import { useCurrencySymbol } from '@/state/currencyContext';
 import type { InvoiceWithStatus } from '@/state/invoiceStore';
 import { colors } from '@/theme/colors';
@@ -11,6 +12,8 @@ interface Props {
   entry: InvoiceWithStatus;
   onPress: () => void;
   testID?: string;
+  /** Past the Free plan's 24-hour access window: shows a lock pill. Tapping still opens the invoice route, which shows the upgrade screen. */
+  locked?: boolean;
 }
 
 /** Per-status icon, matching the Stitch mock's varied per-row status icons — driven by the same computed `status` the badge uses. */
@@ -34,7 +37,7 @@ const STATUS_ICON: Record<InvoiceWithStatus['status'], keyof typeof Feather.glyp
  * row to reproduce exactly). Rather than fabricate that date, a paid row
  * shows its real issue date instead, labeled "Issued".
  */
-export function InvoiceListRow({ entry, onPress, testID }: Props) {
+export function InvoiceListRow({ entry, onPress, testID, locked }: Props) {
   const { invoice, status, totals, amountPaid } = entry;
   const iconStyle = { backgroundColor: STATUS_BACKGROUND[status], color: STATUS_TEXT[status] };
   const remaining = Math.max(0, totals.grandTotal - amountPaid);
@@ -90,6 +93,7 @@ export function InvoiceListRow({ entry, onPress, testID }: Props) {
             testID={testID ? `${testID}-status` : undefined}
             style={styles.statusBadge}
           />
+          {!!locked && <LockedBadge testID={testID ? `${testID}-locked` : undefined} />}
         </View>
       </View>
     </Pressable>

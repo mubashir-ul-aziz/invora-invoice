@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
 import { AppHeader, HeaderIconButton } from '@/components/shared/AppHeader';
+import { PricingScreen } from '@/screens/subscription/PricingScreen';
 import { BusinessScreen } from '@/screens/business/BusinessScreen';
 import { BusinessSettingsScreen } from '@/screens/business/BusinessSettingsScreen';
 import { EditBusinessScreen } from '@/screens/business/EditBusinessScreen';
@@ -40,9 +41,20 @@ import { InvoiceTemplatesScreen } from '@/screens/settings/InvoiceTemplatesScree
 import { SecurityScreen } from '@/screens/settings/SecurityScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 
+import { byInvoiceId, byPaymentId, withCustomerHistoryGuard, withInvoiceAccessGuard } from './guards';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Historical-access guards (Free plan: an invoice opens for 24h after it is
+// created; customer history needs a paid plan). Applied here, once, so every
+// way of reaching these screens — list rows, deep links, back stack — is covered.
+const GuardedInvoiceDetail = withInvoiceAccessGuard(InvoiceDetailScreen, byInvoiceId);
+const GuardedEditInvoice = withInvoiceAccessGuard(EditInvoiceScreen, byInvoiceId);
+const GuardedRecordPayment = withInvoiceAccessGuard(RecordPaymentScreen, byInvoiceId);
+const GuardedEditPayment = withInvoiceAccessGuard(EditPaymentScreen, byPaymentId);
+const GuardedInvoicePdfPreview = withInvoiceAccessGuard(InvoicePdfPreviewScreen, byInvoiceId);
+const GuardedCustomerHistory = withCustomerHistoryGuard(CustomerHistoryScreen);
 
 export function RootNavigator() {
   return (
@@ -154,7 +166,7 @@ export function RootNavigator() {
       />
       <Stack.Screen
         name="CustomerHistory"
-        component={CustomerHistoryScreen}
+        component={GuardedCustomerHistory}
         options={{ title: 'Customer History' }}
       />
       <Stack.Screen name="InvoiceList" component={InvoiceListScreen} options={{ title: 'Invoices' }} />
@@ -169,14 +181,14 @@ export function RootNavigator() {
         options={{ title: 'Line Item' }}
       />
       <Stack.Screen name="InvoiceReview" component={InvoiceReviewScreen} options={{ title: 'Review Invoice' }} />
-      <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} options={{ title: 'Invoice' }} />
-      <Stack.Screen name="EditInvoice" component={EditInvoiceScreen} options={{ title: 'Edit Invoice' }} />
+      <Stack.Screen name="InvoiceDetail" component={GuardedInvoiceDetail} options={{ title: 'Invoice' }} />
+      <Stack.Screen name="EditInvoice" component={GuardedEditInvoice} options={{ title: 'Edit Invoice' }} />
       <Stack.Screen
         name="RecordPayment"
-        component={RecordPaymentScreen}
+        component={GuardedRecordPayment}
         options={{ title: 'Record Payment' }}
       />
-      <Stack.Screen name="EditPayment" component={EditPaymentScreen} options={{ title: 'Edit Payment' }} />
+      <Stack.Screen name="EditPayment" component={GuardedEditPayment} options={{ title: 'Edit Payment' }} />
       <Stack.Screen
         name="PaymentHistory"
         component={PaymentHistoryScreen}
@@ -184,7 +196,7 @@ export function RootNavigator() {
       />
       <Stack.Screen
         name="InvoicePdfPreview"
-        component={InvoicePdfPreviewScreen}
+        component={GuardedInvoicePdfPreview}
         options={{ title: 'Invoice PDF' }}
       />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
@@ -212,6 +224,7 @@ export function RootNavigator() {
         component={UpgradeStorageScreen}
         options={{ title: 'Upgrade Storage' }}
       />
+      <Stack.Screen name="Pricing" component={PricingScreen} options={{ title: 'Plans & Subscription' }} />
     </Stack.Navigator>
   );
 }

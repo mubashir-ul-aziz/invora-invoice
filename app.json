@@ -56,7 +56,8 @@
         "projectId": "d6233ef1-d731-4f05-b755-91ccea329399"
       },
       "googleDriveClientId": "",
-      "cloudBackupApiUrl": ""
+      "cloudBackupApiUrl": "",
+      "revenueCatAndroidApiKey": ""
     }
   }
 }

@@ -113,6 +113,7 @@ export function summarizeDashboard(
       customerName: entry.customerName,
       issueDate: entry.issueDate,
       dueDate: entry.dueDate,
+      createdAt: entry.createdAt,
       grandTotal: entry.grandTotal,
       amountPaid: entry.amountPaid,
       status,

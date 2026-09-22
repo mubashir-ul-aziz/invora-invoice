@@ -145,6 +145,7 @@ describe('summarizeDashboard', () => {
       customerName: 'Acme Co',
       issueDate: '2026-01-01',
       dueDate: null,
+      createdAt: entries[0].createdAt,
       grandTotal: 1000,
       amountPaid: 400,
       status: 'partial',

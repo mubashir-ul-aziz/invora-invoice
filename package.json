@@ -41,6 +41,7 @@
     "react-dom": "19.2.8",
     "react-hook-form": "^7.87.0",
     "react-native": "0.86.3",
+    "react-native-purchases": "^10.10.1",
     "react-native-qrcode-svg": "^6.3.22",
     "react-native-safe-area-context": "~5.9.1",
     "react-native-screens": "~4.27.0",

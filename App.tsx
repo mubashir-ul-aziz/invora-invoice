@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AutoBackupRunner } from '@/components/backup/AutoBackupRunner';
+import { SubscriptionRunner } from '@/components/subscription/SubscriptionRunner';
 import { AppLockGate } from '@/components/security/AppLockGate';
 import { getDatabase } from '@/data/db/client';
 import { RootNavigator } from '@/navigation/RootNavigator';
@@ -37,9 +38,11 @@ export default function App() {
       <NavigationContainer>
         <AppLockGate>
           <AutoBackupRunner>
-            <CurrencyProvider>
-              <RootNavigator />
-            </CurrencyProvider>
+            <SubscriptionRunner>
+              <CurrencyProvider>
+                <RootNavigator />
+              </CurrencyProvider>
+            </SubscriptionRunner>
           </AutoBackupRunner>
         </AppLockGate>
       </NavigationContainer>

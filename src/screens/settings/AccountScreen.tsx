@@ -8,42 +8,34 @@ import { getCloudStoragePlan } from '@/domain/cloudBackup/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
 import { useCloudBackupStore } from '@/state/cloudBackupStore';
+import { useSubscription } from '@/state/useSubscription';
+import { restoreOutcomeMessage } from '@/screens/subscription/outcomeMessages';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Account'>;
 
 /**
- * Account / Subscription placeholder (Phase 10), per the explicit
- * "RELATED SCREENS: Account/Subscription placeholder" and "do not implement
- * unnecessary account features" / "do not implement payment processing"
- * instructions. Invora has no cloud account or login system yet — everything
- * runs off the on-device database (`MVP_BUILD_PLAN.md` §4) — so this screen
- * states that honestly instead of faking a sign-in/sign-out flow or a
- * checkout. "Logout" is listed by the brief but has nothing to log out of
- * today; it's a labelled, working button that says so rather than a dead
- * link, so tapping it is never a silent no-op.
+ * Account / Subscription (Phase 10 placeholder, now backed by the real
+ * subscription layer). Invora has no cloud account or login system —
+ * everything runs off the on-device database (`MVP_BUILD_PLAN.md` §4) — so
+ * this screen still says so honestly instead of faking a sign-in/sign-out
+ * flow. "Logout" is listed by the brief but has nothing to log out of; it's a
+ * labelled, working button that says so rather than a dead link.
  *
- * Restyled to match the Stitch "Account / Subscription" design's cards.
- * This screen is where the gap between the design and this app is widest:
- * Stitch envisions a full logged-in-user paid-tier product (a personal
- * account distinct from the business, a metered "Invora Starter" plan with
- * a monthly invoice allowance, an "Invora Pro" upgrade with its own price
- * and feature list, stored account credentials, restorable IAP purchases).
- * None of that exists — this app has no login, no invoice metering/tier
- * gating of any kind, and no payment/IAP integration anywhere in the
- * codebase. Rather than invent fake facts (an email address, a "member
- * since" date, a price), the identity header and "Subscription" card use
- * the one real, related capability that already exists — the real business
- * profile and the real Cloud Backup storage plan (`cloudBackupStore`,
- * `CLOUD_STORAGE_PLANS`) — and the promo card's CTA is real navigation to
- * the existing `UpgradeStorage` screen. Everything with no real analog at
- * all (Account Credentials' email/member-since/billing-reference rows,
- * Restore Purchases) is still rendered per the design but marked DESIGN
- * ONLY, with honest "not applicable" values rather than invented ones.
+ * The Subscription card now shows the user's real Invora plan (RevenueCat +
+ * Google Play, via `useSubscription()`) with a link to the Pricing screen,
+ * and "Restore Purchases" runs a real restore. The separate Cloud Backup
+ * storage plan (`cloudBackupStore`, `UpgradeStorage`) is an unrelated,
+ * still-placeholder add-on and keeps its own promo card. The identity header
+ * uses the real business profile rather than Stitch's invented personal
+ * user; the Account Credentials rows (email / member-since / billing
+ * reference) have no real analog — there is no account system — and remain
+ * marked DESIGN ONLY with honest "not applicable" values, never invented ones.
  */
 export function AccountScreen({ navigation }: Props) {
   const { profile, load: loadProfile } = useBusinessProfileStore();
   const { settings: cloudSettings, load: loadCloudBackup } = useCloudBackupStore();
+  const subscription = useSubscription();
 
   useEffect(() => {
     loadProfile();
@@ -52,7 +44,10 @@ export function AccountScreen({ navigation }: Props) {
 
   const currentPlan = getCloudStoragePlan(cloudSettings.planId ?? 'free');
   const plusPlan = getCloudStoragePlan('plus');
-  const notAvailable = (what: string) => Alert.alert('Not available', `${what} is not implemented yet.`);
+  const handleRestore = async () => {
+    const message = restoreOutcomeMessage(await subscription.restore());
+    Alert.alert(message.title, message.message);
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="account-screen">
@@ -90,14 +85,21 @@ export function AccountScreen({ navigation }: Props) {
         <View style={styles.cardTitleRow}>
           <Feather name="star" size={16} color={colors.primary} />
           <Text style={styles.title}>Subscription</Text>
-          <View style={styles.planPill}>
-            <Text style={styles.planPillText}>{currentPlan.label} plan</Text>
+          <View style={styles.planPill} testID="account-plan-pill">
+            <Text style={styles.planPillText}>{subscription.planConfig.label} plan</Text>
           </View>
         </View>
         <Text style={styles.body}>
-          Invora itself is free to use, with every feature available regardless of plan. The only paid option is
-          optional cloud backup storage.
+          Your plan sets how many invoices you can create each month and whether you can open older invoices and customer
+          history. Your data always stays saved on this device. Cloud backup storage is a separate, optional add-on.
         </Text>
+        <ActionButton
+          label="Plans & subscription"
+          icon="star"
+          variant="primary"
+          onPress={() => navigation.navigate('Pricing')}
+          testID="account-view-plans"
+        />
       </View>
 
       {/* Real promo — navigates to the actual UpgradeStorage screen, using the real Plus plan (no invented price) */}
@@ -120,7 +122,7 @@ export function AccountScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* DESIGN ONLY: no account/login/IAP system exists — values are honest placeholders, never invented facts. */}
+      {/* Credentials rows are DESIGN ONLY: there is no account/login system, so values are honest placeholders, never invented facts. Restore Purchases below is real (RevenueCat + Google Play). */}
       <View style={styles.card}>
         <Text style={styles.title}>Account Credentials · DESIGN ONLY</Text>
         <CredentialRow icon="at-sign" label="Account Email" value="Not applicable — no sign-in required" />
@@ -128,9 +130,9 @@ export function AccountScreen({ navigation }: Props) {
         <CredentialRow icon="hash" label="Billing Reference" value="Not applicable" />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Restore purchases — DESIGN ONLY, not implemented"
-          testID="action-restore-purchases-design-only"
-          onPress={() => notAvailable('Restoring purchases')}
+          accessibilityLabel="Restore purchases"
+          testID="action-restore-purchases"
+          onPress={handleRestore}
           style={({ pressed }) => [styles.restoreRow, pressed && styles.pressed]}
         >
           <View style={styles.restoreIcon}>
@@ -138,7 +140,7 @@ export function AccountScreen({ navigation }: Props) {
           </View>
           <View style={styles.flexShrink}>
             <Text style={styles.restoreLabel}>Restore Purchases</Text>
-            <Text style={styles.restoreCaption}>Re-sync purchases from the App Store or Google Play</Text>
+            <Text style={styles.restoreCaption}>Re-sync your subscription from Google Play</Text>
           </View>
           <Feather name="chevron-right" size={16} color={colors.textMuted} />
         </Pressable>

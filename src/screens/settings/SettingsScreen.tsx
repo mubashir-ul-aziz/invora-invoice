@@ -183,6 +183,13 @@ export function SettingsScreen({ navigation }: Props) {
 
       <Section title="Account">
         <SettingsRow
+          icon="star"
+          label="Plans & subscription"
+          description="Your plan, invoice usage, upgrade, restore purchases"
+          onPress={() => navigation.navigate('Pricing')}
+          testID="settings-row-subscription"
+        />
+        <SettingsRow
           icon="user"
           label="Account"
           description="Account, subscription, and logout"

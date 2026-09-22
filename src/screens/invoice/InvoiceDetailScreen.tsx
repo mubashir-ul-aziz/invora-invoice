@@ -26,6 +26,7 @@ import { useCustomerStore } from '@/state/customerStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
+import { useSubscription } from '@/state/useSubscription';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceDetail'>;
@@ -78,6 +79,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const { listByInvoice } = usePaymentStore();
   const { profile: businessProfile, load: loadBusinessProfile } = useBusinessProfileStore();
   const currencySymbol = useCurrencySymbol();
+  const subscription = useSubscription();
   const currencyLabel = businessProfile ? `${businessProfile.currency} (${getCurrencySymbol(businessProfile.currency)})` : currencySymbol;
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [detail, setDetail] = useState<InvoiceWithStatus | null>(null);
@@ -127,7 +129,12 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
 
-  const handleDuplicate = async () => {
+  const handleDuplicate = () => {
+    // Duplicating creates a new invoice, so it counts against the monthly limit like any other.
+    subscription.guardInvoiceCreation(navigation, startDuplicate);
+  };
+
+  const startDuplicate = async () => {
     if (!detail) {
       return;
     }

@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, lt } from 'drizzle-orm';
 
 import { calculateLineTotal, toLineCalcInput } from '@/domain/invoice/calculations';
 import { invoiceMatchesFilter, sortInvoices } from '@/domain/invoice/filtering';
@@ -225,6 +225,16 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
     const db = getDrizzle();
     // `invoice_item` rows cascade-delete via the FK's `onDelete: 'cascade'`.
     await db.delete(invoice).where(eq(invoice.id, id));
+  }
+
+  async countCreatedBetween(startMs: number, endMs: number): Promise<number> {
+    await getDatabase();
+    const db = getDrizzle();
+    const rows = await db
+      .select({ total: count() })
+      .from(invoice)
+      .where(and(gte(invoice.createdAt, startMs), lt(invoice.createdAt, endMs)));
+    return rows[0]?.total ?? 0;
   }
 }
 

@@ -46,6 +46,17 @@ import type { BackupEncryptionService } from './cloudBackup/encryption/BackupEnc
 import { ExpoBackupEncryptionService } from './cloudBackup/encryption/ExpoBackupEncryptionService';
 import type { CloudUpgradeService } from './subscription/CloudUpgradeService';
 import { PlaceholderCloudUpgradeService } from './subscription/PlaceholderCloudUpgradeService';
+import type { ConnectivityService } from './subscription/ConnectivityService';
+import { EntitlementService } from './subscription/EntitlementService';
+import { ExpoConnectivityService } from './subscription/ExpoConnectivityService';
+import { ExpoSecureStoreCacheSigner } from './subscription/ExpoSecureStoreCacheSigner';
+import { InvoiceUsageTracker } from './subscription/InvoiceUsageTracker';
+import { ReactNativePurchasesAdapter } from './subscription/ReactNativePurchasesAdapter';
+import type { RevenueCatAdapter } from './subscription/RevenueCatAdapter';
+import { SignedSubscriptionCacheRepository } from './subscription/SignedSubscriptionCacheRepository';
+import { SqliteRawSubscriptionCacheStore } from './subscription/SqliteRawSubscriptionCacheStore';
+import { SubscriptionCache } from './subscription/SubscriptionCache';
+import { SubscriptionService } from './subscription/SubscriptionService';
 
 /**
  * Composition root: the one place that knows which concrete repository/
@@ -80,6 +91,12 @@ let cloudBackupApi: CloudBackupApi | null = null;
 let backupEncryptionService: BackupEncryptionService | null = null;
 let cloudBackupService: CloudBackupService | null = null;
 let cloudUpgradeService: CloudUpgradeService | null = null;
+let revenueCatAdapter: RevenueCatAdapter | null = null;
+let connectivityService: ConnectivityService | null = null;
+let subscriptionCache: SubscriptionCache | null = null;
+let subscriptionService: SubscriptionService | null = null;
+let invoiceUsageTracker: InvoiceUsageTracker | null = null;
+let entitlementService: EntitlementService | null = null;
 
 export function getBusinessCardRepository(): BusinessCardRepository {
   if (!businessCardRepository) {
@@ -302,4 +319,63 @@ export function getCloudUpgradeService(): CloudUpgradeService {
     cloudUpgradeService = new PlaceholderCloudUpgradeService();
   }
   return cloudUpgradeService;
+}
+
+/**
+ * See the doc comment on `RevenueCatAdapter`. The RevenueCat public SDK key
+ * comes from `expo.extra.revenueCatAndroidApiKey` in `app.json` (empty until
+ * configured — the app then runs on its cached/Free state and never crashes).
+ */
+export function getRevenueCatAdapter(): RevenueCatAdapter {
+  if (!revenueCatAdapter) {
+    const extra = Constants.expoConfig?.extra as { revenueCatAndroidApiKey?: string } | undefined;
+    revenueCatAdapter = new ReactNativePurchasesAdapter(extra?.revenueCatAndroidApiKey ?? '');
+  }
+  return revenueCatAdapter;
+}
+
+/** See the doc comment on `ConnectivityService`. */
+export function getConnectivityService(): ConnectivityService {
+  if (!connectivityService) {
+    connectivityService = new ExpoConnectivityService();
+  }
+  return connectivityService;
+}
+
+/** The signed, serialized offline cache of the normalized subscription — see `SubscriptionCache`. */
+export function getSubscriptionCache(): SubscriptionCache {
+  if (!subscriptionCache) {
+    subscriptionCache = new SubscriptionCache(
+      new SignedSubscriptionCacheRepository(new SqliteRawSubscriptionCacheStore(), new ExpoSecureStoreCacheSigner()),
+    );
+  }
+  return subscriptionCache;
+}
+
+/** See the doc comment on `SubscriptionService` — RevenueCat is the authority, SQLite only a cache. */
+export function getSubscriptionService(): SubscriptionService {
+  if (!subscriptionService) {
+    subscriptionService = new SubscriptionService(
+      getRevenueCatAdapter(),
+      getSubscriptionCache(),
+      getConnectivityService(),
+    );
+  }
+  return subscriptionService;
+}
+
+/** See the doc comment on `InvoiceUsageTracker`. */
+export function getInvoiceUsageTracker(): InvoiceUsageTracker {
+  if (!invoiceUsageTracker) {
+    invoiceUsageTracker = new InvoiceUsageTracker(getInvoiceRepository(), getSubscriptionCache());
+  }
+  return invoiceUsageTracker;
+}
+
+/** See the doc comment on `EntitlementService` — the single place that answers "is the user allowed to…?". Also the `InvoiceCreationGate` `invoiceStore` uses. */
+export function getEntitlementService(): EntitlementService {
+  if (!entitlementService) {
+    entitlementService = new EntitlementService(getSubscriptionService(), getInvoiceUsageTracker());
+  }
+  return entitlementService;
 }

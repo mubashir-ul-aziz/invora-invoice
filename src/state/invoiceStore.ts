@@ -1,9 +1,15 @@
 import { create } from 'zustand';
 
 import type { BusinessRepository } from '@/data/business/BusinessRepository';
-import { getBusinessRepository, getInvoiceRepository, getPaymentTotalsRepository } from '@/data/container';
+import {
+  getBusinessRepository,
+  getEntitlementService,
+  getInvoiceRepository,
+  getPaymentTotalsRepository,
+} from '@/data/container';
 import type { InvoiceRepository } from '@/data/invoice/InvoiceRepository';
 import type { PaymentTotalsRepository } from '@/data/paymentTotals/PaymentTotalsRepository';
+import type { InvoiceCreationGate } from '@/data/subscription/EntitlementService';
 import { sumInvoiceTotals, type InvoiceTotals } from '@/domain/invoice/calculations';
 import { computeInvoiceStatus } from '@/domain/invoice/status';
 import {
@@ -43,7 +49,11 @@ interface InvoiceState {
    * `customerId` scoping (see `InvoiceListScreen`'s mount/unmount effect).
    */
   listForCustomer: (customerId: string) => Promise<InvoiceWithStatus[]>;
-  /** Reserves the next invoice number, then creates the invoice — see `BusinessRepository.reserveNextInvoiceNumber()`. */
+  /**
+   * Checks the plan's monthly invoice limit (rejects with `InvoiceLimitError`
+   * *before* an invoice number is reserved), reserves the next invoice number,
+   * then creates the invoice — see `BusinessRepository.reserveNextInvoiceNumber()`.
+   */
   create: (input: InvoiceInput) => Promise<Invoice>;
   update: (id: string, input: InvoiceUpdateInput) => Promise<Invoice>;
   remove: (id: string) => Promise<void>;
@@ -66,12 +76,24 @@ function withStatus(invoice: Invoice, amountPaid: number): InvoiceWithStatus {
  * invoice's real amount paid from `PaymentTotalsRepository`, computes status
  * via the centralized `computeInvoiceStatus`, and only then applies the
  * status half of the filter.
+ *
+ * `creationGate` is the subscription seam (see `InvoiceCreationGate`): every
+ * new invoice — whichever screen started it — passes through `create()`, so
+ * this is the one place the monthly limit is enforced for real; entry-point
+ * checks elsewhere are only early feedback. It's `null` by default so the
+ * store stays usable without the subscription layer (e.g. in tests); the
+ * app-wide singleton below wires the real one.
  */
 export function createInvoiceStore(
   invoiceRepository: InvoiceRepository = getInvoiceRepository(),
   businessRepository: BusinessRepository = getBusinessRepository(),
   paymentTotalsRepository: PaymentTotalsRepository = getPaymentTotalsRepository(),
+  creationGate: InvoiceCreationGate | null = null,
 ) {
+  // Serializes create(): the limit check, the insert and the usage counter
+  // bump must not interleave, or two quick taps could both pass the check.
+  let createQueue: Promise<unknown> = Promise.resolve();
+
   return create<InvoiceState>((set, get) => ({
     status: 'idle',
     entries: [],
@@ -119,11 +141,22 @@ export function createInvoiceStore(
       return invoices.map((invoice) => withStatus(invoice, amounts[invoice.id] ?? 0));
     },
 
-    create: async (input) => {
-      const invoiceNumber = await businessRepository.reserveNextInvoiceNumber();
-      const created = await invoiceRepository.create(invoiceNumber, input);
-      await get().load();
-      return created;
+    create: (input) => {
+      const run = async () => {
+        await creationGate?.assertCanCreate();
+        const invoiceNumber = await businessRepository.reserveNextInvoiceNumber();
+        const created = await invoiceRepository.create(invoiceNumber, input);
+        try {
+          await creationGate?.recordCreated();
+        } catch {
+          // The invoice is saved; a failed counter bump must never fail the save.
+        }
+        await get().load();
+        return created;
+      };
+      const result = createQueue.then(run, run);
+      createQueue = result.catch(() => undefined);
+      return result;
     },
 
     update: async (id, input) => {
@@ -139,5 +172,12 @@ export function createInvoiceStore(
   }));
 }
 
-/** App-wide singleton store, wired to the real (SQLite) repositories. */
-export const useInvoiceStore = createInvoiceStore();
+/**
+ * App-wide singleton store, wired to the real (SQLite) repositories and the
+ * real subscription gate (resolved lazily so importing this module never
+ * touches RevenueCat or SQLite).
+ */
+export const useInvoiceStore = createInvoiceStore(undefined, undefined, undefined, {
+  assertCanCreate: () => getEntitlementService().assertCanCreate(),
+  recordCreated: () => getEntitlementService().recordCreated(),
+});

@@ -401,6 +401,42 @@ export const backupLog = sqliteTable(
   }),
 );
 
+/**
+ * Offline cache of the *normalized* RevenueCat subscription state (Phase:
+ * Subscriptions). One `id = 'default'` row per device. RevenueCat is the
+ * authority — this row is only what the app falls back to when it can't
+ * reach RevenueCat (see `domain/subscription/offlinePolicy.ts`), and it never
+ * holds raw purchase data or anything payment-related.
+ *
+ * Deliberately NOT part of `app_settings`, and not in any backup payload:
+ * `BackupRepository.exportAll()/restoreAll()` enumerate their tables
+ * explicitly and never touch this one. Otherwise a backup taken on a paid
+ * device could restore "Unlimited" onto another install (and a restore would
+ * wipe a legitimate cache). `signature` is an integrity tag over every other
+ * column (`SubscriptionCacheSigner`); a row that fails it is ignored.
+ *
+ * `clock_high_water_ms` and `usage_*` are anti-tamper counters that live next
+ * to the cache: the highest device time ever seen (so rolling the clock back
+ * doesn't reopen locked invoices) and the per-month invoice counter (so
+ * deleting an invoice doesn't hand back a monthly slot).
+ */
+export const subscriptionState = sqliteTable('subscription_state', {
+  id: text('id').primaryKey(),
+  plan: text('plan').notNull().default('free'),
+  isActive: integer('is_active').notNull().default(0),
+  expiresAt: integer('expires_at'),
+  willRenew: integer('will_renew').notNull().default(0),
+  billingIssue: integer('billing_issue').notNull().default(0),
+  billingPeriod: text('billing_period'),
+  lastSyncedAt: integer('last_synced_at'),
+  source: text('source').notNull().default('default'),
+  clockHighWaterMs: integer('clock_high_water_ms').notNull().default(0),
+  usagePeriodKey: text('usage_period_key'),
+  usageCount: integer('usage_count'),
+  signature: text('signature'),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const schema = {
   business,
   socialLink,
@@ -411,6 +447,7 @@ export const schema = {
   payment,
   appSettings,
   backupLog,
+  subscriptionState,
 };
 
 /**
@@ -579,6 +616,22 @@ export const CREATE_TABLES_SQL = `
     error_message TEXT
   );
   CREATE INDEX IF NOT EXISTS backup_log_started_at_idx ON backup_log (started_at);
+  CREATE TABLE IF NOT EXISTS subscription_state (
+    id TEXT PRIMARY KEY NOT NULL,
+    plan TEXT NOT NULL DEFAULT 'free',
+    is_active INTEGER NOT NULL DEFAULT 0,
+    expires_at INTEGER,
+    will_renew INTEGER NOT NULL DEFAULT 0,
+    billing_issue INTEGER NOT NULL DEFAULT 0,
+    billing_period TEXT,
+    last_synced_at INTEGER,
+    source TEXT NOT NULL DEFAULT 'default',
+    clock_high_water_ms INTEGER NOT NULL DEFAULT 0,
+    usage_period_key TEXT,
+    usage_count INTEGER,
+    signature TEXT,
+    updated_at INTEGER NOT NULL
+  );
 `;
 
 /**

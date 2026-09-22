@@ -11,6 +11,7 @@ import m0006 from './0006_dashing_umar.sql';
 import m0007 from './0007_clear_spencer_smythe.sql';
 import m0008 from './0008_milky_maggott.sql';
 import m0009 from './0009_motionless_masked_marvel.sql';
+import m0010 from './0010_real_blur.sql';
 
   export default {
     journal,
@@ -24,7 +25,8 @@ m0005,
 m0006,
 m0007,
 m0008,
-m0009
+m0009,
+m0010
     }
   }
   

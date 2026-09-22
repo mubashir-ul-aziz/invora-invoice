@@ -19,6 +19,7 @@ import {
   type InvoiceDetailsFormValues,
 } from '@/domain/invoice/validation';
 import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
+import { InvoiceLimitError } from '@/domain/subscription/invoiceAccess';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
@@ -113,7 +114,17 @@ export function InvoiceReviewScreen({ navigation }: Props) {
       draft.reset();
       navigation.popToTop();
       navigation.navigate('InvoiceDetail', { invoiceId: saved.id });
-    } catch {
+    } catch (error) {
+      if (error instanceof InvoiceLimitError) {
+        // The authoritative monthly-limit check (see `invoiceStore.create`). Nothing was saved and no invoice
+        // number was used; the draft is kept, so after upgrading the user can come back and save it.
+        Alert.alert(
+          'Monthly invoice limit reached',
+          `You've used ${error.usage.used}${error.usage.limit !== null ? ` of ${error.usage.limit}` : ''} invoices this month. Your draft is kept — upgrade to save it.`,
+        );
+        navigation.navigate('Pricing', { reason: 'invoice_limit' });
+        return;
+      }
       Alert.alert("Couldn't save", 'This invoice could not be saved. Please try again.');
     }
   });

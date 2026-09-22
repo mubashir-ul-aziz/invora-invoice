@@ -28,6 +28,7 @@ function failingInvoiceRepository(message: string): InvoiceRepository {
     create: () => Promise.reject(new Error(message)),
     update: () => Promise.reject(new Error(message)),
     delete: () => Promise.reject(new Error(message)),
+    countCreatedBetween: () => Promise.reject(new Error(message)),
   };
 }
 

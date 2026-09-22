@@ -5032,3 +5032,72 @@ None outstanding.
 **Next phase:** Phase 14 — Google Stitch visual design integration. Not
 started; waiting for explicit instruction, per the "never automatically
 implement the next phase" rule.
+
+---
+
+## Subscriptions — RevenueCat + Google Play (Android)
+
+Resolves the "Subscription/payment provider" open decision in
+`MVP_BUILD_PLAN.md` §10: **RevenueCat** (`react-native-purchases` 10.10.1)
+over **Google Play Billing**. RevenueCat is the subscription authority;
+Google Play performs the transaction; SQLite is only an offline cache.
+Invora stores no card/payment data and has no custom payment processor.
+The Cloud Backup storage plans (`CloudUpgradeService`) are unrelated and
+untouched.
+
+### Architecture
+
+`useSubscription()` → `subscriptionStore` → `EntitlementService` →
+`SubscriptionService` → `RevenueCatAdapter` → SDK → Google Play.
+
+- `domain/subscription/` — pure rules: `plans.ts` (**single source of truth**
+  for limits, prices, badge, product/package ids), `entitlementMapping.ts`,
+  `offlinePolicy.ts`, `invoiceAccess.ts`, `customerAccess.ts`, `planChange.ts`,
+  `status.ts`, `formatting.ts`, `upgradeReason.ts`, `cacheCodec.ts`.
+- `data/subscription/` — `RevenueCatAdapter` (+ real lazy-loading
+  `ReactNativePurchasesAdapter`, `FakeRevenueCatAdapter`), `SubscriptionService`,
+  `EntitlementService` (also the `InvoiceCreationGate`), `InvoiceUsageTracker`,
+  the signed cache (`SubscriptionCache` → `SignedSubscriptionCacheRepository` →
+  `SqliteRawSubscriptionCacheStore`, `ExpoSecureStoreCacheSigner`),
+  `ConnectivityService`.
+- `state/subscriptionStore.ts`, `state/useSubscription.ts`,
+  `components/subscription/*`, `screens/subscription/PricingScreen.tsx`,
+  `navigation/guards.tsx`.
+
+### Rules implemented
+
+- Plans: Free 5/mo · Starter 15 · Business 40 (MOST POPULAR) · Pro 100 ·
+  Unlimited. Metered per **local calendar month**.
+- **Hard limit** is in `invoiceStore.create()` (every entry point — Dashboard,
+  Invoice List, Customer Detail, Duplicate — funnels through it); rejects with
+  `InvoiceLimitError` *before* an invoice number is reserved. Entry points give
+  early feedback only. Usage = `max(rows this month, monotonic counter)` so
+  deleting an invoice can't reclaim a slot.
+- **Free 24-hour access** from `invoice.createdAt`, enforced by one navigator
+  guard on every invoice-id screen (detail, edit, PDF, record/edit payment).
+  Locked invoices stay listed with a lock pill; nothing is deleted; access
+  returns immediately on a paid plan. **Customer History** is locked on Free;
+  customer contacts/picker/create/edit never are.
+- **Offline policy** (`offlinePolicy.ts`): a verified sync is authoritative;
+  otherwise a cached paid plan holds until `expiresAt` + 3 days, never past 90
+  days since last verification; clock rollback gains nothing (high-water mark);
+  no/invalid cache ⇒ Free. A paid plan only ever comes from RevenueCat.
+- **DB**: one new table, `subscription_state` (singleton, `CREATE TABLE IF NOT
+  EXISTS`), deliberately **outside `app_settings` and every backup payload** so
+  a backup can never carry or wipe an entitlement. Rows carry a signature
+  (SecureStore secret); a hand-edited or copied row is discarded.
+  `drizzle/0010_real_blur.sql` also contains ALTERs for older hand-added columns
+  (pre-existing snapshot drift; the folder is documentation-only).
+- Pricing methods are untouched; `canUsePricingMethod()` exists and returns
+  true for every plan today.
+
+### Known limitations / needs a device
+
+Purchases need a dev/production build (not Expo Go) and a Play-uploaded build
+with real RevenueCat + Play Console setup — none of that can be exercised in
+this environment. Everything above the SDK is unit-tested against fakes;
+`ReactNativePurchasesAdapter`, `SqliteRawSubscriptionCacheStore` and
+`ExpoSecureStoreCacheSigner` have no Jest coverage (native modules), same as
+the other native-backed services. See the hand-off report for the manual setup
+list and the untested-on-device assumptions (deferred plan changes, Android
+`launchMode`, the SDK's offline `CustomerInfo`).

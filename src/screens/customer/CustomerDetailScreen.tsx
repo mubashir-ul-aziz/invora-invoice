@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CustomerActivityRow } from '@/components/customer/CustomerActivityRow';
 import { avatarStyleFor, initialsFor } from '@/components/customer/CustomerListRow';
+import { LockedBadge } from '@/components/subscription/LockedBadge';
 import { InvoiceStatusBadge, STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { Customer } from '@/domain/customer/types';
@@ -20,6 +21,7 @@ import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { useSubscription } from '@/state/useSubscription';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>;
@@ -57,6 +59,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
   const { listForCustomer } = useInvoiceStore();
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
+  const subscription = useSubscription();
   const currencySymbol = useCurrencySymbol();
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -139,6 +142,11 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
   const pctCollected = totalBilled > 0 ? Math.max(0, 100 - pctUnpaid) : 0;
 
   const handleCreateInvoice = () => {
+    // Early feedback only: at the monthly limit, go straight to Pricing. The real limit is enforced when the invoice is saved.
+    subscription.guardInvoiceCreation(navigation, startCreateInvoice);
+  };
+
+  const startCreateInvoice = () => {
     const invoiceTypeId = invoiceTypeSelection?.invoiceTypeId ?? 'general';
     const termsDays = invoiceSettings?.defaultPaymentTermsDays ?? null;
     const terms =
@@ -409,6 +417,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
                   key={entry.invoice.id}
                   entry={entry}
                   onPress={() => navigation.navigate('InvoiceDetail', { invoiceId: entry.invoice.id })}
+                  locked={!subscription.canAccessHistoricalInvoice(entry.invoice.createdAt)}
                   testID={`customer-invoice-row-${entry.invoice.id}`}
                 />
               ))
@@ -451,10 +460,13 @@ function InvoiceLedgerRow({
   entry,
   onPress,
   testID,
+  locked,
 }: {
   entry: InvoiceWithStatus;
   onPress: () => void;
   testID?: string;
+  /** Past the Free plan's 24-hour access window: shows a lock pill (the invoice route shows the upgrade screen). */
+  locked?: boolean;
 }) {
   const { invoice, status, totals } = entry;
   const currencySymbol = useCurrencySymbol();
@@ -477,6 +489,7 @@ function InvoiceLedgerRow({
               {invoice.invoiceNumber}
             </Text>
             <InvoiceStatusBadge status={status} />
+            {!!locked && <LockedBadge testID={testID ? `${testID}-locked` : undefined} />}
           </View>
           <Text style={[styles.ledgerCaption, status === 'overdue' && styles.ledgerCaptionDanger]}>
             {invoiceCaption(entry)}

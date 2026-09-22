@@ -34,6 +34,8 @@ export interface DashboardRecentInvoice {
   issueDate: string;
   /** ISO calendar date, `YYYY-MM-DD`, or null — carried through from `DashboardInvoiceEntry.dueDate` for the Dashboard screen's due-date display. */
   dueDate: string | null;
+  /** ISO timestamp — carried through so the Dashboard can show a Free-plan lock on invoices past their 24-hour access window. */
+  createdAt: string;
   grandTotal: number;
   amountPaid: number;
   status: InvoiceStatus;

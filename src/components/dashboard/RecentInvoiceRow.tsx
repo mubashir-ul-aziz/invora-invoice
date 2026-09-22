@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
+import { LockedBadge } from '@/components/subscription/LockedBadge';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
 import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
@@ -11,6 +12,8 @@ interface Props {
   entry: DashboardRecentInvoice;
   onPress: () => void;
   testID?: string;
+  /** Past the Free plan's 24-hour access window: shows a lock pill. */
+  locked?: boolean;
 }
 
 const STATUS_ICON: Record<DashboardRecentInvoice['status'], keyof typeof Feather.glyphMap> = {
@@ -32,7 +35,7 @@ const STATUS_ICON: Record<DashboardRecentInvoice['status'], keyof typeof Feather
  * narrow), so a paid row shows its real issue date instead of a fabricated
  * paid-on date.
  */
-export function RecentInvoiceRow({ entry, onPress, testID }: Props) {
+export function RecentInvoiceRow({ entry, onPress, testID, locked }: Props) {
   const dateLabel = describeDate(entry);
   const showProgress = entry.status === 'partial' && entry.grandTotal > 0;
   const progressPercent = showProgress ? Math.min(100, (entry.amountPaid / entry.grandTotal) * 100) : 0;
@@ -75,6 +78,7 @@ export function RecentInvoiceRow({ entry, onPress, testID }: Props) {
             {badgeLabel(entry, currencySymbol)}
           </Text>
         </View>
+        {!!locked && <LockedBadge testID={testID ? `${testID}-locked` : undefined} />}
       </View>
     </Pressable>
   );

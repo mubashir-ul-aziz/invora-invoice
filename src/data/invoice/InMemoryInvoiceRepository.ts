@@ -127,4 +127,11 @@ export class InMemoryInvoiceRepository implements InvoiceRepository {
   async delete(id: string): Promise<void> {
     this.invoices = this.invoices.filter((invoice) => invoice.id !== id);
   }
+
+  async countCreatedBetween(startMs: number, endMs: number): Promise<number> {
+    return this.invoices.filter((invoice) => {
+      const createdAt = Date.parse(invoice.createdAt);
+      return createdAt >= startMs && createdAt < endMs;
+    }).length;
+  }
 }

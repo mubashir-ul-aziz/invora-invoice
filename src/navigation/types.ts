@@ -2,6 +2,7 @@ import type { Customer } from '@/domain/customer/types';
 import type { Invoice } from '@/domain/invoice/types';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { Item } from '@/domain/item/types';
+import type { UpgradeReason } from '@/domain/subscription/upgradeReason';
 
 export type RootStackParamList = {
   /** The app's home screen (Phase 8) — Total Sales/Paid/Outstanding/Overdue/invoice count, recent invoices, and the three quick actions. */
@@ -110,4 +111,9 @@ export type RootStackParamList = {
   CloudBackupHistory: undefined;
   /** "Upgrade Storage" (Phase 12) — a placeholder plan picker; no real payment flow exists yet, see `data/subscription/CloudUpgradeService.ts`. */
   UpgradeStorage: undefined;
+  /**
+   * Pricing / Subscription (RevenueCat + Google Play). `reason`, when set, shows why the user was sent here
+   * (monthly invoice limit reached, or a locked historical invoice/customer) — see `domain/subscription/upgradeReason.ts`.
+   */
+  Pricing: { reason?: UpgradeReason } | undefined;
 };

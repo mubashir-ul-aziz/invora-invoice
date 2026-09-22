@@ -18,6 +18,7 @@ import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { useSubscription } from '@/state/useSubscription';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceList'>;
@@ -76,6 +77,7 @@ export function InvoiceListScreen({ navigation, route }: Props) {
   const { status, entries, filter, error, load, setFilter } = useInvoiceStore();
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
+  const subscription = useSubscription();
   const currencySymbol = useCurrencySymbol();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -138,6 +140,11 @@ export function InvoiceListScreen({ navigation, route }: Props) {
   };
 
   const handleCreate = () => {
+    // Early feedback only: at the monthly limit, go straight to Pricing. The real limit is enforced when the invoice is saved.
+    subscription.guardInvoiceCreation(navigation, startCreateInvoice);
+  };
+
+  const startCreateInvoice = () => {
     const invoiceTypeId = invoiceTypeSelection?.invoiceTypeId ?? 'general';
     const termsDays = invoiceSettings?.defaultPaymentTermsDays ?? null;
     const terms = termsDays != null ? (PAYMENT_TERMS_OPTIONS.find((o) => o.value === termsDays)?.label ?? null) : null;
@@ -292,6 +299,7 @@ export function InvoiceListScreen({ navigation, route }: Props) {
             <InvoiceListRow
               entry={entry}
               onPress={() => handleOpenInvoice(entry)}
+              locked={!subscription.canAccessHistoricalInvoice(entry.invoice.createdAt)}
               testID={`invoice-row-${entry.invoice.id}`}
             />
           )}
