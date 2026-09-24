@@ -42,8 +42,8 @@ describe('PLAN_CONFIG', () => {
     expect(PLAN_CONFIG.free.entitlementId).toBeNull();
     for (const plan of PAID_PLAN_IDS) {
       const products = PLAN_CONFIG[plan].products!;
-      expect(products.monthly.revenueCatProductId).toBe(`invora_${plan}:monthly`);
-      expect(products.yearly.revenueCatProductId).toBe(`invora_${plan}:yearly`);
+      expect(products.monthly.revenueCatProductId).toBe(`metriqo_${plan}:monthly`);
+      expect(products.yearly.revenueCatProductId).toBe(`metriqo_${plan}:yearly`);
       expect(products.monthly.packageId).toBe(`${plan}_monthly`);
       expect(PLAN_CONFIG[plan].entitlementId).toBe(plan);
     }
@@ -67,9 +67,9 @@ describe('product lookup', () => {
   });
 
   it('resolves store products in both the split and combined RevenueCat forms', () => {
-    expect(findPlanByStoreProduct('invora_pro', 'yearly')).toEqual({ plan: 'pro', period: 'yearly' });
-    expect(findPlanByStoreProduct('invora_pro:monthly')).toEqual({ plan: 'pro', period: 'monthly' });
-    expect(findPlanByStoreProduct('invora_starter', null)).toEqual({ plan: 'starter', period: null });
+    expect(findPlanByStoreProduct('metriqo_pro', 'yearly')).toEqual({ plan: 'pro', period: 'yearly' });
+    expect(findPlanByStoreProduct('metriqo_pro:monthly')).toEqual({ plan: 'pro', period: 'monthly' });
+    expect(findPlanByStoreProduct('metriqo_starter', null)).toEqual({ plan: 'starter', period: null });
     expect(findPlanByStoreProduct('somebody_elses_app')).toBeNull();
   });
 });

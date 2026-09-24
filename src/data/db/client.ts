@@ -11,7 +11,7 @@ import {
   schema,
 } from './schema';
 
-const DATABASE_NAME = 'invora.db';
+const DATABASE_NAME = 'metriqo.db';
 
 let sqliteConnection: SQLite.SQLiteDatabase | null = null;
 let drizzleDb: ExpoSQLiteDatabase<typeof schema> | null = null;

@@ -72,7 +72,7 @@ export function validateBackupPayload(raw: string): BackupPayload {
   if (!shapeResult.success) {
     throw new BackupValidationError(
       'malformed',
-      'This backup file is missing data Invora expects — it may be from an unrelated file or a partially-written backup.',
+      'This backup file is missing data Metriqo expects — it may be from an unrelated file or a partially-written backup.',
     );
   }
   const payload = shapeResult.data as BackupPayload;
@@ -82,7 +82,7 @@ export function validateBackupPayload(raw: string): BackupPayload {
     throw new BackupValidationError(
       'incompatible_version',
       tooNew
-        ? 'This backup was made by a newer version of Invora. Update the app before restoring it.'
+        ? 'This backup was made by a newer version of Metriqo. Update the app before restoring it.'
         : 'This backup format is no longer supported.',
     );
   }

@@ -12,18 +12,18 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Exported so other invoice-status displays (e.g. the Dashboard's recent-invoices row) can match this badge's palette instead of redefining it. */
+/** Exported so other invoice-status displays (e.g. the Dashboard's recent-invoices row) can match this badge's palette instead of redefining it. Sourced from the shared Kinetic Ledger status tokens (`theme/colors.ts`) so every status indicator in the app stays in sync. */
 export const STATUS_BACKGROUND: Record<InvoiceStatus, string> = {
-  unpaid: '#EEF0F5',
-  partial: '#FFF3D6',
-  paid: '#E3F3E8',
-  overdue: '#FBE4E2',
+  unpaid: colors.lockedBg,
+  partial: colors.warningBg,
+  paid: colors.successBg,
+  overdue: colors.dangerBg,
 };
 
 export const STATUS_TEXT: Record<InvoiceStatus, string> = {
   unpaid: colors.textMuted,
-  partial: '#8A6D1D',
-  paid: '#1E7B41',
+  partial: colors.warning,
+  paid: colors.success,
   overdue: colors.danger,
 };
 

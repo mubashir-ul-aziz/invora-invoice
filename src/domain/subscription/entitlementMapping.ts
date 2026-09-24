@@ -46,11 +46,11 @@ function periodOf(info: EntitlementInfoLike): BillingPeriod | null {
 }
 
 /**
- * Maps RevenueCat's `CustomerInfo` to Invora's normalized subscription.
+ * Maps RevenueCat's `CustomerInfo` to Metriqo's normalized subscription.
  * RevenueCat is the authority: only entitlements RevenueCat reports as
  * active grant a plan, and when several are active (e.g. a plan change in
  * flight) the highest tier wins. Entitlement ids RevenueCat returns that
- * Invora doesn't know are ignored — they can never grant anything.
+ * Metriqo doesn't know are ignored — they can never grant anything.
  */
 export function normalizeCustomerInfo(info: CustomerInfoLike, now: number): NormalizedSubscription {
   let best: { plan: PaidPlanId; entitlement: EntitlementInfoLike } | null = null;

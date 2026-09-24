@@ -269,7 +269,7 @@ export class SubscriptionService {
     }
 
     // Switching between Play subscriptions must replace the old one, or the
-    // user would end up paying for two. `invora_<plan>` is the Play
+    // user would end up paying for two. `metriqo_<plan>` is the Play
     // subscription id shared by both of that plan's base plans.
     let change: ProductChange | undefined;
     if ((kind === 'immediate' || kind === 'deferred') && isPaidPlan(current.plan)) {

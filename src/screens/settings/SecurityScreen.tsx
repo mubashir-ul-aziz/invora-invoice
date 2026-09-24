@@ -135,7 +135,7 @@ export function SecurityScreen(_props: Props) {
         <FieldToggleRow
           icon="lock"
           label="App Lock"
-          description="Require authentication to open Invora"
+          description="Require authentication to open Metriqo"
           checked={current.appLockEnabled}
           onToggle={() => persist({ ...current, appLockEnabled: !current.appLockEnabled })}
           testID="toggle-app-lock"

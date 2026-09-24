@@ -10,6 +10,7 @@ import { InvoiceDetailsFormFields } from '@/components/invoice/InvoiceDetailsFor
 import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
+import { InvoiceLimitModal } from '@/components/subscription/InvoiceLimitModal';
 import { formatNextInvoiceNumber } from '@/domain/business/types';
 import { calculateInvoiceTotals, calculateLineTotal, toLineCalcInput } from '@/domain/invoice/calculations';
 import { formValuesToInvoiceDetails, invoiceToDetailsFormDefaults } from '@/domain/invoice/formMapping';
@@ -20,6 +21,7 @@ import {
 } from '@/domain/invoice/validation';
 import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
 import { InvoiceLimitError } from '@/domain/subscription/invoiceAccess';
+import { PLAN_CONFIG } from '@/domain/subscription/plans';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
@@ -67,6 +69,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   const [existingInvoiceNumber, setExistingInvoiceNumber] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(true);
   const [instantDispatch, setInstantDispatch] = useState(false);
+  const [limitError, setLimitError] = useState<InvoiceLimitError | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -118,11 +121,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
       if (error instanceof InvoiceLimitError) {
         // The authoritative monthly-limit check (see `invoiceStore.create`). Nothing was saved and no invoice
         // number was used; the draft is kept, so after upgrading the user can come back and save it.
-        Alert.alert(
-          'Monthly invoice limit reached',
-          `You've used ${error.usage.used}${error.usage.limit !== null ? ` of ${error.usage.limit}` : ''} invoices this month. Your draft is kept — upgrade to save it.`,
-        );
-        navigation.navigate('Pricing', { reason: 'invoice_limit' });
+        setLimitError(error);
         return;
       }
       Alert.alert("Couldn't save", 'This invoice could not be saved. Please try again.');
@@ -130,6 +129,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   });
 
   return (
+    <>
     <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="invoice-review-screen">
       {/* Step tracker */}
       <View style={styles.stepBar}>
@@ -327,6 +327,18 @@ export function InvoiceReviewScreen({ navigation }: Props) {
         </Pressable>
       </View>
     </KeyboardAvoidingScreen>
+    <InvoiceLimitModal
+      visible={!!limitError}
+      usage={limitError?.usage ?? null}
+      planLabel={limitError ? PLAN_CONFIG[limitError.usage.plan].label : ''}
+      onDismiss={() => setLimitError(null)}
+      onUpgrade={() => {
+        setLimitError(null);
+        navigation.navigate('Pricing', { reason: 'invoice_limit' });
+      }}
+      testID="invoice-review-limit-modal"
+    />
+    </>
   );
 }
 

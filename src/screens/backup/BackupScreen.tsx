@@ -217,7 +217,7 @@ export function BackupScreen({ navigation }: Props) {
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </Pressable>
 
-      {/* DESIGN ONLY: restoring from an offline .invora file isn't implemented — restore only works from a Drive file (see Backup History). */}
+      {/* DESIGN ONLY: restoring from an offline .metriqo file isn't implemented — restore only works from a Drive file (see Backup History). */}
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Feather name="rotate-ccw" size={18} color={colors.primary} />
@@ -231,11 +231,11 @@ export function BackupScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Restore from file — DESIGN ONLY, not implemented"
           testID="action-restore-from-file-design-only"
-          onPress={() => notAvailable('Restoring from an offline .invora file')}
+          onPress={() => notAvailable('Restoring from an offline .metriqo file')}
           style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}
         >
           <Feather name="upload" size={16} color={colors.primary} />
-          <Text style={styles.textButtonLabel}>Restore from File (.invora) · DESIGN ONLY</Text>
+          <Text style={styles.textButtonLabel}>Restore from File (.metriqo) · DESIGN ONLY</Text>
         </Pressable>
       </View>
     </ScrollView>

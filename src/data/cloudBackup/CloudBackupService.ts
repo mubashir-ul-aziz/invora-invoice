@@ -8,7 +8,7 @@ import type { CloudBackupApi } from './CloudBackupApi';
 import type { CloudBackupSettingsRepository } from './CloudBackupSettingsRepository';
 import type { BackupEncryptionService } from './encryption/BackupEncryptionService';
 
-const BACKUP_FILE_PREFIX = 'invora-cloud-backup-';
+const BACKUP_FILE_PREFIX = 'metriqo-cloud-backup-';
 
 function backupFileName(createdAt: number): string {
   return `${BACKUP_FILE_PREFIX}${new Date(createdAt).toISOString().replace(/[:.]/g, '-')}.json.enc`;

@@ -1,4 +1,4 @@
-# MVP Build Plan — Invora Invoice
+# MVP Build Plan — Metriqo Invoice
 
 Status: Phase 12 — Optional Cloud Backup complete (see IMPLEMENTATION_STATUS.md)
 Last updated: 2026-09-07
@@ -11,7 +11,7 @@ in this phase.
 
 ## 0. Working tree inspection (Phase 0 result)
 
-`d:\invora-invoice` is currently an **empty directory** — no existing Flutter,
+`d:\metriqo-invoice` is currently an **empty directory** — no existing Flutter,
 React Native, or other project scaffold; no git repository; no dependencies;
 no backend; no database; no navigation; no design system; no reusable
 components. There is nothing to preserve and nothing to migrate.
@@ -338,7 +338,7 @@ These are flagged now, not decided now, so Phase 0 stays documentation-only:
   filled in.
 - ~~**Server-hosted share links** (Module 9/1)~~ — **resolved in Phase 9**:
   both the digital-card and invoice share links stay static, device-
-  generated `invora://` deep links (`LocalShareLinkService`/
+  generated `metriqo://` deep links (`LocalShareLinkService`/
   `LocalInvoiceShareLinkService`), with no hosted redirect service. Revisit
   only if a real cross-device/web-viewable share link is explicitly
   requested later (that would need a small hosted service — see

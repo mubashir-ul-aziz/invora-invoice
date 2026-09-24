@@ -54,15 +54,24 @@ export function useSubscription() {
 
   /**
    * Early, synchronous feedback for the "new invoice" entry points: if the
-   * last known usage is already at the limit, send the user to Pricing
-   * instead of starting a flow they can't finish. This is UX only — the real
-   * limit is enforced when the invoice is saved (`invoiceStore.create`).
+   * last known usage is already at the limit, block instead of starting a
+   * flow the user can't finish. This is UX only — the real limit is enforced
+   * when the invoice is saved (`invoiceStore.create`).
+   *
+   * By default this navigates straight to Pricing (unchanged behavior). Pass
+   * `onBlocked` to show the `InvoiceLimitModal` in place instead — the
+   * caller decides how to present the block, the hook only decides whether
+   * to block, from the same `atInvoiceLimit` every screen already reads.
    * Returns whether `proceed` ran.
    */
   const guardInvoiceCreation = useCallback(
-    (navigation: PricingNavigation, proceed: () => void): boolean => {
+    (navigation: PricingNavigation, proceed: () => void, onBlocked?: () => void): boolean => {
       if (atInvoiceLimit) {
-        navigation.navigate('Pricing', { reason: 'invoice_limit' });
+        if (onBlocked) {
+          onBlocked();
+        } else {
+          navigation.navigate('Pricing', { reason: 'invoice_limit' });
+        }
         return false;
       }
       proceed();

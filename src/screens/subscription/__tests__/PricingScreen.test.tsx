@@ -211,7 +211,7 @@ describe('PricingScreen', () => {
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Plan change scheduled', expect.stringContaining('next renewal')));
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'invora_pro', timing: 'deferred' });
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'deferred' });
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Pro');
   });
 

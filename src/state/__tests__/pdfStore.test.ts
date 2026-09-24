@@ -61,11 +61,11 @@ const invoice: Invoice = {
 async function seedBusinessRepository(): Promise<InMemoryBusinessRepository> {
   const repo = new InMemoryBusinessRepository();
   await repo.saveProfile({
-    businessName: 'Invora Supplies',
+    businessName: 'Metriqo Supplies',
     logoUri: null,
     address: '123 Main St',
     phone: '555-1234',
-    email: 'hello@invora.test',
+    email: 'hello@metriqo.test',
     website: null,
     currency: 'USD',
     taxId: 'TAX-1',
@@ -78,7 +78,7 @@ async function seedBusinessRepository(): Promise<InMemoryBusinessRepository> {
 async function buildStore(options: { payments?: Payment[]; shareLink?: string } = {}) {
   const pdfService = new FakePdfService();
   const shareLinkService: InvoiceShareLinkService = {
-    getShareLink: jest.fn(() => options.shareLink ?? 'invora://invoice/inv_1'),
+    getShareLink: jest.fn(() => options.shareLink ?? 'metriqo://invoice/inv_1'),
   };
   const shareText = jest.fn(async (_message: string) => {});
   const openWhatsAppUrl = jest.fn(async (_url: string) => {});
@@ -172,6 +172,6 @@ describe('pdfStore', () => {
     await store.getState().loadForInvoice('inv_1');
     await store.getState().shareLink();
     expect(shareLinkService.getShareLink).toHaveBeenCalledWith(invoice);
-    expect(shareText).toHaveBeenCalledWith('invora://invoice/inv_1');
+    expect(shareText).toHaveBeenCalledWith('metriqo://invoice/inv_1');
   });
 });

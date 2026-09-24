@@ -316,7 +316,7 @@ describe('SubscriptionService — purchase', () => {
 
     expect(h.adapter.calls.purchase[0]).toEqual({
       packageId: 'business_monthly',
-      change: { oldProductIdentifier: 'invora_starter', timing: 'immediate' },
+      change: { oldProductIdentifier: 'metriqo_starter', timing: 'immediate' },
     });
     expect(outcome.status).toBe('success');
   });
@@ -329,7 +329,7 @@ describe('SubscriptionService — purchase', () => {
 
     const outcome = await h.service.purchase('starter', 'monthly');
 
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'invora_pro', timing: 'deferred' });
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'deferred' });
     expect(outcome.status).toBe('scheduled');
     expect(h.service.getSnapshot().plan).toBe('pro');
   });
@@ -402,7 +402,7 @@ describe('SubscriptionService — offerings and management', () => {
     expect(h.service.getManagementUrl()).toBe('https://play.google.com/store/account/subscriptions');
     h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
     await h.service.refresh();
-    expect(h.service.getManagementUrl()).toContain('package=com.invora.invoice');
+    expect(h.service.getManagementUrl()).toContain('package=com.metriqo.invoice');
   });
 
   it('never opens a management link that is not https', async () => {

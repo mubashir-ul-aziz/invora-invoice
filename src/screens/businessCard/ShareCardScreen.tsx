@@ -18,9 +18,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ShareCard'>;
  *
  * Restyled to match the Stitch "Share Card" design's Quick Share grid +
  * Direct Link + additional-options list. The direct link shown is the
- * real, app-generated share link (`invora://card/{slug}` — a deep link,
+ * real, app-generated share link (`metriqo://card/{slug}` — a deep link,
  * not a web URL; this app has no web backend/domain like Stitch's fake
- * "invora.me"). WhatsApp/Email/SMS quick-share icons are real: each opens
+ * "metriqo.me"). WhatsApp/Email/SMS quick-share icons are real: each opens
  * the OS's own compose UI pre-filled with the same message the native
  * share sheet already sends (`buildShareMessage`), via `shareViaWhatsApp`/
  * `openEmail`/`openSms` in `lib/linking` (the last two new, minimal

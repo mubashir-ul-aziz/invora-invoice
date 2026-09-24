@@ -1,4 +1,4 @@
-# Implementation Status — Invora Invoice
+# Implementation Status — Metriqo Invoice
 
 Tracks what has actually been built, phase by phase. Updated at the end of
 every completed functionality/phase.
@@ -10,7 +10,7 @@ every completed functionality/phase.
 **Status:** Complete (documentation only — no application code written).
 
 **What was built:**
-- Inspected the working tree at `d:\invora-invoice`: confirmed it is empty
+- Inspected the working tree at `d:\metriqo-invoice`: confirmed it is empty
   (no existing Flutter/React Native project, no git repo, no dependencies,
   no backend, no database, no navigation, no design system, no reusable
   components).
@@ -116,9 +116,9 @@ No backend service was built — none is required yet. What exists instead:
 - `src/data/shareLink/ShareLinkService.ts` — the interface a future hosted
   redirect service would implement.
 - `src/data/shareLink/LocalShareLinkService.ts` — today's implementation:
-  builds the QR/share destination from the app's own `invora://` scheme via
+  builds the QR/share destination from the app's own `metriqo://` scheme via
   `expo-linking`'s `Linking.createURL()`. This resolves to whatever
-  transport actually exists on the device (a real `invora://` URI in a
+  transport actually exists on the device (a real `metriqo://` URI in a
   standalone/dev-client build, an `exp://…` URL in Expo Go) — it never
   hard-codes a production domain that doesn't exist yet. No network call is
   made to produce it.
@@ -130,7 +130,7 @@ No backend service was built — none is required yet. What exists instead:
 
 ### 3. Database changes
 
-New local SQLite database (`invora.db`, via `expo-sqlite`), schema defined
+New local SQLite database (`metriqo.db`, via `expo-sqlite`), schema defined
 with Drizzle ORM in `src/data/db/schema.ts`:
 
 - **`business`** — `id`, `name`, `owner_name`, `logo_uri`, `phone`, `email`,
@@ -2998,13 +2998,13 @@ predecessor's placeholder).
   API, mirroring `ShareCardScreen` (Phase 1) exactly.
 - **No complex online payment links** — per the explicit instruction, none
   of the five sharing actions above touch payments; "Share link" is a local
-  `invora://invoice/<id>` deep link (see `LocalInvoiceShareLinkService`
+  `metriqo://invoice/<id>` deep link (see `LocalInvoiceShareLinkService`
   below), not a hosted payment page.
 - **No hosted redirect service was built for share links**, resolving
   `MVP_BUILD_PLAN.md` §10's "server-hosted share links... to confirm before
   Phase 9" open decision the way Phase 1 already resolved it for the
   Digital Business Card: `LocalInvoiceShareLinkService` builds an
-  `invora://invoice/<id>` deep link via `expo-linking`, exactly mirroring
+  `metriqo://invoice/<id>` deep link via `expo-linking`, exactly mirroring
   Phase 1's `LocalShareLinkService`. A future `RemoteInvoiceShareLinkService`
   implementing the same `InvoiceShareLinkService` interface remains a
   one-line swap at `data/container.ts` if a hosted service is ever
@@ -3281,7 +3281,7 @@ resolution errors.
    pre-filled text message containing the invoice number, total, and
    remaining balance, addressed to the customer's own number when known.
 8. Tap "Share link" → confirm the native `Share.share` sheet opens with the
-   local `invora://invoice/<id>` deep link as plain text — never an
+   local `metriqo://invoice/<id>` deep link as plain text — never an
    `https://` production URL that doesn't exist.
 9. Change the invoice's item weight/dimension fields (create a Weight- or
    Dimension-type invoice) → confirm those columns appear in both the
@@ -3478,7 +3478,7 @@ the additive navigation touch points listed below.
 - **An honest Account/Subscription placeholder**, per the explicit
   "RELATED SCREENS: ... Account/Subscription placeholder" and "do not
   implement unnecessary account features" / "do not implement payment
-  processing" instructions. Invora has no cloud account, login, or checkout
+  processing" instructions. Metriqo has no cloud account, login, or checkout
   system, so `AccountScreen` says exactly that instead of faking a sign-in
   flow — "Logout" is a real, working button (per the brief naming it) that
   honestly reports there's nothing to log out of, rather than a silent
@@ -3670,7 +3670,7 @@ app (1543 modules, up from Phase 9's 1529) with no resolution errors.
     save can't yank an already-unlocked screen back to locked;
     `lockIfEnabled` only re-locks when its argument is true; `unlock()`
     transitioning to `'unlocked'` on a successful `authenticate()` call
-    (asserting the exact prompt text `'Unlock Invora'`) and staying
+    (asserting the exact prompt text `'Unlock Metriqo'`) and staying
     `'locked'` on a failed/cancelled one.
 - **Component** (`AppLockGate.test.tsx`, one render per test — see the
   file-splitting note below): renders `children` immediately when App Lock
@@ -3921,7 +3921,7 @@ data reaches a screen except through a full local restore.
     existing good one.
   - *Incompatible version* — `SUPPORTED_BACKUP_FORMAT_VERSIONS` is checked
     before the checksum; a too-new or too-old `formatVersion` is rejected
-    with a specific, honest message ("made by a newer version of Invora" /
+    with a specific, honest message ("made by a newer version of Metriqo" /
     "no longer supported") instead of attempting a restore that could
     corrupt the schema.
   - *Restore failure* — see the safety rule below.
@@ -4920,7 +4920,7 @@ statement is already atomic by construction.
 | Module | Reads | Writes | Search | Calculations | Network dependency |
 |---|---|---|---|---|---|
 | Business | `SqliteBusinessRepository` | Single-statement upserts | n/a | Invoice numbering (`formatNextInvoiceNumber`) is pure local math | None |
-| Digital Business Card | `SqliteBusinessCardRepository` | Now transactional (fix above) | n/a | n/a | None — share link is a static device-generated `invora://` deep link (`LocalShareLinkService`, Phase 9), no hosted redirect |
+| Digital Business Card | `SqliteBusinessCardRepository` | Now transactional (fix above) | n/a | n/a | None — share link is a static device-generated `metriqo://` deep link (`LocalShareLinkService`, Phase 9), no hosted redirect |
 | QR | Renders from the card's local share link | n/a | n/a | n/a | None — `react-native-qrcode-svg` draws the code entirely on-device as local SVG |
 | Items | `SqliteItemRepository` | Single-statement | SQL `LIKE` on name/SKU/description | n/a | None |
 | Customers | `SqliteCustomerRepository` | Single-statement | SQL `LIKE` on name/phone/email | n/a | None |
@@ -5041,7 +5041,7 @@ Resolves the "Subscription/payment provider" open decision in
 `MVP_BUILD_PLAN.md` §10: **RevenueCat** (`react-native-purchases` 10.10.1)
 over **Google Play Billing**. RevenueCat is the subscription authority;
 Google Play performs the transaction; SQLite is only an offline cache.
-Invora stores no card/payment data and has no custom payment processor.
+Metriqo stores no card/payment data and has no custom payment processor.
 The Cloud Backup storage plans (`CloudUpgradeService`) are unrelated and
 untouched.
 

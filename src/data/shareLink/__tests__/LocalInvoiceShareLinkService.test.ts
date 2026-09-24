@@ -1,5 +1,5 @@
 jest.mock('expo-linking', () => ({
-  createURL: jest.fn((path: string) => `invora://${path}`),
+  createURL: jest.fn((path: string) => `metriqo://${path}`),
 }));
 
 import * as Linking from 'expo-linking';
@@ -27,7 +27,7 @@ describe('LocalInvoiceShareLinkService', () => {
   it('builds a share link from the invoice id via expo-linking, without any network call', () => {
     const service = new LocalInvoiceShareLinkService();
     const link = service.getShareLink(invoice);
-    expect(link).toBe('invora://invoice/inv_1');
+    expect(link).toBe('metriqo://invoice/inv_1');
     expect(Linking.createURL).toHaveBeenCalledWith('invoice/inv_1');
   });
 

@@ -8,7 +8,7 @@ function ent(overrides: Partial<EntitlementInfoLike> = {}): EntitlementInfoLike 
     isActive: true,
     willRenew: true,
     expirationDateMillis: NOW + 10 * DAY,
-    productIdentifier: 'invora_business',
+    productIdentifier: 'metriqo_business',
     productPlanIdentifier: 'monthly',
     billingIssueDetectedAtMillis: null,
     ...overrides,
@@ -35,8 +35,8 @@ describe('normalizeCustomerInfo', () => {
       {
         entitlements: {
           active: {
-            starter: ent({ productIdentifier: 'invora_starter' }),
-            pro: ent({ productIdentifier: 'invora_pro' }),
+            starter: ent({ productIdentifier: 'metriqo_starter' }),
+            pro: ent({ productIdentifier: 'metriqo_pro' }),
           },
         },
       },
@@ -74,7 +74,7 @@ describe('normalizeCustomerInfo', () => {
     const result = normalizeCustomerInfo(
       {
         entitlements: {
-          active: { starter: ent({ productIdentifier: 'invora_starter', productPlanIdentifier: 'yearly' }) },
+          active: { starter: ent({ productIdentifier: 'metriqo_starter', productPlanIdentifier: 'yearly' }) },
         },
       },
       NOW,

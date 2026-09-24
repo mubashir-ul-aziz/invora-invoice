@@ -31,7 +31,7 @@ const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.appdata'];
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files';
 
-const TOKENS_STORAGE_KEY = 'invora_google_drive_tokens';
+const TOKENS_STORAGE_KEY = 'metriqo_google_drive_tokens';
 /** Refresh a bit before actual expiry so a request never starts with a token that expires mid-flight. */
 const REFRESH_MARGIN_MS = 60_000;
 
@@ -156,7 +156,7 @@ export class ExpoGoogleDriveBackupService implements GoogleDriveBackupService {
     const request = new AuthRequest({
       clientId,
       scopes: DRIVE_SCOPES,
-      redirectUri: makeRedirectUri({ scheme: 'invora' }),
+      redirectUri: makeRedirectUri({ scheme: 'metriqo' }),
       responseType: ResponseType.Code,
       usePKCE: true,
     });
@@ -223,7 +223,7 @@ export class ExpoGoogleDriveBackupService implements GoogleDriveBackupService {
   }
 
   async uploadBackup(fileName: string, content: string): Promise<DriveBackupFile> {
-    const boundary = `invora-backup-${Date.now()}`;
+    const boundary = `metriqo-backup-${Date.now()}`;
     const metadata = JSON.stringify({ name: fileName, parents: ['appDataFolder'] });
     const body =
       `--${boundary}\r\n` +

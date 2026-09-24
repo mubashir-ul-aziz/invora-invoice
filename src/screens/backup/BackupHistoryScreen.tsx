@@ -31,7 +31,7 @@ type Filter = 'all' | BackupTrigger;
  * maps onto real store data, so nothing needed a DESIGN ONLY badge:
  * - The summary card's snapshot count and total size are computed from the
  *   real `remoteBackups` list, replacing Stitch's fabricated account
- *   email/"Active Sync" badge/fixed "/Invora_Backups/" path (no Drive
+ *   email/"Active Sync" badge/fixed "/Metriqo_Backups/" path (no Drive
  *   account-profile or folder-path data exists anywhere in this app).
  * - The filter chips (All/Automatic/Manual) are real, filtering the real
  *   `history` log by its actual `trigger` field.

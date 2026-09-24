@@ -6,7 +6,7 @@ import { EMPTY_BUSINESS_CARD_INPUT } from '@/domain/businessCard/types';
 import { createBusinessCardStore } from '../businessCardStore';
 
 const fakeShareLinkService: ShareLinkService = {
-  getShareLink: (card) => `invora://card/${card.shareSlug}`,
+  getShareLink: (card) => `metriqo://card/${card.shareSlug}`,
 };
 
 describe('businessCardStore', () => {
@@ -31,7 +31,7 @@ describe('businessCardStore', () => {
 
     expect(store.getState().status).toBe('ready');
     expect(store.getState().card).toEqual(saved);
-    expect(store.getState().getShareLink()).toBe(`invora://card/${saved.shareSlug}`);
+    expect(store.getState().getShareLink()).toBe(`metriqo://card/${saved.shareSlug}`);
   });
 
   it('surfaces repository errors from load() without throwing', async () => {

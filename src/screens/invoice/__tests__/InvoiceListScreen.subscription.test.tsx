@@ -103,7 +103,7 @@ describe('InvoiceListScreen — subscription behaviour', () => {
     const view = await renderScreen();
     await waitFor(() => expect(view.getByTestId('invoice-row-old')).toBeTruthy());
 
-    fireEvent.press(view.getByTestId('invoice-row-old'));
+    await fireEvent.press(view.getByTestId('invoice-row-old'));
 
     // The InvoiceDetail route is guarded, so it shows the upgrade screen.
     expect(navigation.navigate).toHaveBeenCalledWith('InvoiceDetail', { invoiceId: 'old' });
@@ -121,23 +121,28 @@ describe('InvoiceListScreen — subscription behaviour', () => {
     const view = await renderScreen();
     await waitFor(() => expect(view.getByTestId('action-create-invoice')).toBeTruthy());
 
-    fireEvent.press(view.getByTestId('action-create-invoice'));
+    await fireEvent.press(view.getByTestId('action-create-invoice'));
 
     expect(navigation.navigate).toHaveBeenCalledWith('CustomerList', expect.any(Object));
     expect(navigation.navigate).not.toHaveBeenCalledWith('Pricing', expect.anything());
   });
 
-  it('sends the user to Pricing instead of starting an invoice once the monthly limit is used up', async () => {
+  it('shows the InvoiceLimitModal instead of starting an invoice once the monthly limit is used up, and its CTA goes to Pricing', async () => {
     const recent = Array.from({ length: 5 }, (_, i) => invoice(`r${i}`, Date.now() - (i + 1) * 10 * 60_000));
     await boot({ invoices: recent });
     const view = await renderScreen();
     await waitFor(() => expect(view.getByTestId('action-create-invoice')).toBeTruthy());
     await waitFor(() => expect(mockSubscriptionStore.getState().usage?.used).toBe(5));
 
-    fireEvent.press(view.getByTestId('action-create-invoice'));
+    await fireEvent.press(view.getByTestId('action-create-invoice'));
 
-    expect(navigation.navigate).toHaveBeenCalledWith('Pricing', { reason: 'invoice_limit' });
+    expect(navigation.navigate).not.toHaveBeenCalledWith('Pricing', expect.anything());
     expect(navigation.navigate).not.toHaveBeenCalledWith('CustomerList', expect.anything());
     expect(useInvoiceDraftStore.getState().mode).toBeNull(); // no half-started draft
+    await waitFor(() => expect(view.getByTestId('invoice-limit-modal-upgrade')).toBeTruthy());
+
+    await fireEvent.press(view.getByTestId('invoice-limit-modal-upgrade'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('Pricing', { reason: 'invoice_limit' });
   });
 });

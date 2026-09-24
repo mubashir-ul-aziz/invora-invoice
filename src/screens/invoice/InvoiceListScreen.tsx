@@ -18,6 +18,7 @@ import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { useInvoiceLimitGuard } from '@/components/subscription/useInvoiceLimitGuard';
 import { useSubscription } from '@/state/useSubscription';
 import { colors } from '@/theme/colors';
 
@@ -78,6 +79,7 @@ export function InvoiceListScreen({ navigation, route }: Props) {
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
   const subscription = useSubscription();
+  const { guard: guardInvoiceCreation, modal: invoiceLimitModal } = useInvoiceLimitGuard(navigation);
   const currencySymbol = useCurrencySymbol();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -140,8 +142,8 @@ export function InvoiceListScreen({ navigation, route }: Props) {
   };
 
   const handleCreate = () => {
-    // Early feedback only: at the monthly limit, go straight to Pricing. The real limit is enforced when the invoice is saved.
-    subscription.guardInvoiceCreation(navigation, startCreateInvoice);
+    // Early feedback only: at the monthly limit, show the InvoiceLimitModal. The real limit is enforced when the invoice is saved.
+    guardInvoiceCreation(startCreateInvoice);
   };
 
   const startCreateInvoice = () => {
@@ -314,6 +316,7 @@ export function InvoiceListScreen({ navigation, route }: Props) {
           onSettings={() => navigation.navigate('Settings')}
         />
       )}
+      {invoiceLimitModal}
     </View>
   );
 }

@@ -6,7 +6,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CustomerActivityRow } from '@/components/customer/CustomerActivityRow';
 import { avatarStyleFor, initialsFor } from '@/components/customer/CustomerListRow';
+import { CustomerLockedModal } from '@/components/subscription/CustomerLockedModal';
 import { LockedBadge } from '@/components/subscription/LockedBadge';
+import { useInvoiceLimitGuard } from '@/components/subscription/useInvoiceLimitGuard';
 import { InvoiceStatusBadge, STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { Customer } from '@/domain/customer/types';
@@ -60,6 +62,8 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
   const { selection: invoiceTypeSelection, load: loadInvoiceType } = useInvoiceTypeStore();
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
   const subscription = useSubscription();
+  const { guard: guardInvoiceCreation, modal: invoiceLimitModal } = useInvoiceLimitGuard(navigation);
+  const [historyLockedVisible, setHistoryLockedVisible] = useState(false);
   const currencySymbol = useCurrencySymbol();
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -143,7 +147,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
 
   const handleCreateInvoice = () => {
     // Early feedback only: at the monthly limit, go straight to Pricing. The real limit is enforced when the invoice is saved.
-    subscription.guardInvoiceCreation(navigation, startCreateInvoice);
+    guardInvoiceCreation(startCreateInvoice);
   };
 
   const startCreateInvoice = () => {
@@ -164,7 +168,19 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
       onSelectInvoice: (invoice) => navigation.navigate('RecordPayment', { invoiceId: invoice.id }),
     });
 
+  const handleViewHistory = () => {
+    // Intercepted here so a Free user gets the CustomerLockedModal immediately
+    // instead of navigating into a full locked screen; `withCustomerHistoryGuard`
+    // (navigation/guards.tsx) remains the safety net for direct navigation.
+    if (subscription.canAccessHistoricalCustomer()) {
+      navigation.navigate('CustomerHistory', { customerId });
+    } else {
+      setHistoryLockedVisible(true);
+    }
+  };
+
   return (
+    <>
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
@@ -445,7 +461,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
           accessibilityRole="button"
           accessibilityLabel="View full history"
           testID="action-view-history"
-          onPress={() => navigation.navigate('CustomerHistory', { customerId })}
+          onPress={handleViewHistory}
           style={({ pressed }) => [styles.historyLink, pressed && styles.pressed]}
         >
           <Text style={styles.historyLinkText}>View full history</Text>
@@ -453,6 +469,18 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
         </Pressable>
       </View>
     </ScrollView>
+    {invoiceLimitModal}
+    <CustomerLockedModal
+      visible={historyLockedVisible}
+      customerName={customer.name}
+      onDismiss={() => setHistoryLockedVisible(false)}
+      onUpgrade={() => {
+        setHistoryLockedVisible(false);
+        navigation.navigate('Pricing', { reason: 'locked_customer' });
+      }}
+      testID="customer-detail-history-locked-modal"
+    />
+    </>
   );
 }
 

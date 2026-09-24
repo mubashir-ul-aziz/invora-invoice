@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import type { BackupEncryptionService, EncryptedBackupEnvelope } from './BackupEncryptionService';
 
-const KEY_STORAGE_KEY = 'invora_cloud_backup_encryption_key';
+const KEY_STORAGE_KEY = 'metriqo_cloud_backup_encryption_key';
 
 /**
  * Real implementation, using `expo-crypto`'s native AES-256-GCM (the `AES`

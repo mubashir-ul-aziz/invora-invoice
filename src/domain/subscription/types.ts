@@ -19,7 +19,7 @@ export type SubscriptionStatus =
   | 'LOADING';
 
 /**
- * The normalized subscription — the ONLY subscription data Invora persists.
+ * The normalized subscription — the ONLY subscription data Metriqo persists.
  * Derived from a RevenueCat `CustomerInfo`, never from raw purchase data.
  *
  * A lapsed paid plan is stored as `plan: 'free', isActive: false` with the old

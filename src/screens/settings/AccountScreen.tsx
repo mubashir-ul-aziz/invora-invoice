@@ -16,13 +16,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Account'>;
 
 /**
  * Account / Subscription (Phase 10 placeholder, now backed by the real
- * subscription layer). Invora has no cloud account or login system —
+ * subscription layer). Metriqo has no cloud account or login system —
  * everything runs off the on-device database (`MVP_BUILD_PLAN.md` §4) — so
  * this screen still says so honestly instead of faking a sign-in/sign-out
  * flow. "Logout" is listed by the brief but has nothing to log out of; it's a
  * labelled, working button that says so rather than a dead link.
  *
- * The Subscription card now shows the user's real Invora plan (RevenueCat +
+ * The Subscription card now shows the user's real Metriqo plan (RevenueCat +
  * Google Play, via `useSubscription()`) with a link to the Pricing screen,
  * and "Restore Purchases" runs a real restore. The separate Cloud Backup
  * storage plan (`cloudBackupStore`, `UpgradeStorage`) is an unrelated,
@@ -76,7 +76,7 @@ export function AccountScreen({ navigation }: Props) {
           <Text style={styles.title}>Account</Text>
         </View>
         <Text style={styles.body}>
-          Invora runs fully offline, with your data stored on this device. There's no cloud
+          Metriqo runs fully offline, with your data stored on this device. There's no cloud
           account to sign in to yet.
         </Text>
       </View>
@@ -109,7 +109,7 @@ export function AccountScreen({ navigation }: Props) {
             <Feather name="zap" size={12} color={colors.primaryText} />
             <Text style={styles.promoBadgeText}>MORE CLOUD STORAGE</Text>
           </View>
-          <Text style={styles.promoTitle}>Invora {plusPlan.label}</Text>
+          <Text style={styles.promoTitle}>Metriqo {plusPlan.label}</Text>
           <Text style={styles.promoPrice}>{plusPlan.priceLabel}</Text>
           <Text style={styles.promoBody}>Upgrade your cloud backup plan for more storage room.</Text>
           <ActionButton

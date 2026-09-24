@@ -6,9 +6,9 @@ import type { InvoiceShareLinkService } from './InvoiceShareLinkService';
 
 /**
  * Backend-free implementation, same reasoning as `LocalShareLinkService`
- * (Phase 1): builds a deep link from the app's own `invora://` scheme via
+ * (Phase 1): builds a deep link from the app's own `metriqo://` scheme via
  * `expo-linking`, resolving to whatever transport is actually available
- * right now (a real `invora://` URI in a standalone/dev-client build, an
+ * right now (a real `metriqo://` URI in a standalone/dev-client build, an
  * `exp://…` Expo Go URL in development) — never a hard-coded production
  * domain that doesn't exist. Works fully offline: no network call is made to
  * produce it. Per the explicit Phase 9 instructions ("do not make PDF

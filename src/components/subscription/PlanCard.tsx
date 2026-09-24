@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   pills: { alignItems: 'flex-end', gap: 4 },
   badge: { backgroundColor: colors.primary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   badgeText: { fontSize: 10, fontWeight: '800', color: colors.primaryText, letterSpacing: 0.5 },
-  currentPill: { backgroundColor: colors.background, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  currentPill: { backgroundColor: colors.primarySurface, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   currentText: { fontSize: 10, fontWeight: '800', color: colors.primary, letterSpacing: 0.5 },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   price: { fontSize: 26, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },

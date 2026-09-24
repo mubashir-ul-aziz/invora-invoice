@@ -9,7 +9,7 @@ import { EMPTY_BUSINESS_PROFILE_INPUT } from '@/domain/business/types';
 import type { ShareLinkService } from '@/data/shareLink/ShareLinkService';
 
 const fakeShareLinkService: ShareLinkService = {
-  getShareLink: (card) => `invora://card/${card.shareSlug}`,
+  getShareLink: (card) => `metriqo://card/${card.shareSlug}`,
 };
 
 let mockStore: ReturnType<typeof createBusinessProfileStore>;

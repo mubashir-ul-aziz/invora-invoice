@@ -21,7 +21,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'QRCode'>;
  * to Wallet", and "Print Desk Standee (PDF)" are DESIGN ONLY: this app has
  * no photo-library/wallet-pass integration, and PDF generation exists only
  * for invoices, not a card standee. Stitch's "Live vCard 2.1 Sync" badge is
- * dropped — the QR code here encodes the app's `invora://card/{slug}` deep
+ * dropped — the QR code here encodes the app's `metriqo://card/{slug}` deep
  * link (asserted by this screen's tests), not vCard-formatted data, so that
  * claim would be inaccurate; its "Verified" badge is dropped too (no
  * verification concept exists for a business card).

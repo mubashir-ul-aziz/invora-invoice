@@ -33,7 +33,7 @@ function mapEntitlements(entitlements: Record<string, PurchasesEntitlementInfo>)
   return mapped;
 }
 
-/** Keeps only the fields Invora's mapping reads — no raw purchase data crosses this boundary. */
+/** Keeps only the fields Metriqo's mapping reads — no raw purchase data crosses this boundary. */
 export function toCustomerInfoLike(info: CustomerInfo): CustomerInfoLike {
   const requestDate = Date.parse(info.requestDate);
   return {

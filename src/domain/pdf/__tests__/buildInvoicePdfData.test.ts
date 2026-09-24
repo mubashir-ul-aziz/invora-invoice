@@ -45,12 +45,12 @@ const invoice: Invoice = {
 
 const business: BusinessProfile = {
   id: 'default',
-  businessName: 'Invora Supplies',
+  businessName: 'Metriqo Supplies',
   logoUri: null,
   address: '123 Main St',
   phone: '555-1234',
-  email: 'hello@invora.test',
-  website: 'https://invora.test',
+  email: 'hello@metriqo.test',
+  website: 'https://metriqo.test',
   currency: 'USD',
   taxId: 'TAX-1',
   businessCode: '483920',
@@ -97,7 +97,7 @@ describe('buildInvoicePdfData', () => {
     expect(data.payment.remaining).toBe(500);
     expect(data.payment.overpaid).toBe(0);
     expect(data.totals.grandTotal).toBe(1000);
-    expect(data.business.businessName).toBe('Invora Supplies');
+    expect(data.business.businessName).toBe('Metriqo Supplies');
     expect(data.customer.name).toBe('Acme Corp');
     expect(data.customer.website).toBe('https://acme-corp.test');
     expect(data.invoiceNumber).toBe('INV-1');

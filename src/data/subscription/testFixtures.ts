@@ -32,7 +32,7 @@ export function activeInfo(plan: PaidPlanId, now: number, options: ActiveInfoOpt
   };
   return {
     entitlements: { active: { [PLAN_CONFIG[plan].entitlementId!]: entitlement }, all: { [PLAN_CONFIG[plan].entitlementId!]: entitlement } },
-    managementURL: 'https://play.google.com/store/account/subscriptions?package=com.invora.invoice',
+    managementURL: 'https://play.google.com/store/account/subscriptions?package=com.metriqo.invoice',
     requestDateMillis: options.requestDate === undefined ? now : options.requestDate,
   };
 }

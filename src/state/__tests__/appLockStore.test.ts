@@ -48,7 +48,7 @@ describe('appLockStore', () => {
 
     expect(result).toBe(true);
     expect(useStore.getState().status).toBe('unlocked');
-    expect(biometric.authenticateCalls).toEqual(['Unlock Invora']);
+    expect(biometric.authenticateCalls).toEqual(['Unlock Metriqo']);
   });
 
   it('unlock() stays locked when authentication fails or is cancelled', async () => {

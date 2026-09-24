@@ -13,7 +13,7 @@ import {
 } from './CloudBackupApi';
 import type { EncryptedBackupEnvelope } from './encryption/BackupEncryptionService';
 
-const DEVICE_TOKEN_STORAGE_KEY = 'invora_cloud_backup_device_token';
+const DEVICE_TOKEN_STORAGE_KEY = 'metriqo_cloud_backup_device_token';
 
 /**
  * Real implementation of `CloudBackupApi` — a plain `fetch` client against

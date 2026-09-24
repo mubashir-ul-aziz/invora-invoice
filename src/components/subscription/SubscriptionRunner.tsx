@@ -11,7 +11,7 @@ interface Props {
  * Keeps the subscription fresh without ever gating the app. Wraps the whole
  * tree (see `App.tsx`) purely for its effects, like `AutoBackupRunner`:
  *
- *  - on startup: reads the cached subscription immediately (so Invora works
+ *  - on startup: reads the cached subscription immediately (so Metriqo works
  *    offline on the last known plan), then syncs with RevenueCat;
  *  - every time the app returns to the foreground: syncs again and refreshes
  *    the invoice-usage meter;

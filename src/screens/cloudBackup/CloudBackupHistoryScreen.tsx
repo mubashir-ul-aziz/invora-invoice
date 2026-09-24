@@ -34,7 +34,7 @@ type Filter = 'all' | BackupTrigger;
  * - "Retry" on a failed backup entry re-runs the real `backupNow()`.
  * - The bottom "Trigger Immediate Cloud Backup" button also calls the real
  *   `backupNow()`.
- * Dropped rather than shown (no backing data): Stitch's "Invora Cloud (EU
+ * Dropped rather than shown (no backing data): Stitch's "Metriqo Cloud (EU
  * Central)" region claim (no region concept exists in `CloudBackupApi`),
  * the "zero-knowledge" claim, the per-row "Snapshot Breakdown" preview grid
  * (remote files carry no counts before restoring), and the "SHA-256 digest
@@ -134,7 +134,7 @@ export function CloudBackupHistoryScreen({}: Props) {
               <View style={styles.summaryIcon}>
                 <Feather name="cloud" size={18} color={colors.primary} />
               </View>
-              <Text style={styles.summaryTitle}>Invora Cloud Vault</Text>
+              <Text style={styles.summaryTitle}>Metriqo Cloud Vault</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Refresh backups"

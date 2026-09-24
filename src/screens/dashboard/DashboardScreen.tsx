@@ -11,6 +11,7 @@ import { DashboardStatusBreakdown } from '@/components/dashboard/DashboardStatus
 import { DashboardSummaryCard } from '@/components/dashboard/DashboardSummaryCard';
 import { RecentInvoiceRow } from '@/components/dashboard/RecentInvoiceRow';
 import { UsageMeter } from '@/components/subscription/UsageMeter';
+import { useInvoiceLimitGuard } from '@/components/subscription/useInvoiceLimitGuard';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
@@ -60,6 +61,7 @@ export function DashboardScreen({ navigation }: Props) {
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
   const { profile: businessProfile, load: loadBusinessProfile } = useBusinessProfileStore();
   const subscription = useSubscription();
+  const { guard: guardInvoiceCreation, modal: invoiceLimitModal } = useInvoiceLimitGuard(navigation);
 
   useEffect(() => {
     load();
@@ -72,8 +74,8 @@ export function DashboardScreen({ navigation }: Props) {
   }, [navigation]);
 
   const handleCreateInvoice = () => {
-    // Early feedback only: at the monthly limit, go straight to Pricing. The real limit is enforced when the invoice is saved.
-    subscription.guardInvoiceCreation(navigation, startCreateInvoice);
+    // Early feedback only: at the monthly limit, show the InvoiceLimitModal. The real limit is enforced when the invoice is saved.
+    guardInvoiceCreation(startCreateInvoice);
   };
 
   const startCreateInvoice = () => {
@@ -191,6 +193,7 @@ export function DashboardScreen({ navigation }: Props) {
         onCustomers={() => navigation.navigate('CustomerList')}
         onSettings={() => navigation.navigate('Settings')}
       />
+      {invoiceLimitModal}
     </View>
   );
 }

@@ -49,7 +49,7 @@ export function createAppLockStore(biometricService: BiometricService = getBiome
     },
 
     unlock: async () => {
-      const success = await biometricService.authenticate('Unlock Invora');
+      const success = await biometricService.authenticate('Unlock Metriqo');
       if (success) {
         set({ status: 'unlocked' });
       }

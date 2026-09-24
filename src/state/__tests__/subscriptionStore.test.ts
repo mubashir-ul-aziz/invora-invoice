@@ -181,7 +181,7 @@ describe('subscriptionStore', () => {
     s.adapter.setCustomerInfo(activeInfo('pro', s.clock.now));
     await s.service.refresh();
     await s.store.getState().openManageSubscription();
-    expect(s.openUrl).toHaveBeenLastCalledWith(expect.stringContaining('package=com.invora.invoice'));
+    expect(s.openUrl).toHaveBeenLastCalledWith(expect.stringContaining('package=com.metriqo.invoice'));
   });
 
   it('never lets a paid plan lapse silently into Free just because the app went offline', async () => {

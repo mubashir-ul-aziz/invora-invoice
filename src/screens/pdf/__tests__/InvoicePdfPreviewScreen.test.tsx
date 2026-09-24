@@ -54,7 +54,7 @@ async function setUp(overrides: Partial<InvoiceInput> = {}) {
     nextInvoiceNumber: 2,
   });
   const pdfService = new FakePdfService();
-  const shareLinkService: InvoiceShareLinkService = { getShareLink: () => 'invora://invoice/1' };
+  const shareLinkService: InvoiceShareLinkService = { getShareLink: () => 'metriqo://invoice/1' };
   mockPdfStore = createPdfStore({
     invoiceRepository: invoices,
     customerRepository: new InMemoryCustomerRepository([

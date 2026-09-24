@@ -12,7 +12,7 @@ import type { BackupRepository } from './BackupRepository';
 import type { BackupSettingsRepository } from './BackupSettingsRepository';
 import type { GoogleDriveBackupService } from './googleDrive/GoogleDriveBackupService';
 
-const BACKUP_FILE_PREFIX = 'invora-backup-';
+const BACKUP_FILE_PREFIX = 'metriqo-backup-';
 
 function backupFileName(createdAt: number): string {
   return `${BACKUP_FILE_PREFIX}${new Date(createdAt).toISOString().replace(/[:.]/g, '-')}.json`;

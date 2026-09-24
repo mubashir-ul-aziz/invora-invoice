@@ -51,7 +51,7 @@ const CUSTOMER: Customer = {
 
 /** One submitting test per file — see the codebase-wide note on react-hook-form's async resolver. */
 describe('InvoiceReviewScreen save at the monthly invoice limit', () => {
-  it('saves nothing, keeps the draft, and sends the user to Pricing', async () => {
+  it('saves nothing, keeps the draft, shows the InvoiceLimitModal, and its CTA sends the user to Pricing', async () => {
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     const businessRepo = new InMemoryBusinessRepository();
     mockBusinessProfileStore = createBusinessProfileStore(businessRepo);
@@ -72,14 +72,20 @@ describe('InvoiceReviewScreen save at the monthly invoice limit', () => {
     const view = await render(<InvoiceReviewScreen navigation={navigation as never} route={{} as never} />);
 
     await waitFor(() => expect(view.getByTestId('save-invoice')).toBeTruthy());
-    fireEvent.press(view.getByTestId('save-invoice'));
+    await fireEvent.press(view.getByTestId('save-invoice'));
 
-    await waitFor(() => expect(navigation.navigate).toHaveBeenCalledWith('Pricing', { reason: 'invoice_limit' }));
-    expect(Alert.alert).toHaveBeenCalledWith('Monthly invoice limit reached', expect.stringContaining('5 of 5'));
-    // Nothing saved, draft kept for after the upgrade, and no "couldn't save" error shown.
+    // Nothing saved, draft kept for after the upgrade, and no "couldn't save" alert shown — the
+    // limit is presented via the InvoiceLimitModal, not a native Alert.
+    await waitFor(() => expect(view.getByTestId('invoice-limit-modal-upgrade')).toBeTruthy());
+    expect(view.getByText('5 / 5')).toBeTruthy();
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalled();
     expect(await invoiceRepo.list()).toHaveLength(0);
     expect(navigation.popToTop).not.toHaveBeenCalled();
     expect(useInvoiceDraftStore.getState().items).toHaveLength(1);
-    expect((Alert.alert as jest.Mock).mock.calls.some((call) => call[0] === "Couldn't save")).toBe(false);
+
+    await fireEvent.press(view.getByTestId('invoice-limit-modal-upgrade'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith('Pricing', { reason: 'invoice_limit' });
   });
 });

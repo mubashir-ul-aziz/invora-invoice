@@ -18,7 +18,7 @@ function escapeVCardValue(value: string): string {
  * card — not just a link to it. Encoded into the small QR code on the back
  * of `CardPreview`, this lets any phone's camera / QR reader import the full
  * contact (name, org, phone, email, address, website) directly with no
- * network round-trip and no Invora install required; the tax id and social
+ * network round-trip and no Metriqo install required; the tax id and social
  * links, which vCard has no dedicated field for, ride along in `NOTE`.
  */
 export function buildBusinessCardVCard(card: BusinessCard): string {

@@ -87,7 +87,7 @@ export function AppLockGate({ children }: Props) {
     const canUseBiometric = !!settings?.biometricUnlockEnabled && biometricSupported;
     return (
       <View style={styles.centered} testID="app-lock-screen">
-        <Text style={styles.title}>Invora is locked</Text>
+        <Text style={styles.title}>Metriqo is locked</Text>
         <Text style={styles.subtitle}>
           {canUseBiometric
             ? 'Use Face ID / fingerprint, or your device passcode, to continue.'

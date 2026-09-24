@@ -19,8 +19,8 @@ const baseCard: BusinessCard = {
 
 describe('buildShareMessage', () => {
   it('includes only the fields that are set, plus the share link', () => {
-    const message = buildShareMessage(baseCard, 'invora://card/abc123');
-    expect(message).toBe('Acme Co\ninvora://card/abc123');
+    const message = buildShareMessage(baseCard, 'metriqo://card/abc123');
+    expect(message).toBe('Acme Co\nmetriqo://card/abc123');
   });
 
   it('includes every set field for a complete profile', () => {
@@ -33,7 +33,7 @@ describe('buildShareMessage', () => {
         website: 'https://acme.com',
         address: '1 Main St',
       },
-      'invora://card/abc123',
+      'metriqo://card/abc123',
     );
     expect(message).toBe(
       [
@@ -43,7 +43,7 @@ describe('buildShareMessage', () => {
         'Email: jane@acme.com',
         'Website: https://acme.com',
         'Address: 1 Main St',
-        'invora://card/abc123',
+        'metriqo://card/abc123',
       ].join('\n'),
     );
   });

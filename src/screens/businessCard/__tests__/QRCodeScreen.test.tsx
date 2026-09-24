@@ -7,7 +7,7 @@ import { EMPTY_BUSINESS_CARD_INPUT } from '@/domain/businessCard/types';
 import type { ShareLinkService } from '@/data/shareLink/ShareLinkService';
 
 const fakeShareLinkService: ShareLinkService = {
-  getShareLink: (card) => `invora://card/${card.shareSlug}`,
+  getShareLink: (card) => `metriqo://card/${card.shareSlug}`,
 };
 
 let mockStore: ReturnType<typeof createBusinessCardStore>;
@@ -53,7 +53,7 @@ describe('QRCodeScreen', () => {
     const view = await renderScreen();
 
     await waitFor(() => expect(view.getByTestId('mock-qrcode')).toBeTruthy());
-    expect(view.getByTestId('mock-qrcode').props.children).toBe(`invora://card/${saved.shareSlug}`);
-    expect(view.getByTestId('qr-link-text').props.children).toBe(`invora://card/${saved.shareSlug}`);
+    expect(view.getByTestId('mock-qrcode').props.children).toBe(`metriqo://card/${saved.shareSlug}`);
+    expect(view.getByTestId('qr-link-text').props.children).toBe(`metriqo://card/${saved.shareSlug}`);
   });
 });

@@ -23,7 +23,7 @@ export class RevenueCatError extends Error {
   }
 }
 
-/** One purchasable RevenueCat package, mapped onto an Invora plan + billing period. */
+/** One purchasable RevenueCat package, mapped onto an Metriqo plan + billing period. */
 export interface StorePackage {
   plan: PaidPlanId;
   period: BillingPeriod;
@@ -39,17 +39,17 @@ export interface StorePackage {
 
 /** Tells Google Play to replace the user's existing subscription instead of creating a second one. */
 export interface ProductChange {
-  /** The Google Play subscription id being replaced, e.g. `invora_starter`. */
+  /** The Google Play subscription id being replaced, e.g. `metriqo_starter`. */
   oldProductIdentifier: string;
   timing: 'immediate' | 'deferred';
 }
 
 /**
- * The single seam between Invora and the RevenueCat SDK. Everything above it
+ * The single seam between Metriqo and the RevenueCat SDK. Everything above it
  * (`SubscriptionService`, stores, screens) speaks only these types, so the
  * SDK stays swappable/mockable and never leaks into UI or domain code.
  * RevenueCat is the subscription authority; Google Play performs the actual
- * transaction. Invora never sees card or payment details.
+ * transaction. Metriqo never sees card or payment details.
  */
 export interface RevenueCatAdapter {
   /** False when there's no API key, the platform isn't Android, or the native module isn't in this build (e.g. Expo Go). Nothing else may be called then. */

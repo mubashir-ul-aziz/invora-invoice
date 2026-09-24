@@ -1,5 +1,5 @@
 /**
- * The single source of truth for every Invora plan rule. UI components,
+ * The single source of truth for every Metriqo plan rule. UI components,
  * services and stores read plan behaviour from `PLAN_CONFIG` (via the
  * access/entitlement helpers built on it) instead of branching on plan names,
  * so changing a limit or price is a one-line edit here.
@@ -7,7 +7,7 @@
  * Free has no Google Play product. Each paid tier is its own Google Play
  * *subscription* with two base plans (`monthly` / `yearly`); RevenueCat
  * identifies those products as `<subscriptionId>:<basePlanId>`, e.g.
- * `invora_starter:monthly`. The `packageId`s below are the identifiers of the
+ * `metriqo_starter:monthly`. The `packageId`s below are the identifiers of the
  * matching Packages in the RevenueCat `default` Offering. The RevenueCat
  * entitlement ids (`starter`, `business`, `pro`, `unlimited`) must match
  * `entitlementId` below exactly.
@@ -71,7 +71,7 @@ function product(subscriptionId: string, period: BillingPeriod, packageId: strin
 }
 
 function paidProducts(plan: PaidPlanId): Record<BillingPeriod, PlanProduct> {
-  const subscriptionId = `invora_${plan}`;
+  const subscriptionId = `metriqo_${plan}`;
   return {
     monthly: product(subscriptionId, 'monthly', `${plan}_monthly`),
     yearly: product(subscriptionId, 'yearly', `${plan}_yearly`),
@@ -181,7 +181,7 @@ export function findPlanByStoreProduct(
   storeProductId: string,
   basePlanId?: string | null,
 ): { plan: PaidPlanId; period: BillingPeriod | null } | null {
-  // RevenueCat may report the id as `invora_starter:monthly` or split it.
+  // RevenueCat may report the id as `metriqo_starter:monthly` or split it.
   const [productPart, basePlanPart] = storeProductId.split(':');
   const basePlan = basePlanId ?? basePlanPart ?? null;
   for (const plan of PAID_PLAN_IDS) {

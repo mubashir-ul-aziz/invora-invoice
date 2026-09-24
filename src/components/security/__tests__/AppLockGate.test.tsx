@@ -72,7 +72,7 @@ describe('AppLockGate', () => {
     fireEvent.press(view.getByTestId('app-lock-unlock'));
 
     await waitFor(() => expect(view.getByTestId('protected-content')).toBeTruthy());
-    expect(biometric.authenticateCalls).toEqual(['Unlock Invora']);
+    expect(biometric.authenticateCalls).toEqual(['Unlock Metriqo']);
   });
 
   it('auto-attempts biometric authentication as soon as the lock screen appears when Biometric Unlock is on and supported', async () => {
@@ -91,6 +91,6 @@ describe('AppLockGate', () => {
     );
 
     await waitFor(() => expect(view.getByTestId('protected-content')).toBeTruthy());
-    expect(biometric.authenticateCalls).toEqual(['Unlock Invora']);
+    expect(biometric.authenticateCalls).toEqual(['Unlock Metriqo']);
   });
 });

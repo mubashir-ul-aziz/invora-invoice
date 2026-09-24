@@ -8,7 +8,7 @@ import { EMPTY_BUSINESS_CARD_INPUT } from '@/domain/businessCard/types';
 import type { ShareLinkService } from '@/data/shareLink/ShareLinkService';
 
 const fakeShareLinkService: ShareLinkService = {
-  getShareLink: (card) => `invora://card/${card.shareSlug}`,
+  getShareLink: (card) => `metriqo://card/${card.shareSlug}`,
 };
 
 let mockStore: ReturnType<typeof createBusinessCardStore>;
@@ -56,7 +56,7 @@ describe('ShareCardScreen', () => {
 
     await waitFor(() =>
       expect(Share.share).toHaveBeenCalledWith({
-        message: `Acme Co\nPhone: +15551234567\ninvora://card/${saved.shareSlug}`,
+        message: `Acme Co\nPhone: +15551234567\nmetriqo://card/${saved.shareSlug}`,
         title: 'Acme Co',
       }),
     );

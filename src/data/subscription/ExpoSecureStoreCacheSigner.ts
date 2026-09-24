@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import type { SubscriptionCacheSigner } from './SubscriptionCacheRepository';
 
-const SECRET_STORAGE_KEY = 'invora_subscription_cache_secret';
+const SECRET_STORAGE_KEY = 'metriqo_subscription_cache_secret';
 
 /**
  * Real signer. A random 256-bit secret is generated once per install and kept

@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "Invora Invoice",
-    "slug": "invora-invoice",
-    "scheme": "invora",
+    "name": "Metriqo Invoice",
+    "slug": "metriqo-invoice",
+    "scheme": "metriqo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.invora.invoice",
+      "bundleIdentifier": "com.metriqo.invoice",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.invora.invoice",
+      "package": "com.metriqo.invoice",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -38,13 +38,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Invora to access your photos so you can set your business logo."
+          "photosPermission": "Allow Metriqo to access your photos so you can set your business logo."
         }
       ],
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Invora to use Face ID to unlock the app."
+          "faceIDPermission": "Allow Metriqo to use Face ID to unlock the app."
         }
       ],
       "expo-web-browser",
