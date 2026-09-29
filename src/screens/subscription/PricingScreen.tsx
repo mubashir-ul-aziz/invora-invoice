@@ -18,6 +18,7 @@ import {
   PLAN_CONFIG,
   PLAN_ORDER,
   describePlanFeatures,
+  isPaidPlan,
   type BillingPeriod,
   type PaidPlanId,
 } from '@/domain/subscription/plans';
@@ -26,7 +27,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useSubscription } from '@/state/useSubscription';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 
-import { purchaseOutcomeMessage, restoreOutcomeMessage } from './outcomeMessages';
+import { customerCenterOutcomeMessage, paywallOutcomeMessage, purchaseOutcomeMessage, restoreOutcomeMessage } from './outcomeMessages';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Pricing'>;
 
@@ -100,6 +101,22 @@ export function PricingScreen({ route }: Props) {
     Alert.alert(message.title, message.message);
   };
 
+  const handlePresentPaywall = async () => {
+    const outcome = await sub.presentPaywall();
+    const message = paywallOutcomeMessage(outcome);
+    if (message) {
+      Alert.alert(message.title, message.message);
+    }
+  };
+
+  const handlePresentCustomerCenter = async () => {
+    const outcome = await sub.presentCustomerCenter();
+    const message = customerCenterOutcomeMessage(outcome);
+    if (message) {
+      Alert.alert(message.title, message.message);
+    }
+  };
+
   const scrollToPlans = () => {
     scrollRef.current?.scrollTo({ y: Math.max(0, plansSectionY.current - spacing.lg), animated: true });
   };
@@ -110,12 +127,44 @@ export function PricingScreen({ route }: Props) {
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} testID="pricing-screen">
       {reasonCopy && (
         <View style={styles.reasonBanner} testID="pricing-reason">
-          <View style={styles.reasonIcon}>
-            <Feather name="lock" size={16} color={colors.primary} />
+          <View style={styles.reasonRow}>
+            <View style={styles.reasonIcon}>
+              <Feather name="lock" size={16} color={colors.primary} />
+            </View>
+            <View style={styles.flexShrink}>
+              <Text style={styles.reasonTitle}>{reasonCopy.title}</Text>
+              <Text style={styles.reasonMessage}>{reasonCopy.message}</Text>
+            </View>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade now"
+            testID="pricing-reason-upgrade"
+            onPress={handlePresentPaywall}
+            disabled={working}
+            style={({ pressed }) => [styles.reasonUpgradeButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.reasonUpgradeText}>{working ? 'Working…' : 'Upgrade now'}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* trust === 'stale': the cache hasn't been verified for longer than the offline policy allows
+          (`MAX_STALE_MS`, see offlinePolicy.ts), so `sub.plan` has already fallen back to Free even
+          though `sub.subscription.plan` (the last thing RevenueCat actually confirmed) was paid. The
+          generic "Not verified yet" status pill doesn't convey that, so a paying user needs an explicit
+          nudge to reconnect rather than assuming they've simply lost their plan. */}
+      {sub.trust === 'stale' && isPaidPlan(sub.subscription.plan) && (
+        <View style={styles.staleBanner} testID="pricing-stale-trust">
+          <View style={styles.staleIcon}>
+            <Feather name="alert-triangle" size={16} color={colors.warning} />
           </View>
           <View style={styles.flexShrink}>
-            <Text style={styles.reasonTitle}>{reasonCopy.title}</Text>
-            <Text style={styles.reasonMessage}>{reasonCopy.message}</Text>
+            <Text style={styles.staleTitle}>Verify your subscription</Text>
+            <Text style={styles.staleMessage}>
+              We haven't been able to confirm your {PLAN_CONFIG[sub.subscription.plan].label} plan in a while, so it's showing
+              as Free for now. Connect to the internet to verify your subscription and restore full access.
+            </Text>
           </View>
         </View>
       )}
@@ -190,6 +239,13 @@ export function PricingScreen({ route }: Props) {
           onPress={handleRestore}
           testID="action-restore-purchases"
         />
+        <SettingsRow
+          icon="life-buoy"
+          label="Customer Center"
+          description="Manage, pause or cancel your subscription, or get help"
+          onPress={handlePresentCustomerCenter}
+          testID="action-customer-center"
+        />
       </View>
 
       {/* Plan grid (Stitch "Pricing Plans") */}
@@ -255,7 +311,15 @@ export function PricingScreen({ route }: Props) {
           }
           const paidPlan: PaidPlanId = planId;
           const pkg = findPackage(paidPlan, period);
-          const kind = planChangeKind({ plan: sub.plan, period: sub.subscription.billingPeriod }, { plan: paidPlan, period });
+          const currentPackage =
+            isPaidPlan(sub.plan) && sub.subscription.billingPeriod
+              ? findPackage(sub.plan, sub.subscription.billingPeriod)
+              : undefined;
+          const kind = planChangeKind(
+            { plan: sub.plan, period: sub.subscription.billingPeriod },
+            { plan: paidPlan, period },
+            { current: currentPackage, target: pkg },
+          );
           const isCurrent = kind === 'same';
           const label = kind === 'immediate' || kind === 'new' ? `Upgrade to ${config.label}` : `Switch to ${config.label}`;
           return (
@@ -308,15 +372,22 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
 
   reasonBanner: {
-    flexDirection: 'row',
     gap: spacing.md,
-    alignItems: 'flex-start',
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.primary,
     padding: spacing.lg,
   },
+  reasonRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
+  reasonUpgradeButton: {
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reasonUpgradeText: { fontSize: typography.bodyBold.fontSize, fontWeight: '700', color: colors.primaryText },
   reasonIcon: {
     width: 32,
     height: 32,
@@ -327,6 +398,27 @@ const styles = StyleSheet.create({
   },
   reasonTitle: { fontSize: typography.h3.fontSize, fontWeight: typography.h3.weight, color: colors.text },
   reasonMessage: { fontSize: typography.caption.fontSize, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
+
+  staleBanner: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+    backgroundColor: colors.warningBg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    padding: spacing.lg,
+  },
+  staleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staleTitle: { fontSize: typography.h3.fontSize, fontWeight: typography.h3.weight, color: colors.text },
+  staleMessage: { fontSize: typography.caption.fontSize, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
 
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
   currentTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },

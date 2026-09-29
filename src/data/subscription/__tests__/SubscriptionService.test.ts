@@ -38,6 +38,7 @@ describe('SubscriptionService — refresh and offline behaviour', () => {
         'isActive',
         'lastSyncedAt',
         'plan',
+        'revenueCatUserId',
         'source',
         'usage',
         'willRenew',
@@ -333,6 +334,36 @@ describe('SubscriptionService — purchase', () => {
     expect(outcome.status).toBe('scheduled');
     expect(h.service.getSnapshot().plan).toBe('pro');
   });
+
+  it('ranks an upgrade/downgrade by the real loaded store price, not just the fallback reference price', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.refresh();
+    // Reference prices (fallbackPriceUsd) rank Business ($10/mo) below Pro ($15/mo) — an ordinary
+    // downgrade. Give Business a real, regionally-priced package that actually costs more per day.
+    h.adapter.packages = h.adapter.packages.map((pkg) =>
+      pkg.plan === 'business' && pkg.period === 'monthly' ? { ...pkg, priceMicros: 20_000_000 } : pkg,
+    );
+    await h.service.getOfferings();
+    h.adapter.onPurchase = () => activeInfo('business', h.clock.now);
+
+    const outcome = await h.service.purchase('business', 'monthly');
+
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'immediate' });
+    expect(outcome.status).toBe('success');
+  });
+
+  it('falls back to the reference price when offerings were never loaded (same as before real prices existed)', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.refresh();
+    h.adapter.onPurchase = () => activeInfo('business', h.clock.now);
+
+    const outcome = await h.service.purchase('business', 'monthly');
+
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'deferred' });
+    expect(outcome.status).toBe('scheduled');
+  });
 });
 
 describe('SubscriptionService — restore', () => {
@@ -410,5 +441,225 @@ describe('SubscriptionService — offerings and management', () => {
     h.adapter.setCustomerInfo({ ...activeInfo('pro', h.clock.now), managementURL: 'intent://evil' });
     await h.service.refresh();
     expect(h.service.getManagementUrl()).toBe('https://play.google.com/store/account/subscriptions');
+  });
+});
+
+describe('SubscriptionService — presentPaywall', () => {
+  it('trusts a purchase confirmed by the paywall itself, without re-checking the plan rank', async () => {
+    const h = makeHarness();
+    h.adapter.paywallResult = 'purchased';
+    h.adapter.onPaywallPresented = () => activeInfo('business', h.clock.now);
+
+    const outcome = await h.service.presentPaywall();
+
+    expect(outcome).toMatchObject({ status: 'purchased' });
+    expect(h.service.getSnapshot().plan).toBe('business');
+  });
+
+  it('refreshes the snapshot after a restore inside the paywall', async () => {
+    const h = makeHarness();
+    h.adapter.paywallResult = 'restored';
+    h.adapter.onPaywallPresented = () => activeInfo('starter', h.clock.now);
+
+    const outcome = await h.service.presentPaywall();
+
+    expect(outcome).toMatchObject({ status: 'restored' });
+    expect(h.service.getSnapshot().plan).toBe('starter');
+  });
+
+  it('reports a plain dismissal without touching the snapshot', async () => {
+    const h = makeHarness();
+    h.adapter.paywallResult = 'cancelled';
+
+    const outcome = await h.service.presentPaywall();
+
+    expect(outcome).toEqual({ status: 'cancelled' });
+    expect(h.adapter.calls.getCustomerInfo).toBe(0);
+  });
+
+  it('reports not_presented as-is', async () => {
+    const h = makeHarness();
+    h.adapter.paywallResult = 'not_presented';
+    expect(await h.service.presentPaywall()).toEqual({ status: 'not_presented' });
+  });
+
+  it('maps a paywall-internal error to failed', async () => {
+    const h = makeHarness();
+    h.adapter.paywallResult = 'error';
+    expect(await h.service.presentPaywall()).toEqual({ status: 'failed', message: 'The paywall could not be shown.' });
+  });
+
+  it('is unavailable when RevenueCat is not configured', async () => {
+    const h = makeHarness();
+    h.adapter.available = false;
+    expect(await h.service.presentPaywall()).toEqual({ status: 'unavailable' });
+  });
+
+  it('does not throw when the adapter rejects', async () => {
+    const h = makeHarness();
+    h.adapter.failNext('network');
+    const outcome = await h.service.presentPaywall();
+    expect(outcome.status).toBe('failed');
+  });
+});
+
+describe('SubscriptionService — presentCustomerCenter', () => {
+  it('refreshes the snapshot after the customer center closes', async () => {
+    const h = makeHarness();
+    await h.service.refresh();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+
+    const outcome = await h.service.presentCustomerCenter();
+
+    expect(outcome).toEqual({ status: 'shown' });
+    expect(h.adapter.calls.presentCustomerCenter).toBe(1);
+    expect(h.service.getSnapshot().plan).toBe('pro'); // picked up via the explicit refresh, not just the listener
+  });
+
+  it('is unavailable when RevenueCat is not configured', async () => {
+    const h = makeHarness();
+    h.adapter.available = false;
+    expect(await h.service.presentCustomerCenter()).toEqual({ status: 'unavailable' });
+  });
+
+  it('reports failure without throwing', async () => {
+    const h = makeHarness();
+    h.adapter.failNext('unknown');
+    const outcome = await h.service.presentCustomerCenter();
+    expect(outcome.status).toBe('failed');
+  });
+});
+
+describe('SubscriptionService — identifyUser (Account + Subscription Identity)', () => {
+  it('identifies a fresh guest with no prior purchases', async () => {
+    const h = makeHarness();
+    const outcome = await h.service.identifyUser('guest-1');
+
+    expect(outcome.status).toBe('identified');
+    expect(h.adapter.calls.logIn).toEqual(['guest-1']);
+    expect(h.service.getSnapshot().plan).toBe('free');
+  });
+
+  it(
+    "carries an existing (anonymous) entitlement over automatically via RevenueCat's own aliasing " +
+      '— the reinstall/upgrade migration path, no manual restore needed',
+    async () => {
+      const h = makeHarness();
+      // Models an install that already purchased anonymously, before this
+      // identity model existed. `localUserId` is freshly generated, so
+      // RevenueCat has never seen it — logging in to it auto-aliases the
+      // current (anonymous) session, carrying its entitlement over.
+      h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+
+      const outcome = await h.service.identifyUser('guest-1');
+
+      expect(h.adapter.calls.logIn).toEqual(['guest-1']);
+      expect(h.adapter.calls.restore).toBe(0);
+      expect(outcome.status).toBe('identified');
+      expect(h.service.getSnapshot().plan).toBe('pro');
+      expect(h.service.getSnapshot().subscription.isActive).toBe(true);
+    },
+  );
+
+  it('switches to an identity that already has its own separate RevenueCat history, instead of merging', async () => {
+    const h = makeHarness();
+    // The current (anonymous) session has its own, different entitlement...
+    h.adapter.setCustomerInfo(activeInfo('starter', h.clock.now));
+    // ...but `guest-1` already has a separate RevenueCat record of its own
+    // (e.g. a previously-linked account) — RevenueCat does not merge here.
+    h.adapter.seedCustomerForUser('guest-1', activeInfo('business', h.clock.now));
+
+    const outcome = await h.service.identifyUser('guest-1');
+
+    expect(outcome.status).toBe('identified');
+    expect(h.service.getSnapshot().plan).toBe('business');
+  });
+
+  it('is a no-op on a later call with the same identity', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.identifyUser('guest-1');
+
+    const outcome = await h.service.identifyUser('guest-1');
+
+    expect(outcome.status).toBe('already_identified');
+    expect(h.adapter.calls.logIn).toEqual(['guest-1']); // not called a second time
+  });
+
+  it('remembers the identity across an app restart, so identify stays a no-op', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.identifyUser('guest-1');
+
+    const restarted = h.restart();
+    await restarted.loadCached();
+    const outcome = await restarted.identifyUser('guest-1');
+
+    expect(outcome.status).toBe('already_identified');
+    expect(h.adapter.calls.logIn).toEqual(['guest-1']);
+  });
+
+  it('refuses to identify while offline, without contacting RevenueCat', async () => {
+    const h = makeHarness();
+    h.connectivity.setOnline(false);
+
+    const outcome = await h.service.identifyUser('guest-1');
+
+    expect(outcome.status).toBe('network_error');
+    expect(h.adapter.calls.logIn).toHaveLength(0);
+  });
+
+  it('is unavailable when RevenueCat is not configured', async () => {
+    const h = makeHarness();
+    h.adapter.available = false;
+
+    expect((await h.service.identifyUser('guest-1')).status).toBe('unavailable');
+  });
+
+  it('keeps recording the identity through subsequent purchase/restore calls', async () => {
+    const h = makeHarness();
+    await h.service.identifyUser('guest-1');
+    h.adapter.onPurchase = () => activeInfo('starter', h.clock.now);
+
+    await h.service.purchase('starter', 'monthly');
+
+    const stored = await h.rawStore.read();
+    expect(stored?.record.revenueCatUserId).toBe('guest-1');
+  });
+
+  it('keeps offline grace-period behaviour intact for an identified user', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('business', h.clock.now, { expiresAt: h.clock.now + DAY }));
+    await h.service.identifyUser('guest-1');
+    await h.service.refresh();
+
+    h.connectivity.setOnline(false);
+    h.clock.now += DAY + OFFLINE_GRACE_MS + 1000;
+    const restarted = h.restart();
+    const snapshot = await restarted.loadCached();
+
+    expect(snapshot.plan).toBe('free');
+    expect(snapshot.trust).toBe('expired');
+  });
+});
+
+describe('SubscriptionService — clearIdentity (logout / account switching)', () => {
+  it('returns RevenueCat to anonymous and clears the recorded identity', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.identifyUser('guest-1');
+
+    await h.service.clearIdentity();
+
+    expect(h.adapter.calls.logOut).toBe(1);
+    expect(h.service.getSnapshot().plan).toBe('free');
+    const stored = await h.rawStore.read();
+    expect(stored?.record.revenueCatUserId).toBeNull();
+  });
+
+  it('never throws when RevenueCat is unavailable', async () => {
+    const h = makeHarness();
+    h.adapter.available = false;
+    await expect(h.service.clearIdentity()).resolves.toBeUndefined();
   });
 });

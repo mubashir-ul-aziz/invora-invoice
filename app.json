@@ -24,7 +24,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
       ]
@@ -52,12 +51,13 @@
       "@react-native-community/datetimepicker"
     ],
     "extra": {
-      "eas": {
-        "projectId": "d6233ef1-d731-4f05-b755-91ccea329399"
-      },
       "googleDriveClientId": "",
       "cloudBackupApiUrl": "",
-      "revenueCatAndroidApiKey": ""
-    }
+      "revenueCatAndroidApiKey": "",
+      "eas": {
+        "projectId": "a9d05f07-1a63-42f1-b413-608e84464b52"
+      }
+    },
+    "owner": "mubashiraziz39"
   }
 }

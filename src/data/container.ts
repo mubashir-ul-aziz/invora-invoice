@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import * as Crypto from 'expo-crypto';
 
 import type { BusinessRepository } from './business/BusinessRepository';
 import { SqliteBusinessRepository } from './business/SqliteBusinessRepository';
@@ -44,6 +45,9 @@ import type { CloudBackupSettingsRepository } from './cloudBackup/CloudBackupSet
 import { SqliteCloudBackupSettingsRepository } from './cloudBackup/SqliteCloudBackupSettingsRepository';
 import type { BackupEncryptionService } from './cloudBackup/encryption/BackupEncryptionService';
 import { ExpoBackupEncryptionService } from './cloudBackup/encryption/ExpoBackupEncryptionService';
+import type { UserIdentityRepository } from './identity/UserIdentityRepository';
+import { SqliteUserIdentityRepository } from './identity/SqliteUserIdentityRepository';
+import { IdentityService } from './identity/IdentityService';
 import type { CloudUpgradeService } from './subscription/CloudUpgradeService';
 import { PlaceholderCloudUpgradeService } from './subscription/PlaceholderCloudUpgradeService';
 import type { ConnectivityService } from './subscription/ConnectivityService';
@@ -97,6 +101,8 @@ let subscriptionCache: SubscriptionCache | null = null;
 let subscriptionService: SubscriptionService | null = null;
 let invoiceUsageTracker: InvoiceUsageTracker | null = null;
 let entitlementService: EntitlementService | null = null;
+let userIdentityRepository: UserIdentityRepository | null = null;
+let identityService: IdentityService | null = null;
 
 export function getBusinessCardRepository(): BusinessCardRepository {
   if (!businessCardRepository) {
@@ -378,4 +384,20 @@ export function getEntitlementService(): EntitlementService {
     entitlementService = new EntitlementService(getSubscriptionService(), getInvoiceUsageTracker());
   }
   return entitlementService;
+}
+
+/** See the doc comment on `UserIdentityRepository`. */
+export function getUserIdentityRepository(): UserIdentityRepository {
+  if (!userIdentityRepository) {
+    userIdentityRepository = new SqliteUserIdentityRepository();
+  }
+  return userIdentityRepository;
+}
+
+/** See the doc comment on `IdentityService` — the guest identity every install gets without a sign-in prompt. */
+export function getIdentityService(): IdentityService {
+  if (!identityService) {
+    identityService = new IdentityService(getUserIdentityRepository(), () => Crypto.randomUUID());
+  }
+  return identityService;
 }

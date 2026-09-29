@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 
-import { getEntitlementService, getSubscriptionService } from '@/data/container';
+import { getEntitlementService, getIdentityService, getSubscriptionService } from '@/data/container';
+import type { IdentityService } from '@/data/identity/IdentityService';
 import type { EntitlementService } from '@/data/subscription/EntitlementService';
 import type { StorePackage } from '@/data/subscription/RevenueCatAdapter';
 import type {
+  CustomerCenterOutcome,
+  PaywallOutcome,
   PurchaseOutcome,
   RestoreOutcome,
   SubscriptionService,
@@ -31,6 +34,8 @@ interface SubscriptionState {
   purchasing: boolean;
   /** A purchase was started but the store hasn't confirmed it; nothing is unlocked until it does. */
   purchasePending: boolean;
+  /** RevenueCat's Customer Center is currently on screen. */
+  presentingCustomerCenter: boolean;
   packages: StorePackage[];
   offeringsStatus: OfferingsStatus;
   offeringsError: string | null;
@@ -49,6 +54,10 @@ interface SubscriptionState {
   restore: () => Promise<RestoreOutcome>;
   /** Opens Google Play's subscription management. Resolves false if it couldn't be opened. */
   openManageSubscription: () => Promise<boolean>;
+  /** Presents RevenueCat's hosted Paywall UI (the dashboard's multi-tier `default` Offering paywall). */
+  presentPaywall: () => Promise<PaywallOutcome>;
+  /** Presents RevenueCat's hosted Customer Center (manage/cancel/get help). */
+  presentCustomerCenter: () => Promise<CustomerCenterOutcome>;
 }
 
 function displayStatusOf(
@@ -77,6 +86,7 @@ export function createSubscriptionStore(
   getService: () => SubscriptionService = getSubscriptionService,
   getEntitlement: () => EntitlementService = getEntitlementService,
   openUrl: (url: string) => Promise<boolean> = openWebsite,
+  getIdentity: () => IdentityService = getIdentityService,
 ) {
   let initialized = false;
 
@@ -104,6 +114,7 @@ export function createSubscriptionStore(
       busy: null,
       purchasing: false,
       purchasePending: false,
+      presentingCustomerCenter: false,
       packages: [],
       offeringsStatus: 'idle',
       offeringsError: null,
@@ -128,6 +139,17 @@ export function createSubscriptionStore(
           apply({ resolved: true, busy: null });
         }
         apply({ resolved: true, busy: null });
+        // Best-effort, never blocks startup: creates the guest identity on
+        // first launch (no sign-in prompt) and, once, switches RevenueCat to
+        // it — see `SubscriptionService.identifyUser()`. Runs before the
+        // startup refresh below so that sync already reflects the right
+        // identity instead of a stale anonymous one.
+        try {
+          const identity = await getIdentity().getOrCreateLocalUserId();
+          await getService().identifyUser(identity.localUserId);
+        } catch {
+          // Identity/RevenueCat unavailable: proceed on the cached/Free state, same as every other best-effort step here.
+        }
         // Sequential on purpose: usage is computed against the plan, so it must wait for the sync to settle.
         await get().refresh('startup');
         await get().refreshUsage();
@@ -196,6 +218,33 @@ export function createSubscriptionStore(
       },
 
       openManageSubscription: async () => openUrl(getService().getManagementUrl()),
+
+      presentPaywall: async () => {
+        apply({ purchasing: true, purchasePending: false });
+        try {
+          const outcome = await getService().presentPaywall();
+          apply({ purchasing: false });
+          if (outcome.status === 'purchased' || outcome.status === 'restored') {
+            await get().refreshUsage();
+          }
+          return outcome;
+        } catch (error) {
+          apply({ purchasing: false });
+          return { status: 'failed', message: error instanceof Error ? error.message : 'The paywall could not be shown.' };
+        }
+      },
+
+      presentCustomerCenter: async () => {
+        apply({ presentingCustomerCenter: true });
+        try {
+          const outcome = await getService().presentCustomerCenter();
+          apply({ presentingCustomerCenter: false });
+          return outcome;
+        } catch (error) {
+          apply({ presentingCustomerCenter: false });
+          return { status: 'failed', message: error instanceof Error ? error.message : 'Could not open support options.' };
+        }
+      },
     };
   });
 }

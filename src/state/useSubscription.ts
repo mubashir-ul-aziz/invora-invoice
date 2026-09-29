@@ -97,6 +97,7 @@ export function useSubscription() {
     offeringsError: state.offeringsError,
     purchasing: state.purchasing,
     purchasePending: state.purchasePending,
+    presentingCustomerCenter: state.presentingCustomerCenter,
 
     // --- decisions -------------------------------------------------------
     canCreateInvoice: state.checkCanCreateInvoice,
@@ -114,5 +115,7 @@ export function useSubscription() {
     purchase: state.purchase,
     restore: state.restore,
     openManageSubscription: state.openManageSubscription,
+    presentPaywall: state.presentPaywall,
+    presentCustomerCenter: state.presentCustomerCenter,
   };
 }

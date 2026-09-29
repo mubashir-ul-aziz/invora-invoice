@@ -1,4 +1,10 @@
-import type { PurchaseOutcome, RestoreOutcome } from '@/data/subscription/SubscriptionService';
+import type {
+  CustomerCenterOutcome,
+  PaywallOutcome,
+  PurchaseOutcome,
+  RestoreOutcome,
+} from '@/data/subscription/SubscriptionService';
+import { PLAN_CONFIG } from '@/domain/subscription/plans';
 
 export interface OutcomeMessage {
   title: string;
@@ -63,5 +69,39 @@ export function restoreOutcomeMessage(outcome: RestoreOutcome): OutcomeMessage {
       return { title: 'Restore unavailable', message: "Subscriptions aren't available in this version of the app." };
     case 'failed':
       return { title: 'Restore failed', message: outcome.message };
+  }
+}
+
+/**
+ * Wording for the RevenueCat-hosted Paywall's result. `null` when nothing
+ * should be shown — the user just dismissed it, or it had nothing to offer.
+ */
+export function paywallOutcomeMessage(outcome: PaywallOutcome): OutcomeMessage | null {
+  switch (outcome.status) {
+    case 'purchased': {
+      const label = PLAN_CONFIG[outcome.snapshot.plan].label;
+      return { title: `${label} is active`, message: `Your ${label} plan is confirmed and unlocked. Thank you!` };
+    }
+    case 'restored':
+      return { title: 'Purchases restored', message: 'Your subscription was found and restored.' };
+    case 'cancelled':
+    case 'not_presented':
+      return null;
+    case 'unavailable':
+      return { title: 'Purchases unavailable', message: "Subscriptions aren't available in this version of the app." };
+    case 'failed':
+      return { title: 'Purchase failed', message: outcome.message };
+  }
+}
+
+/** Wording for Customer Center's result. `null` when nothing should be shown (it closed normally). */
+export function customerCenterOutcomeMessage(outcome: CustomerCenterOutcome): OutcomeMessage | null {
+  switch (outcome.status) {
+    case 'shown':
+      return null;
+    case 'unavailable':
+      return { title: 'Not available', message: "Customer support tools aren't available in this version of the app." };
+    case 'failed':
+      return { title: "Couldn't open support options", message: outcome.message };
   }
 }

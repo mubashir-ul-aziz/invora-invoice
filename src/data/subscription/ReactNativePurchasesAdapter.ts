@@ -6,6 +6,7 @@ import { REVENUECAT_OFFERING_ID, findPlanByPackageId } from '@/domain/subscripti
 
 import {
   RevenueCatError,
+  type PaywallPresentationResult,
   type ProductChange,
   type RevenueCatAdapter,
   type RevenueCatErrorKind,
@@ -13,6 +14,7 @@ import {
 } from './RevenueCatAdapter';
 
 type PurchasesModule = typeof import('react-native-purchases').default;
+type PurchasesUIModule = typeof import('react-native-purchases-ui').default;
 
 function mapEntitlement(entitlement: PurchasesEntitlementInfo): EntitlementInfoLike {
   return {
@@ -94,6 +96,24 @@ export class ReactNativePurchasesAdapter implements RevenueCatAdapter {
       }
     }
     return this.purchases;
+  }
+
+  /**
+   * `react-native-purchases-ui` is a separate native module from
+   * `react-native-purchases` — same lazy-require reasoning as `sdk()` (missing
+   * in Expo Go/Jest). Requires `sdk()` to have configured the SDK first.
+   */
+  private ui(): PurchasesUIModule {
+    this.sdk();
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('react-native-purchases-ui').default as PurchasesUIModule;
+    } catch (error) {
+      throw new RevenueCatError(
+        'not_configured',
+        error instanceof Error ? error.message : 'The paywall is not available in this build.',
+      );
+    }
   }
 
   private mapError(error: unknown): RevenueCatError {
@@ -216,6 +236,23 @@ export class ReactNativePurchasesAdapter implements RevenueCatAdapter {
     }
   }
 
+  async logIn(appUserId: string): Promise<CustomerInfoLike> {
+    try {
+      const { customerInfo } = await this.sdk().logIn(appUserId);
+      return toCustomerInfoLike(customerInfo);
+    } catch (error) {
+      throw this.mapError(error);
+    }
+  }
+
+  async logOut(): Promise<CustomerInfoLike> {
+    try {
+      return toCustomerInfoLike(await this.sdk().logOut());
+    } catch (error) {
+      throw this.mapError(error);
+    }
+  }
+
   addCustomerInfoListener(listener: (info: CustomerInfoLike) => void): () => void {
     let purchases: PurchasesModule;
     try {
@@ -228,5 +265,34 @@ export class ReactNativePurchasesAdapter implements RevenueCatAdapter {
     return () => {
       purchases.removeCustomerInfoUpdateListener(wrapped);
     };
+  }
+
+  async presentPaywall(): Promise<PaywallPresentationResult> {
+    try {
+      const RevenueCatUI = this.ui();
+      const result = await RevenueCatUI.presentPaywall();
+      switch (result) {
+        case RevenueCatUI.PAYWALL_RESULT.PURCHASED:
+          return 'purchased';
+        case RevenueCatUI.PAYWALL_RESULT.RESTORED:
+          return 'restored';
+        case RevenueCatUI.PAYWALL_RESULT.CANCELLED:
+          return 'cancelled';
+        case RevenueCatUI.PAYWALL_RESULT.NOT_PRESENTED:
+          return 'not_presented';
+        default:
+          return 'error';
+      }
+    } catch (error) {
+      throw this.mapError(error);
+    }
+  }
+
+  async presentCustomerCenter(): Promise<void> {
+    try {
+      await this.ui().presentCustomerCenter();
+    } catch (error) {
+      throw this.mapError(error);
+    }
   }
 }

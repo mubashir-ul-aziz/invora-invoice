@@ -12,6 +12,7 @@ const record: SubscriptionCacheRecord = {
   source: 'revenuecat',
   clockHighWaterMs: 1_900_000_000_000,
   usage: { periodKey: '2026-09', count: 3 },
+  revenueCatUserId: 'guest-1',
 };
 
 describe('serializeCacheRecord', () => {
@@ -29,6 +30,8 @@ describe('serializeCacheRecord', () => {
       { ...record, clockHighWaterMs: 0 },
       { ...record, usage: { periodKey: '2026-09', count: 0 } },
       { ...record, usage: null },
+      { ...record, revenueCatUserId: 'guest-2' },
+      { ...record, revenueCatUserId: null },
     ];
     for (const variant of variants) {
       expect(serializeCacheRecord(variant)).not.toBe(base);
@@ -45,5 +48,6 @@ describe('sanitizeCacheRecord', () => {
     expect(sanitizeCacheRecord({ ...record, plan: 'platinum' as never })).toEqual(EMPTY_CACHE_RECORD);
     expect(sanitizeCacheRecord({ ...record, expiresAt: Number.NaN })).toEqual(EMPTY_CACHE_RECORD);
     expect(sanitizeCacheRecord({ ...record, source: 'hacked' as never })).toEqual(EMPTY_CACHE_RECORD);
+    expect(sanitizeCacheRecord({ ...record, revenueCatUserId: 42 as never })).toEqual(EMPTY_CACHE_RECORD);
   });
 });

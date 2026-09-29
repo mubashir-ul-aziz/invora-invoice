@@ -25,6 +25,7 @@ function toStored(row: typeof subscriptionState.$inferSelect): StoredSubscriptio
       row.usagePeriodKey !== null && row.usageCount !== null
         ? { periodKey: row.usagePeriodKey, count: row.usageCount }
         : null,
+    revenueCatUserId: row.revenueCatUserId,
   };
   return { record, signature: row.signature };
 }
@@ -61,6 +62,7 @@ export class SqliteRawSubscriptionCacheStore implements RawSubscriptionCacheStor
       clockHighWaterMs: record.clockHighWaterMs,
       usagePeriodKey: record.usage?.periodKey ?? null,
       usageCount: record.usage?.count ?? null,
+      revenueCatUserId: record.revenueCatUserId,
       signature,
       updatedAt: Date.now(),
     };

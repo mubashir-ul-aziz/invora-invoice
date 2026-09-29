@@ -61,12 +61,15 @@ export interface SubscriptionCacheRecord extends NormalizedSubscription {
   /** Highest device time ever observed; access checks use `max(now, this)` so rolling the clock back gains nothing. */
   clockHighWaterMs: number;
   usage: UsageLedger | null;
+  /** The Invora `local_user_id` this entitlement was last verified under — see `SubscriptionService.identifyUser()`. Null until the first successful identify. */
+  revenueCatUserId: string | null;
 }
 
 export const EMPTY_CACHE_RECORD: SubscriptionCacheRecord = {
   ...DEFAULT_SUBSCRIPTION,
   clockHighWaterMs: 0,
   usage: null,
+  revenueCatUserId: null,
 };
 
 /** Why the effective plan is what it is — surfaced for diagnostics and the status banner. */

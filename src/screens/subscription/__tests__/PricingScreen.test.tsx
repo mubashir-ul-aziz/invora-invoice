@@ -5,7 +5,8 @@ import { Alert } from 'react-native';
 import { InMemoryInvoiceRepository } from '@/data/invoice/InMemoryInvoiceRepository';
 import { EntitlementService } from '@/data/subscription/EntitlementService';
 import { InvoiceUsageTracker } from '@/data/subscription/InvoiceUsageTracker';
-import { activeInfo, makeHarness, type Harness } from '@/data/subscription/testFixtures';
+import { activeInfo, DAY, makeHarness, type Harness } from '@/data/subscription/testFixtures';
+import { MAX_STALE_MS } from '@/domain/subscription/offlinePolicy';
 import { createSubscriptionStore } from '@/state/subscriptionStore';
 
 let mockStore: ReturnType<typeof createSubscriptionStore>;
@@ -239,6 +240,30 @@ describe('PricingScreen', () => {
     expect(view.getByText('Offline — using saved plan')).toBeTruthy();
   });
 
+  it('tells a paying user to reconnect once their subscription can no longer be verified (stale)', async () => {
+    await boot('business');
+    h.connectivity.setOnline(false);
+    h.clock.now += MAX_STALE_MS + DAY; // past the offline policy's maximum trust window
+    await mockStore.getState().refresh('foreground');
+    const view = await renderScreen();
+
+    // The effective plan already fell back to Free (see offlinePolicy.ts), but the last verified
+    // subscription was Business — the banner should say so, not just "not verified yet".
+    expect(view.getByTestId('pricing-current-plan').props.children).toBe('Free');
+    expect(view.getByTestId('pricing-stale-trust')).toBeTruthy();
+    expect(view.getByText(/Business plan in a while/)).toBeTruthy();
+  });
+
+  it('does not show the stale-trust banner for a Free user (nothing to verify)', async () => {
+    await boot();
+    h.connectivity.setOnline(false);
+    h.clock.now += MAX_STALE_MS + DAY;
+    await mockStore.getState().refresh('foreground');
+    const view = await renderScreen();
+
+    expect(view.queryByTestId('pricing-stale-trust')).toBeNull();
+  });
+
   it('shows reference prices with purchasing disabled when plans cannot be loaded', async () => {
     await boot();
     h.adapter.failNext('network');
@@ -279,6 +304,51 @@ describe('PricingScreen', () => {
     await fireEvent.press(view.getByTestId('action-manage-subscription'));
 
     await waitFor(() => expect(openUrl).toHaveBeenCalledWith('https://play.google.com/store/account/subscriptions'));
+  });
+
+  it('presents Customer Center and re-syncs afterwards', async () => {
+    await boot();
+    const view = await renderScreen();
+    h.adapter.setCustomerInfo(activeInfo('starter', h.clock.now));
+
+    await fireEvent.press(view.getByTestId('action-customer-center'));
+
+    await waitFor(() => expect(h.adapter.calls.presentCustomerCenter).toBe(1));
+    await waitFor(() => expect(view.getByTestId('pricing-current-plan').props.children).toBe('Starter'));
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
+  it('says so when Customer Center cannot be opened', async () => {
+    await boot();
+    const view = await renderScreen();
+    h.adapter.available = false;
+
+    await fireEvent.press(view.getByTestId('action-customer-center'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Not available', expect.any(String)));
+  });
+
+  it('offers an "Upgrade now" paywall shortcut on the reason banner and unlocks on purchase', async () => {
+    await boot();
+    const view = await renderScreen({ reason: 'invoice_limit' });
+    h.adapter.paywallResult = 'purchased';
+    h.adapter.onPaywallPresented = () => activeInfo('pro', h.clock.now);
+
+    await fireEvent.press(view.getByTestId('pricing-reason-upgrade'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Pro is active', expect.any(String)));
+    expect(view.getByTestId('pricing-current-plan').props.children).toBe('Pro');
+  });
+
+  it('shows no alert when the paywall is simply dismissed', async () => {
+    await boot();
+    const view = await renderScreen({ reason: 'invoice_limit' });
+    h.adapter.paywallResult = 'cancelled';
+
+    await fireEvent.press(view.getByTestId('pricing-reason-upgrade'));
+
+    await waitFor(() => expect(h.adapter.calls.presentPaywall).toBe(1));
+    expect(Alert.alert).not.toHaveBeenCalled();
   });
 
   it('explains why the user was sent here', async () => {

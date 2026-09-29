@@ -15,6 +15,7 @@ const record: SubscriptionCacheRecord = {
   source: 'revenuecat',
   clockHighWaterMs: 1_900_000_000_000,
   usage: { periodKey: '2026-09', count: 2 },
+  revenueCatUserId: 'guest-1',
 };
 
 describe('SignedSubscriptionCacheRepository', () => {

@@ -1,3 +1,5 @@
+import { InMemoryUserIdentityRepository } from '@/data/identity/InMemoryUserIdentityRepository';
+import { IdentityService } from '@/data/identity/IdentityService';
 import { InMemoryInvoiceRepository } from '@/data/invoice/InMemoryInvoiceRepository';
 import { EntitlementService } from '@/data/subscription/EntitlementService';
 import { InvoiceUsageTracker } from '@/data/subscription/InvoiceUsageTracker';
@@ -5,18 +7,28 @@ import { DAY, activeInfo, makeHarness } from '@/data/subscription/testFixtures';
 
 import { createSubscriptionStore } from '../subscriptionStore';
 
+/** A fake identity service so tests never touch the real SQLite/expo-crypto-backed default. */
+function makeIdentity(seed: ConstructorParameters<typeof InMemoryUserIdentityRepository>[0] = null) {
+  let nextId = 0;
+  const repository = new InMemoryUserIdentityRepository(seed);
+  const service = new IdentityService(repository, () => `guest-${(nextId += 1)}`, () => 1_000);
+  return { repository, service };
+}
+
 function setup() {
   const h = makeHarness();
   const invoices = new InMemoryInvoiceRepository();
   const tracker = new InvoiceUsageTracker(invoices, h.cache, () => h.clock.now);
   const entitlement = new EntitlementService(h.service, tracker, () => h.clock.now);
   const openUrl = jest.fn().mockResolvedValue(true);
+  const identity = makeIdentity();
   const store = createSubscriptionStore(
     () => h.service,
     () => entitlement,
     openUrl,
+    () => identity.service,
   );
-  return { ...h, invoices, entitlement, store, openUrl };
+  return { ...h, invoices, entitlement, store, openUrl, identity };
 }
 
 describe('subscriptionStore', () => {
@@ -39,6 +51,26 @@ describe('subscriptionStore', () => {
     expect(state.usage).toMatchObject({ used: 0, limit: 40 });
   });
 
+  it('init creates a guest identity (no sign-in prompt) and logs it in to RevenueCat', async () => {
+    const s = setup();
+
+    await s.store.getState().init();
+
+    const identity = await s.identity.repository.read();
+    expect(identity).toMatchObject({ accountType: 'guest', authProvider: 'local' });
+    expect(s.adapter.calls.logIn).toEqual([identity!.localUserId]);
+  });
+
+  it('never loses an anonymous entitlement while establishing the guest identity on startup', async () => {
+    const s = setup();
+    s.adapter.setCustomerInfo(activeInfo('pro', s.clock.now));
+
+    await s.store.getState().init();
+
+    expect(s.store.getState().snapshot.plan).toBe('pro');
+    expect(s.adapter.calls.restore).toBe(0); // RevenueCat's own aliasing carries it over — no manual restore needed
+  });
+
   it('init only runs once', async () => {
     const s = setup();
     await s.store.getState().init();
@@ -57,6 +89,7 @@ describe('subscriptionStore', () => {
       () => restartedService,
       () => s.entitlement,
       s.openUrl,
+      () => s.identity.service,
     );
     await restarted.getState().init();
 
@@ -76,6 +109,7 @@ describe('subscriptionStore', () => {
       () => broken,
       () => s.entitlement,
       s.openUrl,
+      () => s.identity.service,
     );
 
     await store.getState().init();
@@ -182,6 +216,33 @@ describe('subscriptionStore', () => {
     await s.service.refresh();
     await s.store.getState().openManageSubscription();
     expect(s.openUrl).toHaveBeenLastCalledWith(expect.stringContaining('package=com.metriqo.invoice'));
+  });
+
+  it('presents the paywall and clears `purchasing` once it closes, whatever the outcome', async () => {
+    const s = setup();
+    await s.store.getState().init();
+    s.adapter.paywallResult = 'purchased';
+    s.adapter.onPaywallPresented = () => activeInfo('business', s.clock.now);
+
+    const outcome = await s.store.getState().presentPaywall();
+
+    expect(outcome).toMatchObject({ status: 'purchased' });
+    expect(s.store.getState().purchasing).toBe(false);
+    expect(s.store.getState().snapshot.plan).toBe('business');
+  });
+
+  it('presents the customer center and tracks `presentingCustomerCenter` while it is up', async () => {
+    const s = setup();
+    let sawPresenting = false;
+    s.adapter.presentCustomerCenter = async () => {
+      sawPresenting = s.store.getState().presentingCustomerCenter;
+    };
+
+    const outcome = await s.store.getState().presentCustomerCenter();
+
+    expect(sawPresenting).toBe(true);
+    expect(outcome).toEqual({ status: 'shown' });
+    expect(s.store.getState().presentingCustomerCenter).toBe(false);
   });
 
   it('never lets a paid plan lapse silently into Free just because the app went offline', async () => {

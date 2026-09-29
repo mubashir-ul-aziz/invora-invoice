@@ -3,6 +3,7 @@ import { PAID_PLAN_IDS, BILLING_PERIODS, PLAN_CONFIG } from '@/domain/subscripti
 
 import {
   RevenueCatError,
+  type PaywallPresentationResult,
   type ProductChange,
   type RevenueCatAdapter,
   type RevenueCatErrorKind,
@@ -45,11 +46,34 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
   restoreResult: CustomerInfoLike | null = null;
   /** What `purchase()` resolves with, given the package; defaults to leaving customer info unchanged. */
   onPurchase: ((packageId: string, change?: ProductChange) => CustomerInfoLike) | null = null;
+  /** What `presentPaywall()` resolves with; defaults to the user dismissing it. */
+  paywallResult: PaywallPresentationResult = 'cancelled';
+  /** What customer info looks like after `presentPaywall()` resolves `'purchased'`/`'restored'`; defaults to leaving it unchanged. */
+  onPaywallPresented: (() => CustomerInfoLike) | null = null;
 
-  readonly calls = { getCustomerInfo: 0, getOfferings: 0, purchase: [] as { packageId: string; change?: ProductChange }[], restore: 0 };
+  readonly calls = {
+    getCustomerInfo: 0,
+    getOfferings: 0,
+    purchase: [] as { packageId: string; change?: ProductChange }[],
+    restore: 0,
+    logIn: [] as string[],
+    logOut: 0,
+    presentPaywall: 0,
+    presentCustomerCenter: 0,
+  };
 
   private failures: RevenueCatErrorKind[] = [];
   private listeners = new Set<(info: CustomerInfoLike) => void>();
+  /**
+   * Simulates RevenueCat's own per-appUserId subscriber records. Logging in
+   * as an id never seen before auto-aliases it to the current session (real
+   * RevenueCat behavior — the current `customerInfo`, including any active
+   * entitlement, carries over). Logging in as an id that already has its own
+   * seeded record (`seedCustomerForUser`) switches to that record instead,
+   * without carrying over the current session — mirrors real RevenueCat's
+   * "this id already has separate history" case.
+   */
+  private customersByUser = new Map<string, CustomerInfoLike>();
 
   /** The next SDK call (of any kind) rejects with this error kind. */
   failNext(kind: RevenueCatErrorKind): void {
@@ -115,5 +139,43 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  async logIn(appUserId: string): Promise<CustomerInfoLike> {
+    this.calls.logIn.push(appUserId);
+    this.maybeFail();
+    const existing = this.customersByUser.get(appUserId);
+    if (existing) {
+      this.customerInfo = existing;
+    } else {
+      this.customersByUser.set(appUserId, this.customerInfo);
+    }
+    return this.customerInfo;
+  }
+
+  async logOut(): Promise<CustomerInfoLike> {
+    this.calls.logOut += 1;
+    this.maybeFail();
+    this.customerInfo = EMPTY_CUSTOMER_INFO;
+    return this.customerInfo;
+  }
+
+  /** Test helper: seeds what `logIn(appUserId)` returns for an id RevenueCat already knows (e.g. a Google account linked on another device). */
+  seedCustomerForUser(appUserId: string, info: CustomerInfoLike): void {
+    this.customersByUser.set(appUserId, info);
+  }
+
+  async presentPaywall(): Promise<PaywallPresentationResult> {
+    this.calls.presentPaywall += 1;
+    this.maybeFail();
+    if ((this.paywallResult === 'purchased' || this.paywallResult === 'restored') && this.onPaywallPresented) {
+      this.customerInfo = this.onPaywallPresented();
+    }
+    return this.paywallResult;
+  }
+
+  async presentCustomerCenter(): Promise<void> {
+    this.calls.presentCustomerCenter += 1;
+    this.maybeFail();
   }
 }

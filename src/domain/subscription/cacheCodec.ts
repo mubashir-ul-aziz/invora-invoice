@@ -20,6 +20,7 @@ export function serializeCacheRecord(record: SubscriptionCacheRecord): string {
     record.clockHighWaterMs,
     record.usage?.periodKey ?? null,
     record.usage?.count ?? null,
+    record.revenueCatUserId,
   ]);
 }
 
@@ -36,7 +37,8 @@ export function sanitizeCacheRecord(candidate: SubscriptionCacheRecord): Subscri
     !isFiniteOrNull(candidate.expiresAt) ||
     !isFiniteOrNull(candidate.lastSyncedAt) ||
     !Number.isFinite(candidate.clockHighWaterMs) ||
-    (candidate.source !== 'revenuecat' && candidate.source !== 'default')
+    (candidate.source !== 'revenuecat' && candidate.source !== 'default') ||
+    (candidate.revenueCatUserId !== null && typeof candidate.revenueCatUserId !== 'string')
   ) {
     return EMPTY_CACHE_RECORD;
   }

@@ -8,6 +8,7 @@ import {
   CUSTOMER_COLUMN_UPGRADES,
   INVOICE_ITEM_COLUMN_UPGRADES,
   ITEM_COLUMN_UPGRADES,
+  SUBSCRIPTION_STATE_COLUMN_UPGRADES,
   schema,
 } from './schema';
 
@@ -44,6 +45,7 @@ export function getDatabase(): Promise<void> {
       await ensureInvoiceItemColumns(sqliteConnection);
       await ensureItemColumns(sqliteConnection);
       await ensureCustomerColumns(sqliteConnection);
+      await ensureSubscriptionStateColumns(sqliteConnection);
       drizzleDb = drizzle(sqliteConnection, { schema });
     })();
   }
@@ -130,6 +132,25 @@ async function ensureCustomerColumns(db: SQLite.SQLiteDatabase): Promise<void> {
   for (const { column, definition } of CUSTOMER_COLUMN_UPGRADES) {
     if (!existingNames.has(column)) {
       await db.execAsync(`ALTER TABLE customer ADD COLUMN ${column} ${definition};`);
+    }
+  }
+}
+
+/**
+ * Backfills `subscription_state` columns added after its first release (the
+ * Account + Subscription Identity model's `revenue_cat_user_id`). Same
+ * idempotent `PRAGMA table_info` check as `ensureBusinessColumns()` — a no-op
+ * on a fresh install, since `CREATE_TABLES_SQL` already creates the table
+ * with this column.
+ */
+async function ensureSubscriptionStateColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const existingColumns = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(subscription_state);',
+  );
+  const existingNames = new Set(existingColumns.map((col) => col.name));
+  for (const { column, definition } of SUBSCRIPTION_STATE_COLUMN_UPGRADES) {
+    if (!existingNames.has(column)) {
+      await db.execAsync(`ALTER TABLE subscription_state ADD COLUMN ${column} ${definition};`);
     }
   }
 }

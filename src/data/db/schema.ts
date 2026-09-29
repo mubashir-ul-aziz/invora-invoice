@@ -433,7 +433,41 @@ export const subscriptionState = sqliteTable('subscription_state', {
   clockHighWaterMs: integer('clock_high_water_ms').notNull().default(0),
   usagePeriodKey: text('usage_period_key'),
   usageCount: integer('usage_count'),
+  /**
+   * The Invora `local_user_id` (see `user_identity` below) this cached
+   * entitlement was last verified under. Lets `SubscriptionService` tell
+   * "already identified with RevenueCat as this app's stable user" from
+   * "still needs `identifyUser()`" without an extra RevenueCat call on every
+   * startup — see `SubscriptionService.identifyUser()`. Null on installs from
+   * before the account/identity model existed, or before the first
+   * `identifyUser()` call completes.
+   */
+  revenueCatUserId: text('revenue_cat_user_id'),
   signature: text('signature'),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+/**
+ * Singleton-per-device Invora account identity (guest-by-default + optional
+ * Google linking). `local_user_id` is generated once, the first time the app
+ * ever runs, and never changes afterwards — it is the ONLY id this app ever
+ * passes to `Purchases.logIn()` (see `SubscriptionService.identifyUser()`),
+ * deliberately never RevenueCat's own anonymous app-user id, so a purchase is
+ * always tied to an id Invora independently owns and can carry across a
+ * reinstall or a later Google sign-in. `google_user_id`/`email`/`display_name`
+ * start null (guest) and are filled in — non-destructively, in place — when
+ * the guest later links a Google account; `local_user_id` itself never
+ * changes, so nothing already keyed to it (RevenueCat, a future sync) breaks.
+ */
+export const userIdentity = sqliteTable('user_identity', {
+  id: text('id').primaryKey(),
+  localUserId: text('local_user_id').notNull(),
+  googleUserId: text('google_user_id'),
+  email: text('email'),
+  displayName: text('display_name'),
+  authProvider: text('auth_provider', { enum: ['local', 'google'] }).notNull().default('local'),
+  accountType: text('account_type', { enum: ['guest', 'registered'] }).notNull().default('guest'),
+  createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
 
@@ -448,6 +482,7 @@ export const schema = {
   appSettings,
   backupLog,
   subscriptionState,
+  userIdentity,
 };
 
 /**
@@ -629,7 +664,19 @@ export const CREATE_TABLES_SQL = `
     clock_high_water_ms INTEGER NOT NULL DEFAULT 0,
     usage_period_key TEXT,
     usage_count INTEGER,
+    revenue_cat_user_id TEXT,
     signature TEXT,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS user_identity (
+    id TEXT PRIMARY KEY NOT NULL,
+    local_user_id TEXT NOT NULL,
+    google_user_id TEXT,
+    email TEXT,
+    display_name TEXT,
+    auth_provider TEXT NOT NULL DEFAULT 'local',
+    account_type TEXT NOT NULL DEFAULT 'guest',
+    created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   );
 `;
@@ -695,6 +742,16 @@ export const INVOICE_ITEM_COLUMN_UPGRADES: { column: string; definition: string 
  */
 export const CUSTOMER_COLUMN_UPGRADES: { column: string; definition: string }[] = [
   { column: 'website', definition: 'TEXT' },
+];
+
+/**
+ * Columns added to `subscription_state` after its first release (the
+ * Account + Subscription Identity model's `revenue_cat_user_id`). Same
+ * additive/idempotent mechanism as `BUSINESS_COLUMN_UPGRADES` — see
+ * `ensureSubscriptionStateColumns()` in `db/client.ts`.
+ */
+export const SUBSCRIPTION_STATE_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'revenue_cat_user_id', definition: 'TEXT' },
 ];
 
 export const APP_SETTINGS_COLUMN_UPGRADES: { column: string; definition: string }[] = [

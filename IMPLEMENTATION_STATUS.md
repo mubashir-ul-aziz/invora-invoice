@@ -5101,3 +5101,35 @@ this environment. Everything above the SDK is unit-tested against fakes;
 the other native-backed services. See the hand-off report for the manual setup
 list and the untested-on-device assumptions (deferred plan changes, Android
 `launchMode`, the SDK's offline `CustomerInfo`).
+
+### Addendum — RevenueCat hosted Paywall + Customer Center
+
+Added `react-native-purchases-ui` (`^10.10.2`) on top of the existing
+architecture, without changing the plan model: it still targets the four
+real entitlements (`starter`/`business`/`pro`/`unlimited`), not a single
+generic entitlement. Both are additive UI, not a replacement for
+`PricingScreen`'s own purchase/restore/change-plan flow.
+
+- `RevenueCatAdapter.presentPaywall()` / `.presentCustomerCenter()` (+
+  `PaywallPresentationResult` type), implemented for real in
+  `ReactNativePurchasesAdapter` (lazy `require`, same reasoning as the base
+  SDK) and faked in `FakeRevenueCatAdapter` (`paywallResult`,
+  `onPaywallPresented`, `calls.presentPaywall`/`calls.presentCustomerCenter`).
+- `SubscriptionService.presentPaywall()` / `.presentCustomerCenter()` return
+  `PaywallOutcome` / `CustomerCenterOutcome`. A paywall's own
+  `'purchased'`/`'restored'` result is trusted without the extra
+  "did the plan rank actually confirm?" check `purchase()` does — RevenueCat's
+  hosted paywall already confirmed the entitlement before resolving.
+- `subscriptionStore`: `presentPaywall` (reuses `purchasing`),
+  `presentCustomerCenter` (new `presentingCustomerCenter` flag — kept separate
+  from `busy`/`displayStatus` so a Customer Center session never shows as
+  "Restoring…" underneath).
+- `PricingScreen`: an "Upgrade now" button on the existing reason banner
+  (`pricing-reason-upgrade`) presents the paywall as a quick path; a new
+  "Customer Center" row (`action-customer-center`) sits next to Manage
+  Subscription/Restore Purchases.
+- The RevenueCat dashboard side (the four entitlements, the `default`
+  Offering's packages, the paywall template itself) is **not** set up yet —
+  the user is doing that separately. `app.json`'s `revenueCatAndroidApiKey`
+  is deliberately still `""`; the pasted setup instructions' `test_…` key
+  is not a real RevenueCat SDK key format and was not used.
