@@ -8,7 +8,8 @@ const snapshot = INITIAL_SNAPSHOT;
 describe('purchaseOutcomeMessage', () => {
   const outcomes: PurchaseOutcome[] = [
     { status: 'success', snapshot },
-    { status: 'scheduled', snapshot },
+    { status: 'scheduled', snapshot, effectiveAt: null },
+    { status: 'not_allowed' },
     { status: 'pending' },
     { status: 'cancelled' },
     { status: 'already_subscribed', snapshot },
@@ -36,9 +37,34 @@ describe('purchaseOutcomeMessage', () => {
     expect(purchaseOutcomeMessage({ status: 'pending' }, 'Pro')?.message).toMatch(/not unlocked/);
   });
 
-  it('reassures the user on connection errors and passes an unexpected failure message through', () => {
+  it('reassures the user on connection errors and keeps technical failure detail to development builds', () => {
     expect(purchaseOutcomeMessage({ status: 'network_error' }, 'Pro')?.message).toMatch(/not been charged/);
-    expect(purchaseOutcomeMessage({ status: 'failed', message: 'boom' }, 'Pro')?.message).toBe('boom');
+    const failed = purchaseOutcomeMessage({ status: 'failed', message: 'PurchasesError(code=StoreProblemError)' }, 'Pro')!.message;
+    expect(failed).toMatch(/^The purchase couldn't be completed and you have not been charged/);
+    // Jest runs as a development build, so the detail is appended under a [Development] label only.
+    expect(failed).toContain('[Development] PurchasesError(code=StoreProblemError)');
+  });
+
+  it('explains a not-allowed purchase without RevenueCat jargon', () => {
+    const message = purchaseOutcomeMessage({ status: 'not_allowed' }, 'Pro')!;
+    expect(message.title).toBe('Purchase not allowed');
+    expect(message.message).not.toMatch(/RevenueCat|Test Store|PurchasesError/);
+  });
+
+  it('says when a scheduled change starts, from RevenueCat's expiry date', () => {
+    const at = new Date(2026, 10, 12).getTime();
+    const message = purchaseOutcomeMessage({ status: 'scheduled', snapshot, effectiveAt: at }, 'Pro')!.message;
+    expect(message).toContain('Pro starts on');
+    expect(message).toContain(new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }));
+    expect(purchaseOutcomeMessage({ status: 'scheduled', snapshot, effectiveAt: null }, 'Pro')!.message).toContain('at your next renewal');
+  });
+
+  it('never mentions the Test Store or RevenueCat internals to users', () => {
+    for (const outcome of outcomes) {
+      const message = purchaseOutcomeMessage(outcome, 'Pro');
+      expect(message?.title ?? '').not.toMatch(/Test Store/);
+      expect((message?.message ?? '').split('[Development]')[0]).not.toMatch(/Test Store|RevenueCat/);
+    }
   });
 });
 

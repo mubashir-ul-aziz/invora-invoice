@@ -44,7 +44,7 @@ export function UsageMeter({ usage, testID }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 6 },
+  wrap: { flex: 1, gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   label: { fontSize: 13, fontWeight: '600', color: colors.text, flexShrink: 1 },
   reset: { fontSize: 11, color: colors.textMuted },

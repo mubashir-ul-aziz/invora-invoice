@@ -141,7 +141,6 @@ export function DashboardScreen({ navigation }: Props) {
             style={styles.usageCard}
           >
             <UsageMeter usage={subscription.usage} />
-            <Feather name="chevron-right" size={18} color={colors.textMuted} />
           </Pressable>
         )}
 

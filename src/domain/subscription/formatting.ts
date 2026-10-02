@@ -24,7 +24,7 @@ export function describeStatus(status: SubscriptionStatus): StatusDescription {
   return STATUS_DESCRIPTIONS[status];
 }
 
-function formatDate(ms: number): string {
+export function formatDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 

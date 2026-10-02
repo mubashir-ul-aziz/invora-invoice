@@ -41,6 +41,16 @@ export function purchaseOutcomeMessage(outcome: PurchaseOutcome, planLabel: stri
         title: 'Plan change scheduled',
         message: `Your switch to ${planLabel} starts at your next renewal. You keep your current plan until then.`,
       };
+    case 'test_store_overlap': {
+      const currentLabel = PLAN_CONFIG[outcome.snapshot.plan].label;
+      return {
+        title: `${planLabel} purchased (Test Store)`,
+        message:
+          `RevenueCat confirmed ${planLabel}, but the RevenueCat Test Store can't replace your existing ` +
+          `${currentLabel} test subscription. You keep ${currentLabel} until that test subscription ends, then ${planLabel} applies. ` +
+          'On Google Play this change is scheduled for your next renewal instead.',
+      };
+    }
     case 'pending':
       return {
         title: 'Waiting for Google Play',

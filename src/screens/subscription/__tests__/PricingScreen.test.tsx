@@ -102,9 +102,9 @@ describe('PricingScreen', () => {
     const view = await renderScreen();
 
     expect(within(view.getByTestId('plan-free')).getByText('5 invoices / month')).toBeTruthy();
-    expect(within(view.getByTestId('plan-starter')).getByText('6 invoices / month')).toBeTruthy();
-    expect(within(view.getByTestId('plan-business')).getByText('7 invoices / month')).toBeTruthy();
-    expect(within(view.getByTestId('plan-pro')).getByText('8 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-starter')).getByText('15 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-business')).getByText('40 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-pro')).getByText('100 invoices / month')).toBeTruthy();
     expect(within(view.getByTestId('plan-unlimited')).getByText('Unlimited invoices')).toBeTruthy();
     expect(within(view.getByTestId('plan-free')).getByText('Recent invoices only (24 hours)')).toBeTruthy();
     expect(within(view.getByTestId('plan-starter')).getByText('Historical invoices')).toBeTruthy();
@@ -174,7 +174,7 @@ describe('PricingScreen', () => {
   it('never says a payment succeeded when the purchase is only pending', async () => {
     await boot();
     const view = await renderScreen();
-    h.adapter.failNext('pending'); // after mount, so the mount-time refresh doesn't consume it
+    h.adapter.failNextPurchase('pending'); // after mount, so the mount-time refresh doesn't consume it
 
     await fireEvent.press(view.getByTestId('plan-pro-cta'));
 
@@ -188,7 +188,7 @@ describe('PricingScreen', () => {
   it('says nothing when the user cancels the Google Play sheet', async () => {
     await boot();
     const view = await renderScreen();
-    h.adapter.failNext('cancelled'); // after mount, so the mount-time refresh doesn't consume it
+    h.adapter.failNextPurchase('cancelled'); // after mount, so the mount-time refresh doesn't consume it
 
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
@@ -201,7 +201,7 @@ describe('PricingScreen', () => {
     await boot();
     const view = await renderScreen();
 
-    h.adapter.failNext('store_unavailable');
+    h.adapter.failNextPurchase('store_unavailable');
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Google Play unavailable', expect.any(String)));
 
@@ -229,15 +229,51 @@ describe('PricingScreen', () => {
     expect(within(view.getByTestId('plan-starter')).getByText(/next renewal/)).toBeTruthy();
   });
 
-  it('schedules a downgrade instead of claiming it happened', async () => {
+  it('schedules a Google Play downgrade instead of claiming it happened', async () => {
     await boot('pro');
+    h.adapter.storeKind = 'google_play';
     const view = await renderScreen();
 
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Plan change scheduled', expect.stringContaining('next renewal')));
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'deferred' });
+    await waitFor(() =>
+      expect(Alert.alert).toHaveBeenCalledWith('Plan change scheduled', expect.stringContaining('You keep Pro until your current billing period ends')),
+    );
+    expect(Alert.alert).toHaveBeenCalledWith('Plan change scheduled', expect.stringContaining('Starter starts on'));
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', replacementMode: 'DEFERRED' });
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Pro');
+  });
+
+  it('paid → Free: offers cancellation in Google Play, never a purchase, and keeps the paid plan', async () => {
+    await boot('business');
+    const view = await renderScreen();
+
+    await fireEvent.press(view.getByTestId('plan-free-cta'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Switch to Free',
+      expect.stringContaining('cancel your Business subscription. You keep Business until'),
+      expect.arrayContaining([expect.objectContaining({ text: 'Cancel in Google Play' })]),
+    );
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    await buttons.find((b) => b.text === 'Cancel in Google Play')!.onPress!();
+    await waitFor(() => expect(openUrl).toHaveBeenCalled());
+    expect(h.adapter.calls.purchase).toHaveLength(0);
+    expect(view.getByTestId('pricing-current-plan').props.children).toBe('Business');
+  });
+
+  it('paid → Free after cancelling: says when Free starts and offers nothing to buy', async () => {
+    await boot('business', { willRenew: false });
+    const view = await renderScreen();
+
+    expect(view.queryByTestId('plan-free-cta')).toBeNull();
+    expect(within(view.getByTestId('plan-free')).getByText(/Metriqo moves to Free automatically after that/)).toBeTruthy();
+  });
+
+  it('Free user: the Free card has no action', async () => {
+    await boot();
+    const view = await renderScreen();
+    expect(view.queryByTestId('plan-free-cta')).toBeNull();
   });
 
   it('shows cancelled-but-active and billing-issue states', async () => {
@@ -307,7 +343,7 @@ describe('PricingScreen', () => {
     expect(view.getByTestId('plan-business-price').props.children).toBe('$10');
     expect(view.getByTestId('plan-pro-price').props.children).toBe('$15');
     expect(view.getByTestId('plan-unlimited-price').props.children).toBe('$20');
-    expect(within(view.getByTestId('plan-starter')).getByText('6 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-starter')).getByText('15 invoices / month')).toBeTruthy();
     // Not silently disabled: tapping explains the problem.
     expect(view.getByTestId('plan-starter-cta').props.accessibilityState.disabled).toBe(false);
 
@@ -331,7 +367,7 @@ describe('PricingScreen', () => {
     expect(view.getByText("You're offline")).toBeTruthy();
     expect(view.getByText(/Connect to the internet to upgrade/)).toBeTruthy();
     expect(view.getByTestId('plan-pro-price').props.children).toBe('$15');
-    expect(within(view.getByTestId('plan-pro')).getByText('8 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-pro')).getByText('100 invoices / month')).toBeTruthy();
     expect(h.adapter.calls.getOfferings).toBe(0);
   });
 
@@ -364,7 +400,7 @@ describe('PricingScreen', () => {
     expect(openUrl).not.toHaveBeenCalled();
   });
 
-  it('C. Free at 5/5 buys Starter Monthly: the screen shows Starter and 5 of 6 immediately', async () => {
+  it('C. Free at 5/5 buys Starter Monthly: the screen shows Starter and 5 of 15 immediately', async () => {
     await boot(undefined, {}, 5);
     h.adapter.onPurchase = () => activeInfo('starter', h.clock.now, { store: 'TEST_STORE' });
     const view = await renderScreen({ reason: 'invoice_limit' });
@@ -374,7 +410,7 @@ describe('PricingScreen', () => {
 
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Starter is active', expect.any(String)));
     expect(h.adapter.calls.purchase[0].packageId).toBe('starter_monthly');
-    await waitFor(() => expect(view.getByText('5 of 6 invoices used this month')).toBeTruthy());
+    await waitFor(() => expect(view.getByText('5 of 15 invoices used this month')).toBeTruthy());
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Starter');
   });
 

@@ -9,6 +9,7 @@ import { SettingsRow } from '@/components/business/SettingsRow';
 import {
   describeRenewal,
   describeStatus,
+  formatDate,
   describeYearlySavings,
   formatSyncAge,
 } from '@/domain/subscription/formatting';
@@ -99,7 +100,7 @@ const TONE_COLORS = {
  * fabricated billing-issue countdown) are intentionally not shown.
  */
 export function PricingScreen({ route }: Props) {
-  const reason = route.params?.reason;
+  const reason = route.params?.reason ?? 'invoice_limit';
   const sub = useSubscription();
   const { refresh, loadOfferings, refreshUsage } = sub;
   const [period, setPeriod] = useState<BillingPeriod>('monthly');
@@ -150,6 +151,27 @@ export function PricingScreen({ route }: Props) {
     }
   };
 
+  /**
+   * Paid → Free is a cancellation, never a purchase: open Google Play's
+   * management page for this subscription (or RevenueCat's Customer Center
+   * when Google Play doesn't manage it). Nothing changes in Metriqo until
+   * RevenueCat reports the cancellation and, later, the expiry.
+   */
+  const handleSwitchToFree = () => {
+    const endsAt = sub.subscription.expiresAt;
+    const until = endsAt !== null ? ` until ${formatDate(endsAt)}` : ' until the end of your billing period';
+    Alert.alert(
+      'Switch to Free',
+      `To move to Free, cancel your ${sub.planConfig.label} subscription. You keep ${sub.planConfig.label}${until}, then Metriqo switches to Free automatically. Your invoices and customers stay saved.`,
+      [
+        { text: 'Not now', style: 'cancel' },
+        sub.managementUrl
+          ? { text: 'Cancel in Google Play', onPress: handleManageSubscription }
+          : { text: 'Manage subscription', onPress: handlePresentCustomerCenter },
+      ],
+    );
+  };
+
   const handleRestore = async () => {
     const outcome = await sub.restore();
     const message = restoreOutcomeMessage(outcome);
@@ -176,33 +198,31 @@ export function PricingScreen({ route }: Props) {
     scrollRef.current?.scrollTo({ y: Math.max(0, plansSectionY.current - spacing.lg), animated: true });
   };
 
-  const reasonCopy = reason ? describeUpgradeReason(reason, { limit: sub.usage?.limit }) : null;
+  const reasonCopy = describeUpgradeReason(reason, { limit: sub.usage?.limit });
 
   return (
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} testID="pricing-screen">
-      {reasonCopy && (
-        <View style={styles.reasonBanner} testID="pricing-reason">
-          <View style={styles.reasonRow}>
-            <View style={styles.reasonIcon}>
-              <Feather name="lock" size={16} color={colors.primary} />
-            </View>
-            <View style={styles.flexShrink}>
-              <Text style={styles.reasonTitle}>{reasonCopy.title}</Text>
-              <Text style={styles.reasonMessage}>{reasonCopy.message}</Text>
-            </View>
+      <View style={styles.reasonBanner} testID="pricing-reason">
+        <View style={styles.reasonRow}>
+          <View style={styles.reasonIcon}>
+            <Feather name="lock" size={16} color={colors.primary} />
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Upgrade now"
-            testID="pricing-reason-upgrade"
-            onPress={handlePresentPaywall}
-            disabled={working}
-            style={({ pressed }) => [styles.reasonUpgradeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.reasonUpgradeText}>{working ? 'Working…' : 'Upgrade now'}</Text>
-          </Pressable>
+          <View style={styles.flexShrink}>
+            <Text style={styles.reasonTitle}>{reasonCopy.title}</Text>
+            <Text style={styles.reasonMessage}>{reasonCopy.message}</Text>
+          </View>
         </View>
-      )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Upgrade now"
+          testID="pricing-reason-upgrade"
+          onPress={handlePresentPaywall}
+          disabled={working}
+          style={({ pressed }) => [styles.reasonUpgradeButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.reasonUpgradeText}>{working ? 'Working…' : 'Upgrade now'}</Text>
+        </Pressable>
+      </View>
 
       {/* trust === 'stale': the cache hasn't been verified for longer than the offline policy allows
           (`OFFLINE_GRACE_MS`, 3 days — see offlinePolicy.ts), so `sub.plan` has already fallen back to Free even
@@ -367,6 +387,10 @@ export function PricingScreen({ route }: Props) {
         {PLAN_ORDER.map((planId) => {
           const config = PLAN_CONFIG[planId];
           if (planId === 'free') {
+            // Free is not a store product: a paid user moves to Free by cancelling, and keeps the paid plan
+            // until RevenueCat reports it expired. Already cancelled → just say when that happens.
+            const paidEndsAt = sub.subscription.isActive ? sub.subscription.expiresAt : null;
+            const cancelled = sub.isPaid && sub.subscription.isActive && !sub.subscription.willRenew;
             return (
               <PlanCard
                 key={planId}
@@ -374,8 +398,18 @@ export function PricingScreen({ route }: Props) {
                 config={config}
                 period={period}
                 isCurrent={sub.plan === 'free'}
-                cta={null}
-                ctaNote={sub.plan === 'free' ? null : 'Included with Metriqo whenever no paid plan is active.'}
+                cta={
+                  sub.isPaid && !cancelled
+                    ? { label: 'Switch to Free', disabled: working, onPress: handleSwitchToFree }
+                    : null
+                }
+                ctaNote={
+                  !sub.isPaid
+                    ? null
+                    : cancelled
+                      ? `Your ${sub.planConfig.label} plan ends${paidEndsAt !== null ? ` ${formatDate(paidEndsAt)}` : ' at the end of its billing period'}. Metriqo moves to Free automatically after that.`
+                      : 'Cancel your subscription in Google Play. You keep your paid plan until the end of the billing period.'
+                }
               />
             );
           }

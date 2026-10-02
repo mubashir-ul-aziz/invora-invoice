@@ -82,6 +82,7 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
   };
 
   private failures: RevenueCatErrorKind[] = [];
+  private purchaseFailures: RevenueCatErrorKind[] = [];
   private listeners = new Set<(info: CustomerInfoLike) => void>();
   /**
    * Simulates RevenueCat's own per-appUserId subscriber records. Logging in
@@ -97,6 +98,15 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
   /** The next SDK call (of any kind) rejects with this error kind. */
   failNext(kind: RevenueCatErrorKind): void {
     this.failures.push(kind);
+  }
+
+  /**
+   * The next `purchase()` call rejects with this error kind. Unlike
+   * `failNext`, it isn't consumed by the CustomerInfo fetch that
+   * `SubscriptionService.purchase()` makes before buying.
+   */
+  failNextPurchase(kind: RevenueCatErrorKind): void {
+    this.purchaseFailures.push(kind);
   }
 
   setCustomerInfo(info: CustomerInfoLike): void {
@@ -143,6 +153,10 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
   async purchase(packageId: string, change?: ProductChange): Promise<CustomerInfoLike> {
     this.calls.purchase.push({ packageId, change });
     this.maybeFail();
+    const purchaseFailure = this.purchaseFailures.shift();
+    if (purchaseFailure) {
+      throw new RevenueCatError(purchaseFailure, `fake ${purchaseFailure} error`);
+    }
     if (!this.packages.some((pkg) => pkg.packageId === packageId)) {
       throw new RevenueCatError('product_unavailable', 'unknown package');
     }

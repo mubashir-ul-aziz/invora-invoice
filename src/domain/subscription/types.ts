@@ -86,7 +86,11 @@ export type PlanTrust =
   | 'none';
 
 export interface SubscriptionSnapshot {
-  /** The plan every access decision uses. */
+  /**
+   * The plan every access decision uses (invoice limits, history access,
+   * plan badges, the paywall): the plan RevenueCat's `metriqo_premium`
+   * entitlement grants, under the offline policy. Nothing else can set it.
+   */
   plan: PlanId;
   status: SubscriptionStatus;
   trust: PlanTrust;

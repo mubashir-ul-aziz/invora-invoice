@@ -261,7 +261,7 @@ describe('SubscriptionService — purchase', () => {
     ['not_configured', 'unavailable'],
   ] as const)('maps a %s store error to "%s" and leaves the plan alone', async (kind, expected) => {
     const h = makeHarness();
-    h.adapter.failNext(kind);
+    h.adapter.failNextPurchase(kind);
     const outcome = await h.service.purchase('starter', 'monthly');
     expect(outcome.status).toBe(expected);
     expect(h.service.getSnapshot().plan).toBe('free');
@@ -269,7 +269,7 @@ describe('SubscriptionService — purchase', () => {
 
   it('reports an unexpected failure with its message', async () => {
     const h = makeHarness();
-    h.adapter.failNext('unknown');
+    h.adapter.failNextPurchase('unknown');
     const outcome = await h.service.purchase('starter', 'monthly');
     expect(outcome).toEqual({ status: 'failed', message: 'fake unknown error' });
   });
@@ -300,15 +300,17 @@ describe('SubscriptionService — purchase', () => {
 
   it('recovers "already purchased" by refreshing from RevenueCat', async () => {
     const h = makeHarness();
-    h.adapter.setCustomerInfo(activeInfo('starter', h.clock.now));
-    h.adapter.failNext('already_purchased');
+    // The store already has Starter, but the CustomerInfo fetched before buying didn't show it yet.
+    h.adapter.getCustomerInfo = async () =>
+      h.adapter.calls.purchase.length > 0 ? activeInfo('starter', h.clock.now) : EMPTY_CUSTOMER_INFO;
+    h.adapter.failNextPurchase('already_purchased');
     // The failed purchase consumes the injected failure; refresh then reads the entitlement.
     const outcome = await h.service.purchase('starter', 'monthly');
     expect(outcome.status).toBe('already_subscribed');
     expect(h.service.getSnapshot().plan).toBe('starter');
   });
 
-  it('upgrades by replacing the existing subscription product, applied immediately', async () => {
+  it('upgrades by replacing the owned product with CHARGE_PRORATED_PRICE, confirmed by CustomerInfo', async () => {
     const h = makeHarness();
     h.adapter.setCustomerInfo(activeInfo('starter', h.clock.now));
     await h.service.refresh();
@@ -318,52 +320,50 @@ describe('SubscriptionService — purchase', () => {
 
     expect(h.adapter.calls.purchase[0]).toEqual({
       packageId: 'business_monthly',
-      change: { oldProductIdentifier: 'metriqo_starter_monthly', timing: 'immediate' },
+      change: { oldProductIdentifier: 'metriqo_starter_monthly', replacementMode: 'CHARGE_PRORATED_PRICE' },
     });
     expect(outcome.status).toBe('success');
+    expect(h.service.getSnapshot().plan).toBe('business');
   });
 
-  it('schedules a downgrade for the next renewal instead of claiming it took effect', async () => {
+  it('schedules a downgrade (DEFERRED) and keeps the current plan until its period ends', async () => {
     const h = makeHarness();
-    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    const expiresAt = h.clock.now + 12 * DAY;
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now, { expiresAt }));
     await h.service.refresh();
-    // Play accepts the deferred change; the entitlement stays Pro until renewal.
+    // Play accepts the deferred change; RevenueCat still reports Pro until renewal.
 
     const outcome = await h.service.purchase('starter', 'monthly');
 
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'deferred' });
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', replacementMode: 'DEFERRED' });
+    expect(outcome).toMatchObject({ status: 'scheduled', effectiveAt: expiresAt });
+    expect(h.service.getSnapshot().plan).toBe('pro');
+  });
+
+  it('never lets a lower tier take effect early, even when it costs more per day', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.refresh();
+    h.adapter.packages = h.adapter.packages.map((pkg) =>
+      pkg.plan === 'business' && pkg.period === 'monthly' ? { ...pkg, priceMicros: 20_000_000 } : pkg,
+    );
+
+    const outcome = await h.service.purchase('business', 'monthly');
+
+    expect(h.adapter.calls.purchase[0].change?.replacementMode).toBe('DEFERRED');
     expect(outcome.status).toBe('scheduled');
     expect(h.service.getSnapshot().plan).toBe('pro');
   });
 
-  it('ranks an upgrade/downgrade by the real loaded store price, not just tier order', async () => {
+  it('loads the store prices itself before deciding the replacement mode', async () => {
     const h = makeHarness();
-    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
-    await h.service.refresh();
-    // By tier, Pro → Business is an ordinary
-    // downgrade. Give Business a real, regionally-priced package that actually costs more per day.
-    h.adapter.packages = h.adapter.packages.map((pkg) =>
-      pkg.plan === 'business' && pkg.period === 'monthly' ? { ...pkg, priceMicros: 20_000_000 } : pkg,
-    );
-    await h.service.getOfferings();
-    h.adapter.onPurchase = () => activeInfo('business', h.clock.now);
+    h.adapter.setCustomerInfo(activeInfo('starter', h.clock.now));
+    h.adapter.onPurchase = () => activeInfo('pro', h.clock.now);
 
-    const outcome = await h.service.purchase('business', 'monthly');
+    await h.service.purchase('pro', 'monthly');
 
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'immediate' });
-    expect(outcome.status).toBe('success');
-  });
-
-  it('falls back to tier order when offerings were never loaded', async () => {
-    const h = makeHarness();
-    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
-    await h.service.refresh();
-    h.adapter.onPurchase = () => activeInfo('business', h.clock.now);
-
-    const outcome = await h.service.purchase('business', 'monthly');
-
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'deferred' });
-    expect(outcome.status).toBe('scheduled');
+    expect(h.adapter.calls.getOfferings).toBe(1);
+    expect(h.adapter.calls.purchase[0].change?.replacementMode).toBe('CHARGE_PRORATED_PRICE');
   });
 });
 

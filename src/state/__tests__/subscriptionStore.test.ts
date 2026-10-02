@@ -48,7 +48,7 @@ describe('subscriptionStore', () => {
     expect(state.resolved).toBe(true);
     expect(state.snapshot.plan).toBe('business');
     expect(state.displayStatus).toBe('ACTIVE');
-    expect(state.usage).toMatchObject({ used: 0, limit: 7 });
+    expect(state.usage).toMatchObject({ used: 0, limit: 40 });
   });
 
   it('init creates a guest identity (no sign-in prompt) and logs it in to RevenueCat', async () => {
@@ -134,7 +134,7 @@ describe('subscriptionStore', () => {
   it('purchase: a pending transaction shows PENDING, unlocks nothing, and clears once the plan arrives', async () => {
     const s = setup();
     await s.store.getState().init();
-    s.adapter.failNext('pending');
+    s.adapter.failNextPurchase('pending');
 
     const outcome = await s.store.getState().purchase('pro', 'monthly');
 

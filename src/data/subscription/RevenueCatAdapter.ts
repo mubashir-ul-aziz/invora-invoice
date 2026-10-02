@@ -42,12 +42,23 @@ export interface StorePackage {
   currencyCode: string;
 }
 
-/** Tells Google Play to replace the user's existing subscription instead of creating a second one. */
+/**
+ * Tells Google Play to replace the user's existing subscription instead of
+ * creating a second one. Google Play only: the RevenueCat Test Store can't
+ * look up the old purchase (its `findPurchaseInPurchaseHistory` always fails
+ * with `PurchaseNotAllowedError`), so a Test Store purchase never carries one.
+ */
 export interface ProductChange {
-  /** The product id being replaced, e.g. `metriqo_starter_monthly`. */
+  /** The subscription the user owns now, from RevenueCat's CustomerInfo — e.g. `metriqo_starter_monthly`. Never the product being bought. */
   oldProductIdentifier: string;
   timing: 'immediate' | 'deferred';
 }
+
+/** The RevenueCat `STORE_REPLACEMENT_MODE` used for each change timing (Google's recommended modes: prorated upgrade now, downgrade at renewal). */
+export const REPLACEMENT_MODE_FOR_TIMING = {
+  immediate: 'WITH_TIME_PRORATION',
+  deferred: 'DEFERRED',
+} as const satisfies Record<ProductChange['timing'], string>;
 
 /**
  * How RevenueCat's hosted Paywall UI (`react-native-purchases-ui`) was left.

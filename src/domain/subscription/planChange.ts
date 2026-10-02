@@ -32,6 +32,28 @@ export interface PlanChangePrices {
  */
 export type PlanChangeKind = 'new' | 'same' | 'immediate' | 'deferred';
 
+/**
+ * What the user is asking for, independent of how a store applies it:
+ * a first purchase, the plan they already have, a different tier, or the
+ * same tier on the other billing period.
+ */
+export type PlanChangeType = 'new' | 'same' | 'upgrade' | 'downgrade' | 'billing_period_change';
+
+export function planChangeType(current: CurrentPlanRef, target: { plan: PaidPlanId; period: BillingPeriod }): PlanChangeType {
+  if (current.plan === 'free') return 'new';
+  if (current.plan === target.plan) return current.period === target.period ? 'same' : 'billing_period_change';
+  return planRank(target.plan) > planRank(current.plan) ? 'upgrade' : 'downgrade';
+}
+
+/**
+ * The subscription id part of a store product id: Google Play products come
+ * back from RevenueCat as `<subscriptionId>:<basePlanId>`, and a product
+ * change must name the subscription id alone.
+ */
+export function subscriptionIdOf(productId: string): string {
+  return productId.split(':')[0];
+}
+
 const PERIOD_DAYS: Record<BillingPeriod, number> = { monthly: 30, yearly: 365 };
 
 /**

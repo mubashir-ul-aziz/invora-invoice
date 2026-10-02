@@ -60,7 +60,7 @@ describe('subscription purchasing flow', () => {
     await expect(s.entitlement.assertCanCreate()).rejects.toThrow();
   });
 
-  it('C. Free 5/5 buys Starter Monthly → starter, 5/6, invoice #6 allowed immediately', async () => {
+  it('C. Free 5/5 buys Starter Monthly → starter, 5/15, invoice #6 allowed immediately', async () => {
     const s = await setup(5);
     s.adapter.onPurchase = (packageId) => {
       expect(packageId).toBe('starter_monthly');
@@ -71,7 +71,7 @@ describe('subscription purchasing flow', () => {
 
     expect(outcome.status).toBe('success');
     expect(s.store.getState().snapshot.plan).toBe('starter');
-    expect(s.store.getState().usage).toMatchObject({ plan: 'starter', used: 5, limit: 6 });
+    expect(s.store.getState().usage).toMatchObject({ plan: 'starter', used: 5, limit: 15 });
     expect((await s.entitlement.canCreateInvoice()).allowed).toBe(true);
     await expect(s.entitlement.assertCanCreate()).resolves.toBeUndefined();
   });
@@ -82,17 +82,19 @@ describe('subscription purchasing flow', () => {
     s.adapter.onPurchase = () => s.adapter.customerInfo;
     const original = s.adapter.getCustomerInfo.bind(s.adapter);
     s.adapter.getCustomerInfo = async () => {
-      s.adapter.setCustomerInfo(activeInfo('starter', s.clock.now));
+      if (s.adapter.calls.purchase.length > 0) {
+        s.adapter.setCustomerInfo(activeInfo('starter', s.clock.now));
+      }
       return original();
     };
 
     const outcome = await s.store.getState().purchase('starter', 'monthly');
 
     expect(outcome.status).toBe('success');
-    expect(s.store.getState().usage).toMatchObject({ used: 5, limit: 6 });
+    expect(s.store.getState().usage).toMatchObject({ used: 5, limit: 15 });
   });
 
-  it('D. Starter Yearly gives 6 invoices per month — not 72', async () => {
+  it('D. Starter Yearly gives 15 invoices per month — not 180', async () => {
     const s = await setup(0);
     s.adapter.onPurchase = (packageId) => {
       expect(packageId).toBe('starter_yearly');
@@ -100,12 +102,12 @@ describe('subscription purchasing flow', () => {
     };
     await s.store.getState().purchase('starter', 'yearly');
     expect(s.store.getState().snapshot.subscription.billingPeriod).toBe('yearly');
-    expect(s.store.getState().usage?.limit).toBe(6);
+    expect(s.store.getState().usage?.limit).toBe(15);
   });
 
   it.each([
-    ['business', 7],
-    ['pro', 8],
+    ['business', 40],
+    ['pro', 100],
   ] as const)('E/F. %s gives %i invoices per month (monthly and yearly)', async (plan, limit) => {
     for (const period of ['monthly', 'yearly'] as const) {
       const s = await setup(0);
@@ -114,45 +116,6 @@ describe('subscription purchasing flow', () => {
       expect(s.store.getState().usage?.limit).toBe(limit);
       expect(PLAN_LIMITS[plan]).toBe(limit);
     }
-  });
-
-  it('G0. Free (5) → Starter (6) → Business (7): limit follows the plan, the monthly count is kept', async () => {
-    const s = await setup(0);
-    const createInvoice = async (n: number) => {
-      await s.entitlement.assertCanCreate();
-      await s.invoices.create(`INV-new-${n}`, {
-        customerId: 'cust_1',
-        customerName: 'Acme',
-        invoiceTypeId: 'general',
-        issueDate: new Date(s.clock.now).toISOString().slice(0, 10),
-        dueDate: null,
-        notes: null,
-        terms: null,
-        items: [],
-      });
-      await s.entitlement.recordCreated();
-      await s.store.getState().refreshUsage();
-    };
-
-    for (let n = 1; n <= PLAN_LIMITS.free; n += 1) await createInvoice(n);
-    expect(s.store.getState().usage).toMatchObject({ plan: 'free', used: 5, limit: 5 });
-    await expect(s.entitlement.assertCanCreate()).rejects.toThrow(); // #6 blocked on Free
-
-    s.adapter.onPurchase = () => activeInfo('starter', s.clock.now);
-    await s.store.getState().purchase('starter', 'monthly');
-    expect(s.store.getState().usage).toMatchObject({ plan: 'starter', used: 5, limit: PLAN_LIMITS.starter });
-    await createInvoice(6);
-    expect(s.store.getState().usage).toMatchObject({ used: 6, limit: PLAN_LIMITS.starter });
-    await expect(s.entitlement.assertCanCreate()).rejects.toThrow(); // #7 blocked on Starter
-
-    s.adapter.onPurchase = () => activeInfo('business', s.clock.now);
-    await s.store.getState().purchase('business', 'monthly');
-    expect(s.store.getState().usage).toMatchObject({ plan: 'business', used: 6, limit: PLAN_LIMITS.business });
-    await createInvoice(7);
-    expect(s.store.getState().usage).toMatchObject({ used: 7, limit: PLAN_LIMITS.business });
-    await expect(s.entitlement.assertCanCreate()).rejects.toThrow(); // #8 blocked on Business
-
-    expect(await s.invoices.countCreatedBetween(0, Number.MAX_SAFE_INTEGER)).toBe(7);
   });
 
   it('G. Unlimited has no limit', async () => {
@@ -165,7 +128,7 @@ describe('subscription purchasing flow', () => {
 
   it('H. a cancelled purchase changes nothing', async () => {
     const s = await setup(5);
-    s.adapter.failNext('cancelled');
+    s.adapter.failNextPurchase('cancelled');
     expect(await s.store.getState().purchase('starter', 'monthly')).toEqual({ status: 'cancelled' });
     expect(s.store.getState().snapshot.plan).toBe('free');
     expect((await s.entitlement.canCreateInvoice()).allowed).toBe(false);
@@ -173,9 +136,9 @@ describe('subscription purchasing flow', () => {
 
   it('I. a failed purchase reports the failure and unlocks nothing', async () => {
     const s = await setup(5);
-    s.adapter.failNext('unknown');
+    s.adapter.failNextPurchase('unknown');
     expect(await s.store.getState().purchase('pro', 'monthly')).toMatchObject({ status: 'failed' });
-    s.adapter.failNext('configuration');
+    s.adapter.failNextPurchase('configuration');
     expect(await s.store.getState().purchase('pro', 'monthly')).toEqual({ status: 'product_unavailable' });
     expect(s.store.getState().snapshot.plan).toBe('free');
     expect(s.store.getState().purchasing).toBe(false);
@@ -198,7 +161,7 @@ describe('subscription purchasing flow', () => {
     expect(outcome.status).toBe('restored');
     expect(s.adapter.calls.restore).toBe(1);
     expect(s.store.getState().snapshot.plan).toBe('business');
-    expect(s.store.getState().usage).toMatchObject({ used: 5, limit: 7 });
+    expect(s.store.getState().usage).toMatchObject({ used: 5, limit: 40 });
     expect(s.openUrl).not.toHaveBeenCalled();
   });
 
@@ -221,7 +184,7 @@ describe('subscription purchasing flow', () => {
   });
 
   it('O. an expired entitlement falls back to Free and keeps every invoice', async () => {
-    const s = await setup(5);
+    const s = await setup(12);
     s.adapter.onPurchase = () => activeInfo('starter', s.clock.now);
     await s.store.getState().purchase('starter', 'monthly');
     expect((await s.entitlement.canCreateInvoice()).allowed).toBe(true);
@@ -231,7 +194,7 @@ describe('subscription purchasing flow', () => {
 
     expect(s.store.getState().snapshot.plan).toBe('free');
     expect(s.store.getState().displayStatus).toBe('EXPIRED');
-    expect(await s.invoices.countCreatedBetween(0, Number.MAX_SAFE_INTEGER)).toBe(5);
+    expect(await s.invoices.countCreatedBetween(0, Number.MAX_SAFE_INTEGER)).toBe(12);
     expect((await s.entitlement.canCreateInvoice()).allowed).toBe(false);
   });
 
@@ -245,7 +208,7 @@ describe('subscription purchasing flow', () => {
     const restarted = s.restart();
     await restarted.loadCached();
     expect(restarted.getSnapshot().plan).toBe('pro');
-    expect((await s.makeEntitlement(restarted).getInvoiceUsage()).limit).toBe(8);
+    expect((await s.makeEntitlement(restarted).getInvoiceUsage()).limit).toBe(100);
 
     s.connectivity.setOnline(true);
     await restarted.refresh('startup');

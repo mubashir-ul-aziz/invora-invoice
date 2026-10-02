@@ -1,6 +1,18 @@
-import { normalizeCustomerInfo, type CustomerInfoLike } from '@/domain/subscription/entitlementMapping';
+import {
+  normalizeCustomerInfo,
+  resolveActiveProduct,
+  type ActiveProduct,
+  type CustomerInfoLike,
+} from '@/domain/subscription/entitlementMapping';
 import { resolveEffectivePlan } from '@/domain/subscription/offlinePolicy';
-import { planChangeKind, type PlanChangeKind } from '@/domain/subscription/planChange';
+import {
+  planChangeKind,
+  planChangeType,
+  subscriptionIdOf,
+  type CurrentPlanRef,
+  type PlanChangeKind,
+  type PlanChangeType,
+} from '@/domain/subscription/planChange';
 import {
   PLAN_CONFIG,
   REVENUECAT_ENTITLEMENT_ID,
@@ -19,7 +31,13 @@ import {
 } from '@/domain/subscription/types';
 
 import type { ConnectivityService } from './ConnectivityService';
-import { RevenueCatError, type ProductChange, type RevenueCatAdapter, type StorePackage } from './RevenueCatAdapter';
+import {
+  REPLACEMENT_MODE_FOR_TIMING,
+  RevenueCatError,
+  type ProductChange,
+  type RevenueCatAdapter,
+  type StorePackage,
+} from './RevenueCatAdapter';
 import type { SubscriptionCache } from './SubscriptionCache';
 import type { RevenueCatStoreKind } from './revenueCatConfig';
 
@@ -51,6 +69,72 @@ export function playManagementUrlFor(info: CustomerInfoLike): string | null {
 
 /** A RevenueCat answer whose server timestamp is within this of the device clock counts as fresh (i.e. not the SDK's offline cache). */
 export const FRESH_TOLERANCE_MS = 15 * 60 * 1000;
+
+/** True when RevenueCat reports `productId` as one of the user's active subscriptions under the active entitlement. */
+export function ownsProduct(info: CustomerInfoLike, productId: string): boolean {
+  const entitlement = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
+  if (!entitlement?.isActive) return false;
+  return [entitlement.productIdentifier, ...(info.activeSubscriptions ?? [])].some(
+    (id) => subscriptionIdOf(id) === subscriptionIdOf(productId),
+  );
+}
+
+export interface PlanChangeDetails {
+  store: RevenueCatStoreKind | null;
+  info: CustomerInfoLike;
+  owned: ActiveProduct | null;
+  currentRef: CurrentPlanRef;
+  target: { plan: PaidPlanId; period: BillingPeriod };
+  targetProductId: string;
+  targetPackageId: string;
+  type: PlanChangeType;
+  kind: PlanChangeKind;
+  change: ProductChange | undefined;
+}
+
+const STORE_LABELS: Record<RevenueCatStoreKind, string> = {
+  test_store: 'test_store (RevenueCat Test Store / simulated store)',
+  google_play: 'google_play (Google Play Billing)',
+};
+
+/** The developer-facing "PLAN CHANGE" block logged before every purchase. Contains product ids only — no keys or payment data. */
+export function describePlanChange(details: PlanChangeDetails): string {
+  const { store, info, owned, currentRef, target, change } = details;
+  const entitlement = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
+  let oldProduct = 'none (first purchase — nothing to replace)';
+  if (change) {
+    oldProduct = change.oldProductIdentifier;
+  } else if (owned && store === 'test_store') {
+    oldProduct = 'none (RevenueCat Test Store cannot replace subscriptions — plain purchase)';
+  } else if (owned) {
+    oldProduct = 'none';
+  }
+  return [
+    '========== PLAN CHANGE ==========',
+    `Store environment: ${store ? STORE_LABELS[store] : 'unavailable'}`,
+    `Current plan: ${currentRef.plan}${currentRef.period ? ` (${currentRef.period})` : ''}`,
+    `Current active product ID: ${owned?.productId ?? 'none'}`,
+    `Current active entitlement: ${
+      entitlement?.isActive ? `${REVENUECAT_ENTITLEMENT_ID} via ${entitlement.productIdentifier} (store ${entitlement.store ?? 'unknown'})` : 'none'
+    }`,
+    `Target plan: ${target.plan} (${target.period})`,
+    `Target product ID: ${details.targetProductId}`,
+    `Target package: ${details.targetPackageId}`,
+    `Change type: ${details.type} (timing: ${details.kind})`,
+    `oldProductId being passed: ${oldProduct}`,
+    `replacementMode: ${change ? REPLACEMENT_MODE_FOR_TIMING[change.timing] : 'none'}`,
+    `CustomerInfo active subscriptions: ${JSON.stringify(info.activeSubscriptions ?? [])}`,
+    '=================================',
+  ].join('\n');
+}
+
+/** Development-only diagnostics (same convention as the RevenueCat adapter's logs). */
+function devLog(message: string): void {
+  if (__DEV__) {
+    // eslint-disable-next-line no-console
+    console.log(`[Subscription]\n${message}`);
+  }
+}
 /** Don't rewrite the clock high-water mark more often than this. */
 const CLOCK_WRITE_INTERVAL_MS = 60 * 1000;
 
@@ -61,6 +145,13 @@ export type PurchaseOutcome =
   | { status: 'success'; snapshot: SubscriptionSnapshot }
   /** Google Play accepted a plan change that starts at the next renewal. Nothing was charged now. */
   | { status: 'scheduled'; snapshot: SubscriptionSnapshot }
+  /**
+   * RevenueCat Test Store only (development builds): the lower plan was
+   * bought and RevenueCat confirmed it, but the Test Store can't replace the
+   * user's existing higher test subscription, so that one stays the
+   * effective plan until it ends.
+   */
+  | { status: 'test_store_overlap'; snapshot: SubscriptionSnapshot }
   /** The store hasn't confirmed the payment yet (e.g. a pending Play transaction). Nothing is unlocked. */
   | { status: 'pending' }
   | { status: 'cancelled' }
@@ -145,6 +236,7 @@ export class SubscriptionService {
     private readonly cache: SubscriptionCache,
     private readonly connectivity: ConnectivityService,
     private readonly now: () => number = Date.now,
+    private readonly log: (message: string) => void = devLog,
   ) {}
 
   getSnapshot(): SubscriptionSnapshot {
@@ -332,59 +424,87 @@ export class SubscriptionService {
       return { status: 'product_unavailable' };
     }
 
-    const current = this.snapshot;
-    const currentRef = {
-      plan: current.plan,
-      period: current.subscription.billingPeriod,
-    };
-    // Real store prices when offerings are loaded (see `planChangeKind`'s doc
-    // comment) — falls back to ranking by tier when they aren't.
-    const currentPackage = isPaidPlan(current.plan)
-      ? this.offerings?.find((pkg) => pkg.plan === current.plan && pkg.period === currentRef.period) ?? null
-      : null;
-    const targetPackage = this.offerings?.find((pkg) => pkg.plan === plan && pkg.period === period) ?? null;
-    const kind: PlanChangeKind = planChangeKind(currentRef, { plan, period }, {
-      current: currentPackage,
-      target: targetPackage,
-    });
-    if (kind === 'same') {
-      return { status: 'already_subscribed', snapshot: current };
-    }
     if (!(await this.connectivity.isOnline())) {
       return { status: 'network_error' };
     }
 
-    // Switching between subscriptions must replace the old one, or the user
-    // would end up paying for two. The old product is the one for the
-    // current plan + period (monthly when RevenueCat didn't say).
-    let change: ProductChange | undefined;
-    if ((kind === 'immediate' || kind === 'deferred') && isPaidPlan(current.plan)) {
-      change = {
-        oldProductIdentifier: PLAN_CONFIG[current.plan].products![currentRef.period ?? 'monthly'].productId,
-        timing: kind,
-      };
+    // What the user owns now comes from RevenueCat's latest CustomerInfo —
+    // never from the tapped card, the target package or a possibly stale
+    // local snapshot. A failure here leaves the current plan untouched.
+    let ownedInfo: CustomerInfoLike;
+    try {
+      ownedInfo = await this.adapter.getCustomerInfo();
+    } catch (error) {
+      return this.purchaseFailure(error);
+    }
+    const current = await this.applyCustomerInfo(ownedInfo);
+    const owned = resolveActiveProduct(ownedInfo);
+    const currentRef = { plan: current.subscription.plan, period: current.subscription.billingPeriod };
+    const target = { plan, period };
+    const targetProductId = product.productId;
+
+    // Real store prices when offerings are loaded (see `planChangeKind`'s doc
+    // comment) — falls back to ranking by tier when they aren't.
+    const currentPackage = isPaidPlan(currentRef.plan)
+      ? this.offerings?.find((pkg) => pkg.plan === currentRef.plan && pkg.period === currentRef.period) ?? null
+      : null;
+    const targetPackage = this.offerings?.find((pkg) => pkg.plan === plan && pkg.period === period) ?? null;
+    const kind: PlanChangeKind = planChangeKind(currentRef, target, { current: currentPackage, target: targetPackage });
+    if (kind === 'same' || ownsProduct(ownedInfo, targetProductId)) {
+      return { status: 'already_subscribed', snapshot: current };
     }
 
+    // Google Play: switching must replace the subscription the user actually
+    // owns, or they'd pay for two. RevenueCat Test Store: it cannot replace a
+    // subscription at all — its `findPurchaseInPurchaseHistory` always fails
+    // with PurchaseNotAllowedError — so the target is bought as a plain
+    // purchase and the old test subscription runs out on its own.
+    const store = this.adapter.getStoreKind();
+    let change: ProductChange | undefined;
+    if (owned && store === 'google_play' && (kind === 'immediate' || kind === 'deferred')) {
+      change = { oldProductIdentifier: subscriptionIdOf(owned.productId), timing: kind };
+    }
+    this.log(
+      describePlanChange({
+        store,
+        info: ownedInfo,
+        owned,
+        currentRef,
+        target,
+        targetProductId,
+        targetPackageId: targetPackage?.packageId ?? product.packageId,
+        type: planChangeType(currentRef, target),
+        kind,
+        change,
+      }),
+    );
+
     try {
-      const info = await this.adapter.purchase(product.packageId, change);
+      let info = await this.adapter.purchase(product.packageId, change);
       let snapshot = await this.applyCustomerInfo(info);
-      if (kind === 'deferred') {
+      if (change?.timing === 'deferred') {
         // Google Play accepted the change; the current plan continues until renewal.
         return { status: 'scheduled', snapshot };
       }
-      const isConfirmed = (s: SubscriptionSnapshot) =>
-        s.subscription.isActive && planRank(s.subscription.plan) >= planRank(plan);
-      if (!isConfirmed(snapshot)) {
+      if (!ownsProduct(info, targetProductId)) {
         // The purchase result can lag RevenueCat's backend by a moment: ask
         // for a fresh CustomerInfo once before calling it pending.
         try {
-          snapshot = await this.applyCustomerInfo(await this.adapter.getCustomerInfo());
+          info = await this.adapter.getCustomerInfo();
+          snapshot = await this.applyCustomerInfo(info);
         } catch {
           // Keep the purchase-result snapshot; the CustomerInfo listener will catch up.
         }
       }
-      // Never report success on the strength of the store call alone.
-      return isConfirmed(snapshot) ? { status: 'success', snapshot } : { status: 'pending' };
+      // Never report success on the strength of the store call alone:
+      // RevenueCat must list the bought product as an active subscription.
+      if (!ownsProduct(info, targetProductId) || !snapshot.subscription.isActive) {
+        return { status: 'pending' };
+      }
+      if (store === 'test_store' && planRank(snapshot.subscription.plan) > planRank(plan)) {
+        return { status: 'test_store_overlap', snapshot };
+      }
+      return { status: 'success', snapshot };
     } catch (error) {
       return this.purchaseFailure(error);
     }

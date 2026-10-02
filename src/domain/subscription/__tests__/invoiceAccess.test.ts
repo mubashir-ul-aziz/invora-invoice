@@ -35,9 +35,9 @@ describe('invoice limits per plan', () => {
 
   it.each([
     ['free', 5],
-    ['starter', 6],
-    ['business', 7],
-    ['pro', 8],
+    ['starter', 15],
+    ['business', 40],
+    ['pro', 100],
   ] as const)('%s allows up to %i invoices and blocks the next', (plan, limit) => {
     expect(decideInvoiceCreation(computeInvoiceUsage(plan, limit - 1, period)).allowed).toBe(true);
     const blocked = decideInvoiceCreation(computeInvoiceUsage(plan, limit, period));

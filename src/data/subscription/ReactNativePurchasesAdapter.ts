@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import type { CustomerInfo, PurchasesEntitlementInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 
 import type { CustomerInfoLike, EntitlementInfoLike } from '@/domain/subscription/entitlementMapping';
+import { subscriptionIdOf } from '@/domain/subscription/planChange';
 import {
   BILLING_PERIODS,
   PAID_PLAN_IDS,
@@ -15,6 +16,7 @@ import {
 } from '@/domain/subscription/plans';
 
 import {
+  REPLACEMENT_MODE_FOR_TIMING,
   RevenueCatError,
   type PaywallPresentationResult,
   type ProductChange,
@@ -377,14 +379,30 @@ export class ReactNativePurchasesAdapter implements RevenueCatAdapter {
       if (!pkg) {
         throw new RevenueCatError('product_unavailable', 'That plan is not available right now.');
       }
-      const modes = purchases.STORE_REPLACEMENT_MODE;
+      if (change && this.config.store === 'test_store') {
+        // `SubscriptionService` never sends one here; refuse loudly rather than
+        // reach the Test Store's guaranteed PurchaseNotAllowedError.
+        throw new RevenueCatError(
+          'configuration',
+          'The RevenueCat Test Store does not support replacing a subscription (oldProductId/replacementMode).',
+        );
+      }
+      if (change && subscriptionIdOf(change.oldProductIdentifier) === subscriptionIdOf(pkg.product.identifier)) {
+        throw new RevenueCatError('configuration', `Refusing a plan change that replaces ${change.oldProductIdentifier} with itself.`);
+      }
       const productChangeInfo = change
         ? {
             oldProductIdentifier: change.oldProductIdentifier,
-            replacementMode: change.timing === 'immediate' ? modes.WITH_TIME_PRORATION : modes.DEFERRED,
+            replacementMode: purchases.STORE_REPLACEMENT_MODE[REPLACEMENT_MODE_FOR_TIMING[change.timing]],
           }
         : null;
-      debugLog('purchasePackage', { packageId, product: pkg.product.identifier, change: change ?? null });
+      debugLog('purchasePackage', {
+        store: this.config.store,
+        packageId,
+        product: pkg.product.identifier,
+        oldProductIdentifier: productChangeInfo?.oldProductIdentifier ?? null,
+        replacementMode: change ? REPLACEMENT_MODE_FOR_TIMING[change.timing] : null,
+      });
       const result = await purchases.purchasePackage(pkg, null, productChangeInfo);
       this.logCustomerInfo('purchase', result.customerInfo);
       return toCustomerInfoLike(result.customerInfo);

@@ -40,29 +40,54 @@ export interface CustomerInfoLike {
   activeSubscriptions?: readonly string[];
 }
 
+/** The subscription product that currently grants the user's plan, exactly as RevenueCat reports it. */
+export interface ActiveProduct {
+  /** RevenueCat's product id, e.g. `metriqo_starter_monthly` (Google Play may append `:<basePlanId>`). */
+  productId: string;
+  /** Null when the product isn't one of Metriqo's `metriqo_<plan>_<period>` ids. */
+  plan: PaidPlanId | null;
+  period: BillingPeriod | null;
+}
+
 /**
- * Which tier an active `metriqo_premium` entitlement unlocks. The tier comes
- * from the product that granted it; if RevenueCat also lists other active
- * subscriptions (e.g. an upgrade still overlapping the old plan), the highest
- * recognised tier wins.
+ * Which product the active `metriqo_premium` entitlement comes from. Starts
+ * from the entitlement's own product; if RevenueCat also lists other active
+ * subscriptions (e.g. an upgrade still overlapping the old plan, or two
+ * RevenueCat Test Store subscriptions — the Test Store can't replace one
+ * with another), the highest recognised tier wins. Null when the entitlement
+ * isn't active.
+ *
+ * This is the one answer to "what does the user own right now" — the plan
+ * shown in the app and the product a plan change replaces both come from it,
+ * so they can never disagree.
+ */
+export function resolveActiveProduct(info: CustomerInfoLike): ActiveProduct | null {
+  const entitlement = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
+  if (!entitlement?.isActive) return null;
+  let best: ActiveProduct = { productId: entitlement.productIdentifier, plan: null, period: null };
+  const own = findPlanByProductId(entitlement.productIdentifier);
+  if (own) best = { productId: entitlement.productIdentifier, ...own };
+  for (const productId of info.activeSubscriptions ?? []) {
+    const match = findPlanByProductId(productId);
+    if (match && (!best.plan || planRank(match.plan) > planRank(best.plan))) {
+      best = { productId, ...match };
+    }
+  }
+  return best;
+}
+
+/**
+ * Which tier an active `metriqo_premium` entitlement unlocks — the tier of
+ * `resolveActiveProduct`.
  *
  * An active entitlement whose product Metriqo doesn't recognise (a product
  * added in the dashboard but not to `PLAN_CONFIG`) resolves to the lowest
  * paid tier: RevenueCat has confirmed the user paid, so they must not be
  * treated as Free, but an unknown id can't claim more than the minimum.
  */
-function resolveTier(
-  entitlement: EntitlementInfoLike,
-  activeSubscriptions: readonly string[],
-): { plan: PaidPlanId; period: BillingPeriod | null } {
-  let best: { plan: PaidPlanId; period: BillingPeriod | null } | null = findPlanByProductId(entitlement.productIdentifier);
-  for (const productId of activeSubscriptions) {
-    const match = findPlanByProductId(productId);
-    if (match && (!best || planRank(match.plan) > planRank(best.plan))) {
-      best = match;
-    }
-  }
-  return best ?? { plan: 'starter', period: null };
+function resolveTier(info: CustomerInfoLike): { plan: PaidPlanId; period: BillingPeriod | null } {
+  const product = resolveActiveProduct(info);
+  return product?.plan ? { plan: product.plan, period: product.period } : { plan: 'starter', period: null };
 }
 
 /**
@@ -75,7 +100,7 @@ export function normalizeCustomerInfo(info: CustomerInfoLike, now: number): Norm
   const entitlement = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
 
   if (entitlement?.isActive) {
-    const { plan, period } = resolveTier(entitlement, info.activeSubscriptions ?? []);
+    const { plan, period } = resolveTier(info);
     return {
       plan,
       isActive: true,

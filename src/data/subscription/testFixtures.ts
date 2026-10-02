@@ -76,6 +76,8 @@ export interface Harness {
   signer: FakeSubscriptionCacheSigner;
   cache: SubscriptionCache;
   service: SubscriptionService;
+  /** Every "PLAN CHANGE" diagnostics block the service logged, oldest first. */
+  logs: string[];
   /** A brand-new service over the same cache/adapter — models an app restart. */
   restart(): SubscriptionService;
 }
@@ -87,6 +89,7 @@ export function makeHarness(startAt: number = START): Harness {
   const rawStore = new InMemoryRawSubscriptionCacheStore();
   const signer = new FakeSubscriptionCacheSigner();
   const cache = new SubscriptionCache(new SignedSubscriptionCacheRepository(rawStore, signer));
-  const make = () => new SubscriptionService(adapter, cache, connectivity, () => clock.now);
-  return { clock, adapter, connectivity, rawStore, signer, cache, service: make(), restart: make };
+  const logs: string[] = [];
+  const make = () => new SubscriptionService(adapter, cache, connectivity, () => clock.now, (message) => logs.push(message));
+  return { clock, adapter, connectivity, rawStore, signer, cache, service: make(), logs, restart: make };
 }
