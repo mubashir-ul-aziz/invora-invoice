@@ -48,7 +48,7 @@ describe('subscriptionStore', () => {
     expect(state.resolved).toBe(true);
     expect(state.snapshot.plan).toBe('business');
     expect(state.displayStatus).toBe('ACTIVE');
-    expect(state.usage).toMatchObject({ used: 0, limit: 40 });
+    expect(state.usage).toMatchObject({ used: 0, limit: 7 });
   });
 
   it('init creates a guest identity (no sign-in prompt) and logs it in to RevenueCat', async () => {

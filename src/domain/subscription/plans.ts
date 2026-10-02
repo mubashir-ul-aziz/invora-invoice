@@ -42,12 +42,15 @@ export const REVENUECAT_ENTITLEMENT_ID = 'metriqo_premium';
  * Invoices per **calendar month** for each plan — the same number for the
  * monthly and yearly product of a tier (never multiplied by 12).
  * `Infinity` = no limit.
+ *
+ * TEMP TEST LIMITS — restore production limits before Play Store release.
+ * Production values: free 5, starter 15, business 40, pro 100, unlimited Infinity.
  */
 export const PLAN_LIMITS: Readonly<Record<PlanId, number>> = {
   free: 5,
-  starter: 15,
-  business: 40,
-  pro: 100,
+  starter: 6, // TEMP TEST LIMIT — production: 15
+  business: 7, // TEMP TEST LIMIT — production: 40
+  pro: 8, // TEMP TEST LIMIT — production: 100
   unlimited: Infinity,
 };
 

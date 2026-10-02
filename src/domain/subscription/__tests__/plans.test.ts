@@ -15,11 +15,11 @@ import {
 
 describe('PLAN_CONFIG', () => {
   it('encodes the published monthly limits and access rules', () => {
-    expect(PLAN_LIMITS).toEqual({ free: 5, starter: 15, business: 40, pro: 100, unlimited: Infinity });
+    expect(PLAN_LIMITS).toEqual({ free: 5, starter: 6, business: 7, pro: 8, unlimited: Infinity });
     expect(PLAN_CONFIG.free.monthlyInvoiceLimit).toBe(5);
-    expect(PLAN_CONFIG.starter.monthlyInvoiceLimit).toBe(15);
-    expect(PLAN_CONFIG.business.monthlyInvoiceLimit).toBe(40);
-    expect(PLAN_CONFIG.pro.monthlyInvoiceLimit).toBe(100);
+    expect(PLAN_CONFIG.starter.monthlyInvoiceLimit).toBe(6);
+    expect(PLAN_CONFIG.business.monthlyInvoiceLimit).toBe(7);
+    expect(PLAN_CONFIG.pro.monthlyInvoiceLimit).toBe(8);
     expect(PLAN_CONFIG.unlimited.monthlyInvoiceLimit).toBeNull();
 
     expect(PLAN_CONFIG.free.historicalInvoiceAccess).toBe(false);
@@ -86,7 +86,7 @@ describe('product lookup', () => {
 describe('describePlanFeatures', () => {
   it('derives the bullets from config', () => {
     expect(describePlanFeatures(PLAN_CONFIG.unlimited)).toContain('Unlimited invoices');
-    expect(describePlanFeatures(PLAN_CONFIG.starter)).toContain('15 invoices / month');
+    expect(describePlanFeatures(PLAN_CONFIG.starter)).toContain('6 invoices / month');
     expect(describePlanFeatures(PLAN_CONFIG.free)).toContain('Recent invoices only (24 hours)');
   });
 });

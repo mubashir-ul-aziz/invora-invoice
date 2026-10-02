@@ -106,9 +106,9 @@ describe('EntitlementService — invoice limits', () => {
   });
 
   it.each([
-    ['starter', 15],
-    ['business', 40],
-    ['pro', 100],
+    ['starter', 6],
+    ['business', 7],
+    ['pro', 8],
   ] as const)('applies the %s limit of %i once RevenueCat says so', async (plan, limit) => {
     const e = makeEntitlement(Array.from({ length: limit }, (_, i) => seedInvoice(String(i), START - HOUR)));
     e.adapter.setCustomerInfo(activeInfo(plan, e.clock.now));
@@ -119,9 +119,9 @@ describe('EntitlementService — invoice limits', () => {
   });
 
   it.each([
-    ['starter', 15],
-    ['business', 40],
-    ['pro', 100],
+    ['starter', 6],
+    ['business', 7],
+    ['pro', 8],
   ] as const)('gives the yearly %s product the same %i/month allowance (never × 12)', async (plan, limit) => {
     const e = makeEntitlement(Array.from({ length: limit - 1 }, (_, i) => seedInvoice(String(i), START - HOUR)));
     e.adapter.setCustomerInfo(activeInfo(plan, e.clock.now, { period: 'yearly' }));
@@ -134,7 +134,7 @@ describe('EntitlementService — invoice limits', () => {
   });
 
   it('falls back to the Free limit once RevenueCat reports the subscription expired', async () => {
-    const e = makeEntitlement(Array.from({ length: 10 }, (_, i) => seedInvoice(String(i), START - HOUR)));
+    const e = makeEntitlement(Array.from({ length: 5 }, (_, i) => seedInvoice(String(i), START - HOUR)));
     e.adapter.setCustomerInfo(activeInfo('starter', e.clock.now));
     await e.service.refresh();
     expect((await e.entitlement.canCreateInvoice()).allowed).toBe(true);

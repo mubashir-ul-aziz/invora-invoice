@@ -102,9 +102,9 @@ describe('PricingScreen', () => {
     const view = await renderScreen();
 
     expect(within(view.getByTestId('plan-free')).getByText('5 invoices / month')).toBeTruthy();
-    expect(within(view.getByTestId('plan-starter')).getByText('15 invoices / month')).toBeTruthy();
-    expect(within(view.getByTestId('plan-business')).getByText('40 invoices / month')).toBeTruthy();
-    expect(within(view.getByTestId('plan-pro')).getByText('100 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-starter')).getByText('6 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-business')).getByText('7 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-pro')).getByText('8 invoices / month')).toBeTruthy();
     expect(within(view.getByTestId('plan-unlimited')).getByText('Unlimited invoices')).toBeTruthy();
     expect(within(view.getByTestId('plan-free')).getByText('Recent invoices only (24 hours)')).toBeTruthy();
     expect(within(view.getByTestId('plan-starter')).getByText('Historical invoices')).toBeTruthy();
@@ -307,7 +307,7 @@ describe('PricingScreen', () => {
     expect(view.getByTestId('plan-business-price').props.children).toBe('$10');
     expect(view.getByTestId('plan-pro-price').props.children).toBe('$15');
     expect(view.getByTestId('plan-unlimited-price').props.children).toBe('$20');
-    expect(within(view.getByTestId('plan-starter')).getByText('15 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-starter')).getByText('6 invoices / month')).toBeTruthy();
     // Not silently disabled: tapping explains the problem.
     expect(view.getByTestId('plan-starter-cta').props.accessibilityState.disabled).toBe(false);
 
@@ -331,7 +331,7 @@ describe('PricingScreen', () => {
     expect(view.getByText("You're offline")).toBeTruthy();
     expect(view.getByText(/Connect to the internet to upgrade/)).toBeTruthy();
     expect(view.getByTestId('plan-pro-price').props.children).toBe('$15');
-    expect(within(view.getByTestId('plan-pro')).getByText('100 invoices / month')).toBeTruthy();
+    expect(within(view.getByTestId('plan-pro')).getByText('8 invoices / month')).toBeTruthy();
     expect(h.adapter.calls.getOfferings).toBe(0);
   });
 
@@ -364,7 +364,7 @@ describe('PricingScreen', () => {
     expect(openUrl).not.toHaveBeenCalled();
   });
 
-  it('C. Free at 5/5 buys Starter Monthly: the screen shows Starter and 5 of 15 immediately', async () => {
+  it('C. Free at 5/5 buys Starter Monthly: the screen shows Starter and 5 of 6 immediately', async () => {
     await boot(undefined, {}, 5);
     h.adapter.onPurchase = () => activeInfo('starter', h.clock.now, { store: 'TEST_STORE' });
     const view = await renderScreen({ reason: 'invoice_limit' });
@@ -374,7 +374,7 @@ describe('PricingScreen', () => {
 
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Starter is active', expect.any(String)));
     expect(h.adapter.calls.purchase[0].packageId).toBe('starter_monthly');
-    await waitFor(() => expect(view.getByText('5 of 15 invoices used this month')).toBeTruthy());
+    await waitFor(() => expect(view.getByText('5 of 6 invoices used this month')).toBeTruthy());
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Starter');
   });
 
