@@ -12,6 +12,19 @@ export interface OutcomeMessage {
 }
 
 /**
+ * "Subscriptions aren't available…" plus, in development builds only, the
+ * developer-facing reason (e.g. "No RevenueCat key in this bundle…") so a
+ * misconfigured dev build says exactly what to fix. Reasons never contain a
+ * full API key (see `revenueCatConfig.ts`).
+ */
+function unavailableMessage(reason: string | null | undefined): string {
+  const base = "Subscriptions can't be purchased in this version of the app.";
+  return __DEV__ && reason ? `${base}
+
+[Development] ${reason}` : base;
+}
+
+/**
  * User-facing wording for every purchase outcome, in one place. Success
  * wording is used ONLY for `status: 'success'` — which `SubscriptionService`
  * returns only after RevenueCat confirmed an active entitlement — so the app
@@ -38,13 +51,16 @@ export function purchaseOutcomeMessage(outcome: PurchaseOutcome, planLabel: stri
     case 'already_subscribed':
       return { title: 'Already subscribed', message: `You already have ${planLabel}.` };
     case 'network_error':
-      return { title: 'No connection', message: 'Connect to the internet and try again. You have not been charged.' };
+      return { title: 'No connection', message: 'Connect to the internet to upgrade. You have not been charged.' };
     case 'store_unavailable':
       return { title: 'Google Play unavailable', message: "Google Play couldn't be reached. Please try again in a moment." };
     case 'product_unavailable':
-      return { title: 'Plan unavailable', message: "This plan isn't available right now. Please try again later." };
+      return {
+        title: 'Plan unavailable',
+        message: `${planLabel} couldn't be loaded from the store right now, so it can't be purchased yet. Please try again later. You have not been charged.`,
+      };
     case 'unavailable':
-      return { title: 'Purchases unavailable', message: "Subscriptions aren't available in this version of the app." };
+      return { title: 'Purchases unavailable', message: unavailableMessage(outcome.reason) };
     case 'failed':
       return { title: 'Purchase failed', message: outcome.message };
   }
@@ -52,21 +68,26 @@ export function purchaseOutcomeMessage(outcome: PurchaseOutcome, planLabel: stri
 
 export function restoreOutcomeMessage(outcome: RestoreOutcome): OutcomeMessage {
   switch (outcome.status) {
-    case 'restored':
-      return { title: 'Purchases restored', message: 'Your subscription was found and restored.' };
+    case 'restored': {
+      const label = PLAN_CONFIG[outcome.snapshot.subscription.plan].label;
+      return {
+        title: 'Purchases restored',
+        message: `Your ${label} subscription was found and restored. Your invoice limit has been updated.`,
+      };
+    }
     case 'already_active':
       return { title: 'Already active', message: 'Your subscription is already active on this device.' };
     case 'nothing_to_restore':
       return {
         title: 'Nothing to restore',
-        message: 'No active subscription was found for this Google account.',
+        message: 'No active Metriqo subscription was found for this store account.',
       };
     case 'network_error':
-      return { title: 'No connection', message: 'Connect to the internet and try again.' };
+      return { title: 'No connection', message: 'Connect to the internet to restore your purchases, then try again.' };
     case 'store_unavailable':
-      return { title: 'Google Play unavailable', message: "Google Play couldn't be reached. Please try again in a moment." };
+      return { title: 'Store unavailable', message: "The store couldn't be reached. Please try again in a moment." };
     case 'unavailable':
-      return { title: 'Restore unavailable', message: "Subscriptions aren't available in this version of the app." };
+      return { title: 'Restore unavailable', message: unavailableMessage(outcome.reason) };
     case 'failed':
       return { title: 'Restore failed', message: outcome.message };
   }

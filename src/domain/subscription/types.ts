@@ -95,8 +95,15 @@ export interface SubscriptionSnapshot {
   /** True when the latest sync attempt couldn't reach RevenueCat. */
   isOffline: boolean;
   clockHighWaterMs: number;
-  /** Where "Manage subscription" should send the user; null = use the default Play subscriptions page. */
+  /**
+   * Where "Manage subscription" should send the user. Only ever set for an
+   * active subscription that Google Play manages; null otherwise (Free, a
+   * Test Store purchase, or not verified this session) — the UI then offers
+   * no Google Play link at all instead of an empty Play subscriptions page.
+   */
   managementUrl: string | null;
+  /** Which store RevenueCat says the active entitlement came from (`PLAY_STORE`, `TEST_STORE`, …); null when unknown/none. */
+  activeStore: string | null;
 }
 
 /** The snapshot before anything has loaded: Free, nothing trusted. */
@@ -108,4 +115,5 @@ export const INITIAL_SNAPSHOT: SubscriptionSnapshot = {
   isOffline: false,
   clockHighWaterMs: 0,
   managementUrl: null,
+  activeStore: null,
 };

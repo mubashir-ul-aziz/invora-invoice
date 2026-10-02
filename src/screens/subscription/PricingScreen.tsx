@@ -15,6 +15,7 @@ import {
 import { planChangeKind } from '@/domain/subscription/planChange';
 import {
   BILLING_PERIODS,
+  FALLBACK_PRICES_USD,
   PLAN_CONFIG,
   PLAN_ORDER,
   describePlanFeatures,
@@ -24,6 +25,7 @@ import {
 } from '@/domain/subscription/plans';
 import { describeUpgradeReason } from '@/domain/subscription/upgradeReason';
 import type { RootStackParamList } from '@/navigation/types';
+import type { OfferingsIssue } from '@/state/subscriptionStore';
 import { useSubscription } from '@/state/useSubscription';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 
@@ -32,6 +34,39 @@ import { customerCenterOutcomeMessage, paywallOutcomeMessage, purchaseOutcomeMes
 type Props = NativeStackScreenProps<RootStackParamList, 'Pricing'>;
 
 const PERIOD_LABELS: Record<BillingPeriod, string> = { monthly: 'Monthly', yearly: 'Yearly' };
+
+/** The configured standard price as a priced package, for savings arithmetic while store prices aren't loaded. */
+function fallbackPriced(plan: PaidPlanId, period: BillingPeriod) {
+  return { plan, period, priceMicros: FALLBACK_PRICES_USD[plan][period] * 1_000_000, currencyCode: 'USD' };
+}
+
+/**
+ * What the plans notice says for each reason the store packages couldn't be
+ * loaded. Plans, limits, features and standard prices stay visible in every
+ * case; only purchasing waits for the store.
+ */
+const OFFERINGS_NOTICE: Record<OfferingsIssue, { title: string; message: string; retry: boolean }> = {
+  offline: {
+    title: "You're offline",
+    message: 'Showing standard prices. Connect to the internet to upgrade.',
+    retry: true,
+  },
+  unavailable: {
+    title: "Purchases aren't available in this build",
+    message: 'Showing standard prices. Plans can be viewed, but not purchased, in this version of the app.',
+    retry: false,
+  },
+  configuration: {
+    title: "Store plans couldn't be loaded",
+    message: 'Showing standard prices. Upgrading will be possible once the store returns the plans.',
+    retry: true,
+  },
+  unknown: {
+    title: "Couldn't reach the store",
+    message: 'Showing standard prices. Try again to load store prices and upgrade.',
+    retry: true,
+  },
+};
 
 const TONE_COLORS = {
   neutral: { background: colors.lockedBg, text: colors.textMuted },
@@ -50,10 +85,15 @@ const TONE_COLORS = {
  * scrolls this same screen to the plan grid instead of opening a duplicate.
  *
  * Everything shown is derived, not hard-coded: plan rules and features from
- * `PLAN_CONFIG`/`describePlanFeatures`, prices from the RevenueCat Offering
- * (falling back to a clearly-labelled reference price, with purchasing
- * disabled, when it can't be loaded), status/usage from `useSubscription()`.
- * Yearly savings are shown only when computed from the two real store prices.
+ * `PLAN_CONFIG`/`describePlanFeatures`, prices from the RevenueCat
+ * `metriqo_premium` Offering when it has loaded and the configured standard
+ * prices (`FALLBACK_PRICES_USD`) otherwise — plans never lose their price.
+ * When the store can't be reached, a notice explains why (offline / not
+ * available in this build / store setup) and Upgrade explains itself on tap
+ * instead of being silently disabled; a purchase is never faked — it always
+ * goes through the real store package. Status/usage from `useSubscription()`.
+ * Yearly savings come from the two store prices (or the two standard prices).
+ * "Manage Subscription" appears only for a subscription Google Play manages.
  * Stitch's claims with no backing in this app (multi-business profiles,
  * payment QR codes, a "cloud backup vault", "bank-grade encryption", a
  * fabricated billing-issue countdown) are intentionally not shown.
@@ -76,11 +116,26 @@ export function PricingScreen({ route }: Props) {
 
   const findPackage = (plan: PaidPlanId, p: BillingPeriod) => sub.packages.find((pkg) => pkg.plan === plan && pkg.period === p);
   const offeringsReady = sub.offeringsStatus === 'ready';
+  const notice = OFFERINGS_NOTICE[sub.offeringsIssue ?? 'unknown'];
+  const savingsFor = (plan: PaidPlanId) => {
+    const monthly = findPackage(plan, 'monthly');
+    const yearly = findPackage(plan, 'yearly');
+    return monthly || yearly
+      ? describeYearlySavings(monthly, yearly)
+      : describeYearlySavings(fallbackPriced(plan, 'monthly'), fallbackPriced(plan, 'yearly'));
+  };
   const statusInfo = describeStatus(sub.status);
   const tone = TONE_COLORS[statusInfo.tone];
   const renewal = describeRenewal(sub.subscription, sub.status);
   const working = sub.status === 'LOADING' || sub.status === 'RESTORING' || sub.purchasing;
   const currentFeatures = describePlanFeatures(sub.planConfig);
+
+  const handleManageSubscription = async () => {
+    const opened = await sub.openManageSubscription();
+    if (!opened && !sub.managementUrl) {
+      Alert.alert('Nothing to manage in Google Play', 'There is no active Google Play subscription for this app.');
+    }
+  };
 
   const handlePurchase = async (plan: PaidPlanId) => {
     setBusyPlan(plan);
@@ -150,7 +205,7 @@ export function PricingScreen({ route }: Props) {
       )}
 
       {/* trust === 'stale': the cache hasn't been verified for longer than the offline policy allows
-          (`MAX_STALE_MS`, see offlinePolicy.ts), so `sub.plan` has already fallen back to Free even
+          (`OFFLINE_GRACE_MS`, 3 days — see offlinePolicy.ts), so `sub.plan` has already fallen back to Free even
           though `sub.subscription.plan` (the last thing RevenueCat actually confirmed) was paid. The
           generic "Not verified yet" status pill doesn't convey that, so a paying user needs an explicit
           nudge to reconnect rather than assuming they've simply lost their plan. */}
@@ -162,8 +217,8 @@ export function PricingScreen({ route }: Props) {
           <View style={styles.flexShrink}>
             <Text style={styles.staleTitle}>Verify your subscription</Text>
             <Text style={styles.staleMessage}>
-              We haven't been able to confirm your {PLAN_CONFIG[sub.subscription.plan].label} plan in a while, so it's showing
-              as Free for now. Connect to the internet to verify your subscription and restore full access.
+              We haven't been able to confirm your {PLAN_CONFIG[sub.subscription.plan].label} plan for more than 3 days, so
+              it's showing as Free for now. Connect to the internet to verify your subscription and restore full access.
             </Text>
           </View>
         </View>
@@ -221,21 +276,32 @@ export function PricingScreen({ route }: Props) {
         )}
       </View>
 
-      {/* Manage + Restore (Stitch "Subscription Management" actions) */}
+      {/* Manage + Restore (Stitch "Subscription Management" actions). "Manage Subscription" opens Google Play
+          ONLY for an active subscription Google Play manages — never the empty generic Play page for a Free
+          user or a RevenueCat Test Store purchase. */}
       <View style={styles.actionsGroup}>
-        <SettingsRow
-          icon="external-link"
-          label="Manage Subscription"
-          description="Renewal, cancellation and payment method in Google Play"
-          onPress={() => {
-            sub.openManageSubscription();
-          }}
-          testID="action-manage-subscription"
-        />
+        {!!sub.managementUrl && (
+          <SettingsRow
+            icon="external-link"
+            label="Manage Subscription"
+            description="Renewal, cancellation and payment method in Google Play"
+            onPress={handleManageSubscription}
+            testID="action-manage-subscription"
+          />
+        )}
+        {sub.isPaid && sub.activeStore === 'TEST_STORE' && (
+          <View style={styles.testStoreNote} testID="pricing-test-store-note">
+            <Feather name="info" size={14} color={colors.textMuted} />
+            <Text style={styles.detail}>
+              Test Store purchase — it isn't a Google Play subscription. Manage or expire it from the RevenueCat dashboard
+              (Customers).
+            </Text>
+          </View>
+        )}
         <SettingsRow
           icon="rotate-ccw"
           label="Restore Purchases"
-          description="Re-sync your subscription from Google Play"
+          description="Check your store account for an active Metriqo subscription"
           onPress={handleRestore}
           testID="action-restore-purchases"
         />
@@ -273,23 +339,27 @@ export function PricingScreen({ route }: Props) {
 
       {sub.offeringsStatus === 'error' && (
         <View style={styles.errorCard} testID="pricing-offerings-error">
-          <Feather name="alert-triangle" size={16} color={colors.danger} />
+          <Feather name={sub.offeringsIssue === 'offline' ? 'wifi-off' : 'info'} size={16} color={colors.warning} />
           <View style={styles.flexShrink}>
-            <Text style={styles.errorTitle}>Couldn't load plans from Google Play</Text>
-            <Text style={styles.detail}>
-              {sub.offeringsError ? `${sub.offeringsError} ` : ''}Prices below are reference prices and can't be purchased
-              until plans load.
-            </Text>
+            <Text style={styles.errorTitle}>{notice.title}</Text>
+            <Text style={styles.detail}>{notice.message}</Text>
+            {__DEV__ && !!sub.offeringsError && (
+              <Text style={styles.devDetail} testID="pricing-offerings-dev-detail">
+                [Development] {sub.offeringsError}
+              </Text>
+            )}
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Try again"
-            testID="pricing-retry-offerings"
-            onPress={() => loadOfferings(true)}
-            style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
+          {notice.retry && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
+              testID="pricing-retry-offerings"
+              onPress={() => loadOfferings(true)}
+              style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -329,14 +399,16 @@ export function PricingScreen({ route }: Props) {
               config={config}
               period={period}
               pkg={pkg}
-              savingsLabel={describeYearlySavings(findPackage(paidPlan, 'monthly'), findPackage(paidPlan, 'yearly'))}
+              savingsLabel={savingsFor(paidPlan)}
               isCurrent={isCurrent}
               cta={
                 isCurrent
                   ? { label: 'Current plan', disabled: true, onPress: () => undefined }
                   : {
                       label: busyPlan === paidPlan ? 'Working…' : label,
-                      disabled: !offeringsReady || !pkg || working,
+                      // Only blocked while something is already in progress. Offline / store problems are
+                      // explained on tap by the purchase outcome — never silently disabled, never faked.
+                      disabled: working,
                       onPress: () => handlePurchase(paidPlan),
                     }
               }
@@ -344,7 +416,7 @@ export function PricingScreen({ route }: Props) {
                 kind === 'deferred'
                   ? 'Starts at your next renewal — you keep your current plan until then.'
                   : !isCurrent && offeringsReady && !pkg
-                    ? 'Not available right now'
+                    ? 'Not available from the store right now'
                     : null
               }
             />
@@ -468,11 +540,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.danger,
+    borderColor: colors.warning,
   },
-  errorTitle: { fontSize: typography.bodyBold.fontSize, fontWeight: '700', color: colors.danger },
-  retryButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.dangerBg },
-  retryText: { fontSize: typography.caption.fontSize, fontWeight: '700', color: colors.danger },
+  errorTitle: { fontSize: typography.bodyBold.fontSize, fontWeight: '700', color: colors.text },
+  devDetail: { fontSize: typography.caption.fontSize, color: colors.warning, marginTop: spacing.xs, lineHeight: 16 },
+  retryButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.warningBg },
+  retryText: { fontSize: typography.caption.fontSize, fontWeight: '700', color: colors.warning },
+  testStoreNote: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', paddingHorizontal: spacing.sm },
 
   plansList: { gap: spacing.md },
 

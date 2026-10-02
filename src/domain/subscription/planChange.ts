@@ -1,4 +1,4 @@
-import { PLAN_CONFIG, type BillingPeriod, type PaidPlanId, type PlanId } from './plans';
+import { planRank, type BillingPeriod, type PaidPlanId, type PlanId } from './plans';
 
 export interface CurrentPlanRef {
   plan: PlanId;
@@ -17,7 +17,7 @@ export interface PlanPriceRef {
   priceMicros: number;
 }
 
-/** Real store prices for the two sides of a plan change, when RevenueCat's offerings are loaded. Either side may be missing (offerings not loaded, or that particular plan/period not offered) — `dayRate` falls back to the reference price for whichever side has none. */
+/** Real store prices for the two sides of a plan change, when RevenueCat's offerings are loaded. Either side may be missing (offerings not loaded, or that particular plan/period not offered) — `planChangeKind` then ranks the change by tier instead. */
 export interface PlanChangePrices {
   current?: PlanPriceRef | null;
   target?: PlanPriceRef | null;
@@ -35,19 +35,13 @@ export type PlanChangeKind = 'new' | 'same' | 'immediate' | 'deferred';
 const PERIOD_DAYS: Record<BillingPeriod, number> = { monthly: 30, yearly: 365 };
 
 /**
- * Price per day — how Google Play ranks a change as an upgrade vs a
- * downgrade. Uses the real store price (`pkg.priceMicros`, in the store's own
- * currency) when a matching `StorePackage` from RevenueCat/Google Play is
- * available, since `fallbackPriceUsd` is only a reference label and can drift
- * from what the store actually charges (regional pricing, promos). Falls
- * back to `fallbackPriceUsd` when offerings haven't loaded yet.
+ * Price per day of a real store package — how Google Play ranks a change as
+ * an upgrade vs a downgrade. Null when no matching package (from the
+ * RevenueCat Offering) is known: Metriqo keeps no local prices to guess with.
  */
-export function dayRate(plan: PaidPlanId, period: BillingPeriod, pkg?: PlanPriceRef | null): number {
-  const priceMicros =
-    pkg && pkg.plan === plan && pkg.period === period
-      ? pkg.priceMicros
-      : PLAN_CONFIG[plan].fallbackPriceUsd[period] * 1_000_000;
-  return priceMicros / PERIOD_DAYS[period];
+export function dayRate(plan: PaidPlanId, period: BillingPeriod, pkg?: PlanPriceRef | null): number | null {
+  if (!pkg || pkg.plan !== plan || pkg.period !== period) return null;
+  return pkg.priceMicros / PERIOD_DAYS[period];
 }
 
 /**
@@ -56,10 +50,12 @@ export function dayRate(plan: PaidPlanId, period: BillingPeriod, pkg?: PlanPrice
  * cheaper tier, or the same tier moving monthly → yearly, which lowers the
  * day rate) takes effect at the next renewal, so the user is never charged
  * for a period they've already paid for. When the current billing period is
- * unknown the change is deferred — the safe choice. `prices` supplies the
- * real store packages for both sides when known (see `dayRate`); comparing
- * real prices matters most right at a regional/promo price boundary where
- * the reference USD price would rank the change the wrong way.
+ * unknown the change is deferred — the safe choice.
+ *
+ * `prices` supplies the real store packages for both sides; when either is
+ * missing the change is ranked by tier alone (a higher tier is an upgrade,
+ * anything else waits for renewal). Purchasing always requires the loaded
+ * Offering, so that fallback only ever affects a button label.
  */
 export function planChangeKind(
   current: CurrentPlanRef,
@@ -69,8 +65,10 @@ export function planChangeKind(
   if (current.plan === 'free') return 'new';
   if (current.plan === target.plan && current.period === target.period) return 'same';
   if (current.period === null) return 'deferred';
-  return dayRate(target.plan, target.period, prices?.target) >
-    dayRate(current.plan as PaidPlanId, current.period, prices?.current)
-    ? 'immediate'
-    : 'deferred';
+  const targetRate = dayRate(target.plan, target.period, prices?.target);
+  const currentRate = dayRate(current.plan as PaidPlanId, current.period, prices?.current);
+  if (targetRate !== null && currentRate !== null) {
+    return targetRate > currentRate ? 'immediate' : 'deferred';
+  }
+  return planRank(target.plan) > planRank(current.plan) ? 'immediate' : 'deferred';
 }

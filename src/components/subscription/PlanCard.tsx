@@ -5,13 +5,19 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import type { StorePackage } from '@/data/subscription/RevenueCatAdapter';
 import { describeYearlyMonthlyEquivalent } from '@/domain/subscription/formatting';
-import { describePlanFeatures, type BillingPeriod, type PlanConfig } from '@/domain/subscription/plans';
+import {
+  FALLBACK_PRICES_USD,
+  describePlanFeatures,
+  formatFallbackPrice,
+  type BillingPeriod,
+  type PlanConfig,
+} from '@/domain/subscription/plans';
 import { colors } from '@/theme/colors';
 
 interface Props {
   config: PlanConfig;
   period: BillingPeriod;
-  /** The RevenueCat/Google Play package for this plan + period; undefined until offerings load (or if it isn't configured). */
+  /** The RevenueCat package for this plan + period; undefined until offerings load (or if it isn't configured). */
   pkg?: StorePackage;
   /** Savings line for the yearly toggle, only ever supplied when computed from real store prices. */
   savingsLabel?: string | null;
@@ -25,8 +31,11 @@ interface Props {
 
 /**
  * One plan on the Pricing screen. Purely presentational: every rule it shows
- * (limits, history access, badge) comes from `PlanConfig`, and every price
- * from the store package — nothing is hard-coded here.
+ * (limits, history access, badge) comes from `PlanConfig`. The price is the
+ * RevenueCat package's localized `priceString` once the Offering has loaded;
+ * until then (loading, offline, store unreachable) it is the plan's
+ * configured standard price (`FALLBACK_PRICES_USD`), so plans never lose
+ * their price. Display only — a purchase always needs the store package.
  */
 export function PlanCard({ config, period, pkg, savingsLabel, isCurrent, cta, ctaNote, testID }: Props) {
   const isFree = config.id === 'free';
@@ -34,15 +43,22 @@ export function PlanCard({ config, period, pkg, savingsLabel, isCurrent, cta, ct
 
   let price: string;
   let subline: string | null = null;
-  if (isFree) {
+  if (config.id === 'free') {
     price = 'Free';
   } else if (pkg) {
     price = pkg.priceString;
     subline = period === 'yearly' ? describeYearlyMonthlyEquivalent(pkg) : null;
   } else {
-    // Offerings not loaded: show the reference price, clearly labelled as such, and no purchase.
-    price = `$${config.fallbackPriceUsd[period]}`;
-    subline = 'Reference price — the final price is shown by Google Play';
+    price = formatFallbackPrice(config.id, period);
+    subline =
+      period === 'yearly'
+        ? describeYearlyMonthlyEquivalent({
+            plan: config.id,
+            period,
+            priceMicros: FALLBACK_PRICES_USD[config.id].yearly * 1_000_000,
+            currencyCode: 'USD',
+          })
+        : null;
   }
 
   return (
@@ -67,7 +83,9 @@ export function PlanCard({ config, period, pkg, savingsLabel, isCurrent, cta, ct
       </View>
 
       <View style={styles.priceRow}>
-        <Text style={styles.price}>{price}</Text>
+        <Text style={styles.price} testID={testID ? `${testID}-price` : undefined}>
+          {price}
+        </Text>
         {!isFree && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
       {!!subline && <Text style={styles.subline}>{subline}</Text>}

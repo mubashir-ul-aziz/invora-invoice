@@ -1,5 +1,11 @@
 import type { CustomerInfoLike } from '@/domain/subscription/entitlementMapping';
-import { PAID_PLAN_IDS, BILLING_PERIODS, PLAN_CONFIG } from '@/domain/subscription/plans';
+import {
+  PAID_PLAN_IDS,
+  BILLING_PERIODS,
+  PLAN_CONFIG,
+  type BillingPeriod,
+  type PaidPlanId,
+} from '@/domain/subscription/plans';
 
 import {
   RevenueCatError,
@@ -9,20 +15,31 @@ import {
   type RevenueCatErrorKind,
   type StorePackage,
 } from './RevenueCatAdapter';
+import type { RevenueCatStoreKind } from './revenueCatConfig';
 
 export const EMPTY_CUSTOMER_INFO: CustomerInfoLike = { entitlements: { active: {}, all: {} } };
 
-/** Store prices in USD micros for every package — mirrors `PLAN_CONFIG.fallbackPriceUsd`. */
+/**
+ * Test-only stand-in for what a store would return for each package. The app
+ * itself has no local prices — real ones come from the RevenueCat Offering.
+ */
+const FAKE_STORE_PRICES_USD: Record<PaidPlanId, Record<BillingPeriod, number>> = {
+  starter: { monthly: 5, yearly: 48 },
+  business: { monthly: 10, yearly: 96 },
+  pro: { monthly: 15, yearly: 144 },
+  unlimited: { monthly: 20, yearly: 192 },
+};
+
 export function buildFakePackages(): StorePackage[] {
   const packages: StorePackage[] = [];
   for (const plan of PAID_PLAN_IDS) {
     for (const period of BILLING_PERIODS) {
-      const usd = PLAN_CONFIG[plan].fallbackPriceUsd[period];
+      const usd = FAKE_STORE_PRICES_USD[plan][period];
       packages.push({
         plan,
         period,
         packageId: PLAN_CONFIG[plan].products![period].packageId,
-        storeProductId: PLAN_CONFIG[plan].products![period].storeProductId,
+        storeProductId: PLAN_CONFIG[plan].products![period].productId,
         priceString: `$${usd.toFixed(2)}`,
         priceMicros: usd * 1_000_000,
         currencyCode: 'USD',
@@ -40,6 +57,8 @@ export function buildFakePackages(): StorePackage[] {
  */
 export class FakeRevenueCatAdapter implements RevenueCatAdapter {
   available = true;
+  storeKind: RevenueCatStoreKind = 'test_store';
+  unavailableReason = 'No RevenueCat key in this bundle.';
   customerInfo: CustomerInfoLike = EMPTY_CUSTOMER_INFO;
   packages: StorePackage[] = buildFakePackages();
   /** What `restore()` resolves with; defaults to the current customer info. */
@@ -92,6 +111,14 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
 
   isAvailable(): boolean {
     return this.available;
+  }
+
+  getStoreKind(): RevenueCatStoreKind | null {
+    return this.available ? this.storeKind : null;
+  }
+
+  getUnavailableReason(): string | null {
+    return this.available ? null : this.unavailableReason;
   }
 
   private maybeFail(): void {

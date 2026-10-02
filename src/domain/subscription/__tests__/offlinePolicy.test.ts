@@ -1,4 +1,4 @@
-import { MAX_STALE_MS, OFFLINE_GRACE_MS, effectiveNow, resolveEffectivePlan } from '../offlinePolicy';
+import { OFFLINE_GRACE_MS, effectiveNow, resolveEffectivePlan } from '../offlinePolicy';
 import type { NormalizedSubscription } from '../types';
 
 const DAY = 86_400_000;
@@ -43,16 +43,27 @@ describe('resolveEffectivePlan', () => {
     expect(resolve(paid())).toEqual({ plan: 'business', trust: 'cached' });
   });
 
-  it('keeps a paid plan for the grace window after expiry, then downgrades', () => {
-    const sub = paid({ expiresAt: NOW - 1000 });
-    expect(resolve(sub).plan).toBe('business');
-    expect(resolve(sub, { now: NOW - 1000 + OFFLINE_GRACE_MS }).plan).toBe('business');
-    expect(resolve(sub, { now: NOW - 1000 + OFFLINE_GRACE_MS + 1 })).toEqual({ plan: 'free', trust: 'expired' });
+  it('grants at most 3 days of offline access after the last RevenueCat verification', () => {
+    expect(OFFLINE_GRACE_MS).toBe(3 * DAY);
+    const sub = paid({ lastSyncedAt: NOW, expiresAt: NOW + 30 * DAY });
+    expect(resolve(sub, { now: NOW + OFFLINE_GRACE_MS })).toEqual({ plan: 'business', trust: 'cached' });
+    expect(resolve(sub, { now: NOW + OFFLINE_GRACE_MS + 1 })).toEqual({ plan: 'free', trust: 'stale' });
   });
 
-  it('stops trusting a cache that has not been verified for too long, even if not expired', () => {
-    const sub = paid({ lastSyncedAt: NOW - MAX_STALE_MS - 1, expiresAt: NOW + 300 * DAY, billingPeriod: 'yearly' });
+  it('gives a yearly plan no longer offline window than a monthly one', () => {
+    const sub = paid({ lastSyncedAt: NOW - OFFLINE_GRACE_MS - 1, expiresAt: NOW + 300 * DAY, billingPeriod: 'yearly' });
     expect(resolve(sub)).toEqual({ plan: 'free', trust: 'stale' });
+  });
+
+  it('keeps a recently verified plan through a renewal the store has not reported yet', () => {
+    // Verified a day ago; the period ended an hour ago (renewal not synced yet because the device is offline).
+    const sub = paid({ lastSyncedAt: NOW - DAY, expiresAt: NOW - 3_600_000 });
+    expect(resolve(sub)).toEqual({ plan: 'business', trust: 'cached' });
+  });
+
+  it('downgrades a cached plan whose expiry is more than the grace in the past', () => {
+    const sub = paid({ lastSyncedAt: NOW - DAY, expiresAt: NOW - OFFLINE_GRACE_MS - 1 });
+    expect(resolve(sub)).toEqual({ plan: 'free', trust: 'expired' });
   });
 
   it('treats a verified sync as authoritative, including "free"', () => {

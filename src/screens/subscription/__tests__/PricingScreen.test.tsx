@@ -4,9 +4,11 @@ import { Alert } from 'react-native';
 
 import { InMemoryInvoiceRepository } from '@/data/invoice/InMemoryInvoiceRepository';
 import { EntitlementService } from '@/data/subscription/EntitlementService';
+import { RevenueCatError } from '@/data/subscription/RevenueCatAdapter';
 import { InvoiceUsageTracker } from '@/data/subscription/InvoiceUsageTracker';
-import { activeInfo, DAY, makeHarness, type Harness } from '@/data/subscription/testFixtures';
-import { MAX_STALE_MS } from '@/domain/subscription/offlinePolicy';
+import { activeInfo, DAY, makeHarness, START, type Harness } from '@/data/subscription/testFixtures';
+import type { Invoice } from '@/domain/invoice/types';
+import { OFFLINE_GRACE_MS } from '@/domain/subscription/offlinePolicy';
 import { createSubscriptionStore } from '@/state/subscriptionStore';
 
 let mockStore: ReturnType<typeof createSubscriptionStore>;
@@ -34,9 +36,31 @@ async function renderScreen(params?: Record<string, unknown>) {
   return view;
 }
 
-async function boot(plan?: Parameters<typeof activeInfo>[0], options: Parameters<typeof activeInfo>[2] = {}) {
+function seedInvoices(count: number): Invoice[] {
+  const iso = new Date(START).toISOString();
+  return Array.from({ length: count }, (_, i) => ({
+    id: `inv_${i}`,
+    invoiceNumber: `INV-${i}`,
+    customerId: 'c',
+    customerName: 'C',
+    invoiceTypeId: 'general',
+    issueDate: iso.slice(0, 10),
+    dueDate: null,
+    notes: null,
+    terms: null,
+    items: [],
+    createdAt: iso,
+    updatedAt: iso,
+  }));
+}
+
+async function boot(
+  plan?: Parameters<typeof activeInfo>[0],
+  options: Parameters<typeof activeInfo>[2] = {},
+  invoiceCount = 0,
+) {
   h = makeHarness();
-  const tracker = new InvoiceUsageTracker(new InMemoryInvoiceRepository(), h.cache, () => h.clock.now);
+  const tracker = new InvoiceUsageTracker(new InMemoryInvoiceRepository(seedInvoices(invoiceCount)), h.cache, () => h.clock.now);
   const entitlement = new EntitlementService(h.service, tracker, () => h.clock.now);
   openUrl = jest.fn().mockResolvedValue(true);
   mockStore = createSubscriptionStore(
@@ -212,7 +236,7 @@ describe('PricingScreen', () => {
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Plan change scheduled', expect.stringContaining('next renewal')));
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'deferred' });
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'deferred' });
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Pro');
   });
 
@@ -243,7 +267,7 @@ describe('PricingScreen', () => {
   it('tells a paying user to reconnect once their subscription can no longer be verified (stale)', async () => {
     await boot('business');
     h.connectivity.setOnline(false);
-    h.clock.now += MAX_STALE_MS + DAY; // past the offline policy's maximum trust window
+    h.clock.now += OFFLINE_GRACE_MS + DAY; // past the offline policy's maximum trust window
     await mockStore.getState().refresh('foreground');
     const view = await renderScreen();
 
@@ -251,28 +275,135 @@ describe('PricingScreen', () => {
     // subscription was Business — the banner should say so, not just "not verified yet".
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Free');
     expect(view.getByTestId('pricing-stale-trust')).toBeTruthy();
-    expect(view.getByText(/Business plan in a while/)).toBeTruthy();
+    expect(view.getByText(/Business plan for more than 3 days/)).toBeTruthy();
   });
 
   it('does not show the stale-trust banner for a Free user (nothing to verify)', async () => {
     await boot();
     h.connectivity.setOnline(false);
-    h.clock.now += MAX_STALE_MS + DAY;
+    h.clock.now += OFFLINE_GRACE_MS + DAY;
     await mockStore.getState().refresh('foreground');
     const view = await renderScreen();
 
     expect(view.queryByTestId('pricing-stale-trust')).toBeNull();
   });
 
-  it('shows reference prices with purchasing disabled when plans cannot be loaded', async () => {
+  it('J/L. keeps plans, limits and standard prices when RevenueCat has no usable Offering; Retry loads store prices', async () => {
     await boot();
-    h.adapter.failNext('network');
+    const original = h.adapter.getOfferings.bind(h.adapter);
+    let broken = true;
+    h.adapter.getOfferings = async () => {
+      if (broken) throw new RevenueCatError('configuration', 'No "metriqo_premium" Offering and no Current Offering is set in RevenueCat.');
+      return original();
+    };
     const view = await renderScreen();
 
     expect(view.getByTestId('pricing-offerings-error')).toBeTruthy();
-    expect(within(view.getByTestId('plan-starter')).getByText('$5')).toBeTruthy();
-    expect(within(view.getByTestId('plan-starter')).getByText(/Reference price/)).toBeTruthy();
-    expect(view.getByTestId('plan-starter-cta').props.accessibilityState.disabled).toBe(true);
+    expect(view.getByText("Store plans couldn't be loaded")).toBeTruthy();
+    expect(view.getByTestId('pricing-offerings-dev-detail').props.children.join('')).toMatch(/metriqo_premium/);
+    expect(view.queryByText(/Price unavailable/)).toBeNull();
+    expect(view.queryByText('—')).toBeNull();
+    expect(view.getByTestId('plan-starter-price').props.children).toBe('$5');
+    expect(view.getByTestId('plan-business-price').props.children).toBe('$10');
+    expect(view.getByTestId('plan-pro-price').props.children).toBe('$15');
+    expect(view.getByTestId('plan-unlimited-price').props.children).toBe('$20');
+    expect(within(view.getByTestId('plan-starter')).getByText('15 invoices / month')).toBeTruthy();
+    // Not silently disabled: tapping explains the problem.
+    expect(view.getByTestId('plan-starter-cta').props.accessibilityState.disabled).toBe(false);
+
+    await fireEvent.press(view.getByTestId('billing-toggle-yearly'));
+    expect(view.getByTestId('plan-starter-price').props.children).toBe('$48');
+    expect(view.getByTestId('plan-business-price').props.children).toBe('$96');
+    expect(view.getByTestId('plan-pro-price').props.children).toBe('$144');
+    expect(view.getByTestId('plan-unlimited-price').props.children).toBe('$192');
+
+    broken = false;
+    await fireEvent.press(view.getByTestId('pricing-retry-offerings'));
+    await waitFor(() => expect(view.getByTestId('plan-starter-price').props.children).toBe('$48.00'));
+    expect(view.queryByTestId('pricing-offerings-error')).toBeNull();
+  });
+
+  it('J. offline: shows standard prices and features with an offline notice', async () => {
+    await boot();
+    h.connectivity.setOnline(false);
+    const view = await renderScreen();
+
+    expect(view.getByText("You're offline")).toBeTruthy();
+    expect(view.getByText(/Connect to the internet to upgrade/)).toBeTruthy();
+    expect(view.getByTestId('plan-pro-price').props.children).toBe('$15');
+    expect(within(view.getByTestId('plan-pro')).getByText('100 invoices / month')).toBeTruthy();
+    expect(h.adapter.calls.getOfferings).toBe(0);
+  });
+
+  it('K. offline upgrade attempt: explains, never reaches the store, never fakes a purchase', async () => {
+    await boot();
+    h.connectivity.setOnline(false);
+    const view = await renderScreen();
+
+    await fireEvent.press(view.getByTestId('plan-starter-cta'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('No connection', expect.stringContaining('Connect to the internet to upgrade')));
+    expect(h.adapter.calls.purchase).toHaveLength(0);
+    expect(view.getByTestId('pricing-current-plan').props.children).toBe('Free');
+  });
+
+  it('L. a build without RevenueCat says so (with the dev reason) and Upgrade explains instead of doing nothing', async () => {
+    await boot();
+    h.adapter.available = false;
+    const view = await renderScreen();
+
+    expect(view.getByText("Purchases aren't available in this build")).toBeTruthy();
+    expect(view.queryByTestId('pricing-retry-offerings')).toBeNull();
+    expect(view.getByTestId('plan-business-price').props.children).toBe('$10');
+
+    await fireEvent.press(view.getByTestId('plan-business-cta'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Purchases unavailable', expect.stringContaining('No RevenueCat key')));
+
+    await fireEvent.press(view.getByTestId('action-restore-purchases'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Restore unavailable', expect.any(String)));
+    expect(openUrl).not.toHaveBeenCalled();
+  });
+
+  it('C. Free at 5/5 buys Starter Monthly: the screen shows Starter and 5 of 15 immediately', async () => {
+    await boot(undefined, {}, 5);
+    h.adapter.onPurchase = () => activeInfo('starter', h.clock.now, { store: 'TEST_STORE' });
+    const view = await renderScreen({ reason: 'invoice_limit' });
+    await waitFor(() => expect(view.getByText('5 of 5 invoices used this month')).toBeTruthy());
+
+    await fireEvent.press(view.getByTestId('plan-starter-cta'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Starter is active', expect.any(String)));
+    expect(h.adapter.calls.purchase[0].packageId).toBe('starter_monthly');
+    await waitFor(() => expect(view.getByText('5 of 15 invoices used this month')).toBeTruthy());
+    expect(view.getByTestId('pricing-current-plan').props.children).toBe('Starter');
+  });
+
+  it('shows the standard price while the offering loads, then the store price', async () => {
+    await boot();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const original = h.adapter.getOfferings.bind(h.adapter);
+    h.adapter.getOfferings = async () => {
+      await gate;
+      return original();
+    };
+    const view = await render(<PricingScreen navigation={navigation as never} route={{ params: undefined } as never} />);
+    await waitFor(() => expect(mockStore.getState().offeringsStatus).toBe('loading'));
+
+    expect(view.getByTestId('plan-pro-price').props.children).toBe('$15');
+
+    release();
+    await waitFor(() => expect(view.getByTestId('plan-pro-price').props.children).toBe('$15.00'));
+  });
+
+  it("displays the store's localized price string exactly as RevenueCat returns it", async () => {
+    await boot();
+    h.adapter.packages = h.adapter.packages.map((pkg) =>
+      pkg.packageId === 'business_monthly' ? { ...pkg, priceString: '9,99 €', currencyCode: 'EUR' } : pkg,
+    );
+    const view = await renderScreen();
+
+    expect(view.getByTestId('plan-business-price').props.children).toBe('9,99 €');
   });
 
   it('restores purchases and reports each outcome honestly', async () => {
@@ -297,13 +428,42 @@ describe('PricingScreen', () => {
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Nothing to restore', expect.any(String)));
   });
 
-  it('opens Google Play subscription management', async () => {
+  it('offers no Google Play link to a Free user (no empty Play Subscriptions page)', async () => {
     await boot();
+    const view = await renderScreen();
+    expect(view.queryByTestId('action-manage-subscription')).toBeNull();
+  });
+
+  it('treats a Test Store purchase as a test purchase, not a Google Play subscription', async () => {
+    await boot('pro', { store: 'TEST_STORE', managementURL: null });
+    const view = await renderScreen();
+    expect(view.queryByTestId('action-manage-subscription')).toBeNull();
+    expect(view.getByTestId('pricing-test-store-note')).toBeTruthy();
+  });
+
+  it('opens Google Play management only for an active Google Play subscription', async () => {
+    await boot('pro');
     const view = await renderScreen();
 
     await fireEvent.press(view.getByTestId('action-manage-subscription'));
 
-    await waitFor(() => expect(openUrl).toHaveBeenCalledWith('https://play.google.com/store/account/subscriptions'));
+    await waitFor(() => expect(openUrl).toHaveBeenCalledWith(expect.stringContaining('package=com.metriqo.invoice')));
+  });
+
+  it('Q. opening, using and leaving the screen never opens Google Play', async () => {
+    await boot();
+    h.adapter.restoreResult = activeInfo('starter', h.clock.now, { store: 'TEST_STORE' });
+    const view = await renderScreen();
+    await fireEvent.press(view.getByTestId('action-restore-purchases'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Purchases restored', expect.stringContaining('Starter')));
+    h.adapter.onPurchase = () => activeInfo('pro', h.clock.now, { store: 'TEST_STORE' });
+    await fireEvent.press(view.getByTestId('plan-pro-cta'));
+    await waitFor(() => expect(h.adapter.calls.purchase).toHaveLength(1));
+
+    await view.unmount(); // back navigation
+
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(navigation.navigate).not.toHaveBeenCalled();
   });
 
   it('presents Customer Center and re-syncs afterwards', async () => {

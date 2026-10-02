@@ -207,15 +207,41 @@ describe('subscriptionStore', () => {
     expect(s.store.getState().usage?.used).toBe(1);
   });
 
-  it('opens the management URL from RevenueCat, or Google Play\'s subscriptions page', async () => {
+  it('opens Google Play management only for an active Play subscription — never the empty generic page', async () => {
     const s = setup();
-    await s.store.getState().openManageSubscription();
-    expect(s.openUrl).toHaveBeenLastCalledWith('https://play.google.com/store/account/subscriptions');
+    expect(await s.store.getState().openManageSubscription()).toBe(false);
+    expect(s.openUrl).not.toHaveBeenCalled();
+
+    s.adapter.setCustomerInfo(activeInfo('pro', s.clock.now, { store: 'TEST_STORE' }));
+    await s.service.refresh();
+    expect(await s.store.getState().openManageSubscription()).toBe(false);
+    expect(s.openUrl).not.toHaveBeenCalled();
 
     s.adapter.setCustomerInfo(activeInfo('pro', s.clock.now));
     await s.service.refresh();
-    await s.store.getState().openManageSubscription();
+    expect(await s.store.getState().openManageSubscription()).toBe(true);
     expect(s.openUrl).toHaveBeenLastCalledWith(expect.stringContaining('package=com.metriqo.invoice'));
+  });
+
+  it('records why offerings failed: unavailable build, offline, or RevenueCat configuration', async () => {
+    const s = setup();
+    s.adapter.available = false;
+    await s.store.getState().loadOfferings(true);
+    expect(s.store.getState()).toMatchObject({ offeringsStatus: 'error', offeringsIssue: 'unavailable' });
+
+    s.adapter.available = true;
+    s.connectivity.setOnline(false);
+    await s.store.getState().loadOfferings(true);
+    expect(s.store.getState()).toMatchObject({ offeringsStatus: 'error', offeringsIssue: 'offline' });
+
+    s.connectivity.setOnline(true);
+    s.adapter.failNext('configuration');
+    await s.store.getState().loadOfferings(true);
+    expect(s.store.getState()).toMatchObject({ offeringsStatus: 'error', offeringsIssue: 'configuration' });
+
+    await s.store.getState().loadOfferings(true);
+    expect(s.store.getState()).toMatchObject({ offeringsStatus: 'ready', offeringsIssue: null });
+    expect(s.store.getState().packages).toHaveLength(8);
   });
 
   it('presents the paywall and clears `purchasing` once it closes, whatever the outcome', async () => {
@@ -251,9 +277,20 @@ describe('subscriptionStore', () => {
     await s.store.getState().init();
 
     s.connectivity.setOnline(false);
-    s.clock.now += 5 * DAY;
+    s.clock.now += 3 * DAY - 1000;
     await s.store.getState().refresh('foreground');
+    expect(s.store.getState().snapshot.plan).toBe('unlimited');
 
+    // …but only for the 3-day offline grace after RevenueCat last verified it.
+    s.clock.now += 2000;
+    await s.store.getState().refresh('foreground');
+    expect(s.store.getState().snapshot.plan).toBe('free');
+    expect(s.store.getState().snapshot.trust).toBe('stale');
+
+    // Reconnecting (RevenueCat answers with a fresh server timestamp) restores it immediately.
+    s.adapter.setCustomerInfo(activeInfo('unlimited', s.clock.now));
+    s.connectivity.setOnline(true);
+    await s.store.getState().refresh('foreground');
     expect(s.store.getState().snapshot.plan).toBe('unlimited');
   });
 });

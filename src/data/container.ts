@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 
 import type { BusinessRepository } from './business/BusinessRepository';
 import { SqliteBusinessRepository } from './business/SqliteBusinessRepository';
@@ -57,6 +58,7 @@ import { ExpoSecureStoreCacheSigner } from './subscription/ExpoSecureStoreCacheS
 import { InvoiceUsageTracker } from './subscription/InvoiceUsageTracker';
 import { ReactNativePurchasesAdapter } from './subscription/ReactNativePurchasesAdapter';
 import type { RevenueCatAdapter } from './subscription/RevenueCatAdapter';
+import { resolveRevenueCatConfig } from './subscription/revenueCatConfig';
 import { SignedSubscriptionCacheRepository } from './subscription/SignedSubscriptionCacheRepository';
 import { SqliteRawSubscriptionCacheStore } from './subscription/SqliteRawSubscriptionCacheStore';
 import { SubscriptionCache } from './subscription/SubscriptionCache';
@@ -328,14 +330,30 @@ export function getCloudUpgradeService(): CloudUpgradeService {
 }
 
 /**
- * See the doc comment on `RevenueCatAdapter`. The RevenueCat public SDK key
- * comes from `expo.extra.revenueCatAndroidApiKey` in `app.json` (empty until
- * configured — the app then runs on its cached/Free state and never crashes).
+ * See the doc comment on `RevenueCatAdapter`, and `resolveRevenueCatConfig`
+ * for the key rules. RevenueCat **public** SDK keys come from environment
+ * variables (`.env.local` for `expo start`, EAS build-profile env for cloud
+ * builds):
+ *
+ *  - `EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY` (`test_…`) — read ONLY when
+ *    `__DEV__`. In a release bundle `__DEV__` is the literal `false`, so the
+ *    minifier drops this branch and no Test Store key can reach production.
+ *  - `EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY` (`goog_…`) — release builds.
+ *
+ * Expo inlines `EXPO_PUBLIC_*` variables at bundle time, so these must stay
+ * literal `process.env.EXPO_PUBLIC_…` member accesses. No key = the app runs
+ * on its cached/Free state and never crashes.
  */
 export function getRevenueCatAdapter(): RevenueCatAdapter {
   if (!revenueCatAdapter) {
-    const extra = Constants.expoConfig?.extra as { revenueCatAndroidApiKey?: string } | undefined;
-    revenueCatAdapter = new ReactNativePurchasesAdapter(extra?.revenueCatAndroidApiKey ?? '');
+    revenueCatAdapter = new ReactNativePurchasesAdapter(
+      resolveRevenueCatConfig({
+        isDev: __DEV__,
+        platform: Platform.OS,
+        testStoreKey: __DEV__ ? process.env.EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY : undefined,
+        googlePlayKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY,
+      }),
+    );
   }
   return revenueCatAdapter;
 }

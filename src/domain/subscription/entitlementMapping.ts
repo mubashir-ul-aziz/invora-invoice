@@ -1,7 +1,6 @@
 import {
-  PAID_PLAN_IDS,
-  PLAN_CONFIG,
-  findPlanByStoreProduct,
+  REVENUECAT_ENTITLEMENT_ID,
+  findPlanByProductId,
   planRank,
   type BillingPeriod,
   type PaidPlanId,
@@ -20,6 +19,8 @@ export interface EntitlementInfoLike {
   productIdentifier: string;
   productPlanIdentifier?: string | null;
   billingIssueDetectedAtMillis?: number | null;
+  /** RevenueCat's store for this entitlement: `PLAY_STORE`, `TEST_STORE`, `APP_STORE`, … */
+  store?: string | null;
 }
 
 export interface CustomerInfoLike {
@@ -35,62 +36,66 @@ export interface CustomerInfoLike {
    * served out of its own cache while offline.
    */
   requestDateMillis?: number | null;
+  /** Product ids of every currently active subscription (RevenueCat's `activeSubscriptions`). */
+  activeSubscriptions?: readonly string[];
 }
 
-function paidPlanForEntitlement(entitlementId: string): PaidPlanId | null {
-  return PAID_PLAN_IDS.find((plan) => PLAN_CONFIG[plan].entitlementId === entitlementId) ?? null;
-}
-
-function periodOf(info: EntitlementInfoLike): BillingPeriod | null {
-  return findPlanByStoreProduct(info.productIdentifier, info.productPlanIdentifier)?.period ?? null;
+/**
+ * Which tier an active `metriqo_premium` entitlement unlocks. The tier comes
+ * from the product that granted it; if RevenueCat also lists other active
+ * subscriptions (e.g. an upgrade still overlapping the old plan), the highest
+ * recognised tier wins.
+ *
+ * An active entitlement whose product Metriqo doesn't recognise (a product
+ * added in the dashboard but not to `PLAN_CONFIG`) resolves to the lowest
+ * paid tier: RevenueCat has confirmed the user paid, so they must not be
+ * treated as Free, but an unknown id can't claim more than the minimum.
+ */
+function resolveTier(
+  entitlement: EntitlementInfoLike,
+  activeSubscriptions: readonly string[],
+): { plan: PaidPlanId; period: BillingPeriod | null } {
+  let best: { plan: PaidPlanId; period: BillingPeriod | null } | null = findPlanByProductId(entitlement.productIdentifier);
+  for (const productId of activeSubscriptions) {
+    const match = findPlanByProductId(productId);
+    if (match && (!best || planRank(match.plan) > planRank(best.plan))) {
+      best = match;
+    }
+  }
+  return best ?? { plan: 'starter', period: null };
 }
 
 /**
  * Maps RevenueCat's `CustomerInfo` to Metriqo's normalized subscription.
- * RevenueCat is the authority: only entitlements RevenueCat reports as
- * active grant a plan, and when several are active (e.g. a plan change in
- * flight) the highest tier wins. Entitlement ids RevenueCat returns that
- * Metriqo doesn't know are ignored — they can never grant anything.
+ * RevenueCat is the authority: only the `metriqo_premium` entitlement, and
+ * only while RevenueCat reports it active, grants a paid plan. Any other
+ * entitlement id is ignored — it can never grant anything.
  */
 export function normalizeCustomerInfo(info: CustomerInfoLike, now: number): NormalizedSubscription {
-  let best: { plan: PaidPlanId; entitlement: EntitlementInfoLike } | null = null;
-  for (const [entitlementId, entitlement] of Object.entries(info.entitlements.active)) {
-    const plan = paidPlanForEntitlement(entitlementId);
-    if (!plan || !entitlement.isActive) continue;
-    if (!best || planRank(plan) > planRank(best.plan)) {
-      best = { plan, entitlement };
-    }
-  }
+  const entitlement = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
 
-  if (best) {
-    const { plan, entitlement } = best;
+  if (entitlement?.isActive) {
+    const { plan, period } = resolveTier(entitlement, info.activeSubscriptions ?? []);
     return {
       plan,
       isActive: true,
       expiresAt: entitlement.expirationDateMillis,
       willRenew: entitlement.willRenew,
       billingIssue: entitlement.billingIssueDetectedAtMillis != null,
-      billingPeriod: periodOf(entitlement),
+      billingPeriod: period,
       lastSyncedAt: now,
       source: 'revenuecat',
     };
   }
 
-  // No active paid entitlement. If a paid one existed before, keep its expiry
-  // so the UI can report "expired" rather than "free".
-  let lastExpiry: number | null = null;
-  for (const [entitlementId, entitlement] of Object.entries(info.entitlements.all ?? {})) {
-    if (!paidPlanForEntitlement(entitlementId)) continue;
-    const expiry = entitlement.expirationDateMillis;
-    if (expiry != null && (lastExpiry === null || expiry > lastExpiry)) {
-      lastExpiry = expiry;
-    }
-  }
+  // No active entitlement. If it existed before, keep its expiry so the UI
+  // can report "expired" rather than "free".
+  const lapsed = info.entitlements.all?.[REVENUECAT_ENTITLEMENT_ID];
 
   return {
     plan: 'free',
     isActive: false,
-    expiresAt: lastExpiry,
+    expiresAt: lapsed?.expirationDateMillis ?? null,
     willRenew: false,
     billingIssue: false,
     billingPeriod: null,

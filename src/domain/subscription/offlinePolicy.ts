@@ -9,20 +9,21 @@ import type { NormalizedSubscription, PlanTrust } from './types';
  *
  *  1. A sync that succeeded this session is authoritative — including when
  *     it says "free". Nothing below applies.
- *  2. Otherwise a cached paid plan stays in force until its `expiresAt` plus
- *     `OFFLINE_GRACE_MS`. The grace covers renewals still being processed by
- *     Google Play and billing-retry periods, so a paying customer is never
- *     downgraded mid-renewal just because they're on a plane.
- *  3. Regardless of expiry, a cache that hasn't been verified for
- *     `MAX_STALE_MS` stops being trusted (a refunded/cancelled plan can't
- *     ride an offline device forever). It is restored by the next sync.
+ *  2. Otherwise a cached paid plan — one RevenueCat itself verified earlier —
+ *     stays in force for at most `OFFLINE_GRACE_MS` (3 days) after that
+ *     verification (`lastSyncedAt`, RevenueCat's own server timestamp). After
+ *     that it is `stale` and the user is on Free until the next successful
+ *     sync, which restores the plan instantly. A yearly plan gets no longer
+ *     offline window than a monthly one.
+ *  3. Within those 3 days a cached plan also stops once its `expiresAt` plus
+ *     `OFFLINE_GRACE_MS` has passed (covers a renewal Play hasn't reported yet).
  *  4. Device time is never trusted going backwards: decisions use
  *     `max(now, clockHighWaterMs)`.
  *  5. No cache, an invalid cache, or `plan: 'free'` → Free. The default is
- *     never a paid plan; a paid plan only ever comes from RevenueCat.
+ *     never a paid plan; a paid plan only ever comes from RevenueCat — the
+ *     cache can only *extend* a verified plan by the grace, never create one.
  */
 export const OFFLINE_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
-export const MAX_STALE_MS = 90 * 24 * 60 * 60 * 1000;
 
 export interface ResolvedPlan {
   plan: PlanId;
@@ -58,7 +59,7 @@ export function resolveEffectivePlan(params: {
   if (subscription.lastSyncedAt === null) {
     return { plan: 'free', trust: 'none' };
   }
-  if (now - subscription.lastSyncedAt > MAX_STALE_MS) {
+  if (now - subscription.lastSyncedAt > OFFLINE_GRACE_MS) {
     return { plan: 'free', trust: 'stale' };
   }
   if (subscription.expiresAt !== null && now > subscription.expiresAt + OFFLINE_GRACE_MS) {

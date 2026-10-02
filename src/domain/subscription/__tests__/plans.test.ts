@@ -5,23 +5,22 @@ import {
   PLAN_ORDER,
   computeYearlySavings,
   describePlanFeatures,
+  PLAN_LIMITS,
+  REVENUECAT_ENTITLEMENT_ID,
+  REVENUECAT_OFFERING_ID,
   findPlanByPackageId,
-  findPlanByStoreProduct,
+  findPlanByProductId,
   planRank,
 } from '../plans';
 
 describe('PLAN_CONFIG', () => {
-  it('encodes the published limits, prices and access rules', () => {
+  it('encodes the published monthly limits and access rules', () => {
+    expect(PLAN_LIMITS).toEqual({ free: 5, starter: 15, business: 40, pro: 100, unlimited: Infinity });
     expect(PLAN_CONFIG.free.monthlyInvoiceLimit).toBe(5);
     expect(PLAN_CONFIG.starter.monthlyInvoiceLimit).toBe(15);
     expect(PLAN_CONFIG.business.monthlyInvoiceLimit).toBe(40);
     expect(PLAN_CONFIG.pro.monthlyInvoiceLimit).toBe(100);
     expect(PLAN_CONFIG.unlimited.monthlyInvoiceLimit).toBeNull();
-
-    expect(PLAN_CONFIG.starter.fallbackPriceUsd).toEqual({ monthly: 5, yearly: 48 });
-    expect(PLAN_CONFIG.business.fallbackPriceUsd).toEqual({ monthly: 10, yearly: 96 });
-    expect(PLAN_CONFIG.pro.fallbackPriceUsd).toEqual({ monthly: 15, yearly: 144 });
-    expect(PLAN_CONFIG.unlimited.fallbackPriceUsd).toEqual({ monthly: 20, yearly: 192 });
 
     expect(PLAN_CONFIG.free.historicalInvoiceAccess).toBe(false);
     expect(PLAN_CONFIG.free.historicalCustomerAccess).toBe(false);
@@ -37,15 +36,14 @@ describe('PLAN_CONFIG', () => {
     expect(PLAN_CONFIG.business.badge).toBe('MOST POPULAR');
   });
 
-  it('gives Free no store product and every paid plan monthly + yearly base plans', () => {
+  it('matches the RevenueCat Offering, Entitlement, Packages and Products', () => {
+    expect(REVENUECAT_OFFERING_ID).toBe('metriqo_premium');
+    expect(REVENUECAT_ENTITLEMENT_ID).toBe('metriqo_premium');
     expect(PLAN_CONFIG.free.products).toBeNull();
-    expect(PLAN_CONFIG.free.entitlementId).toBeNull();
     for (const plan of PAID_PLAN_IDS) {
       const products = PLAN_CONFIG[plan].products!;
-      expect(products.monthly.revenueCatProductId).toBe(`metriqo_${plan}:monthly`);
-      expect(products.yearly.revenueCatProductId).toBe(`metriqo_${plan}:yearly`);
-      expect(products.monthly.packageId).toBe(`${plan}_monthly`);
-      expect(PLAN_CONFIG[plan].entitlementId).toBe(plan);
+      expect(products.monthly).toEqual({ productId: `metriqo_${plan}_monthly`, packageId: `${plan}_monthly` });
+      expect(products.yearly).toEqual({ productId: `metriqo_${plan}_yearly`, packageId: `${plan}_yearly` });
     }
   });
 
@@ -66,11 +64,22 @@ describe('product lookup', () => {
     expect(findPlanByPackageId('lifetime')).toBeNull();
   });
 
-  it('resolves store products in both the split and combined RevenueCat forms', () => {
-    expect(findPlanByStoreProduct('metriqo_pro', 'yearly')).toEqual({ plan: 'pro', period: 'yearly' });
-    expect(findPlanByStoreProduct('metriqo_pro:monthly')).toEqual({ plan: 'pro', period: 'monthly' });
-    expect(findPlanByStoreProduct('metriqo_starter', null)).toEqual({ plan: 'starter', period: null });
-    expect(findPlanByStoreProduct('somebody_elses_app')).toBeNull();
+  it('maps every product id to its tier — monthly and yearly to the same tier', () => {
+    expect(findPlanByProductId('metriqo_starter_monthly')).toEqual({ plan: 'starter', period: 'monthly' });
+    expect(findPlanByProductId('metriqo_starter_yearly')).toEqual({ plan: 'starter', period: 'yearly' });
+    expect(findPlanByProductId('metriqo_business_monthly')).toEqual({ plan: 'business', period: 'monthly' });
+    expect(findPlanByProductId('metriqo_business_yearly')).toEqual({ plan: 'business', period: 'yearly' });
+    expect(findPlanByProductId('metriqo_pro_monthly')).toEqual({ plan: 'pro', period: 'monthly' });
+    expect(findPlanByProductId('metriqo_pro_yearly')).toEqual({ plan: 'pro', period: 'yearly' });
+    expect(findPlanByProductId('metriqo_unlimited_monthly')).toEqual({ plan: 'unlimited', period: 'monthly' });
+    expect(findPlanByProductId('metriqo_unlimited_yearly')).toEqual({ plan: 'unlimited', period: 'yearly' });
+  });
+
+  it('accepts the Google Play `<productId>:<basePlanId>` form and rejects unknown/old ids', () => {
+    expect(findPlanByProductId('metriqo_pro_yearly:p1y')).toEqual({ plan: 'pro', period: 'yearly' });
+    expect(findPlanByProductId('metriqo_pro')).toBeNull();
+    expect(findPlanByProductId('metriqo_starter:monthly')).toBeNull();
+    expect(findPlanByProductId('somebody_elses_app')).toBeNull();
   });
 });
 

@@ -95,6 +95,11 @@ export function useSubscription() {
     packages: state.packages,
     offeringsStatus: state.offeringsStatus,
     offeringsError: state.offeringsError,
+    offeringsIssue: state.offeringsIssue,
+    /** Google Play management link for an active Play subscription; null = nothing in Play to manage. */
+    managementUrl: snapshot.managementUrl,
+    /** RevenueCat store of the active entitlement (`PLAY_STORE`, `TEST_STORE`, …); null when none/unverified. */
+    activeStore: snapshot.activeStore,
     purchasing: state.purchasing,
     purchasePending: state.purchasePending,
     presentingCustomerCenter: state.presentingCustomerCenter,

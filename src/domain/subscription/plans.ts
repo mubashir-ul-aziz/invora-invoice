@@ -2,15 +2,26 @@
  * The single source of truth for every Metriqo plan rule. UI components,
  * services and stores read plan behaviour from `PLAN_CONFIG` (via the
  * access/entitlement helpers built on it) instead of branching on plan names,
- * so changing a limit or price is a one-line edit here.
+ * so changing a limit is a one-line edit here.
  *
- * Free has no Google Play product. Each paid tier is its own Google Play
- * *subscription* with two base plans (`monthly` / `yearly`); RevenueCat
- * identifies those products as `<subscriptionId>:<basePlanId>`, e.g.
- * `metriqo_starter:monthly`. The `packageId`s below are the identifiers of the
- * matching Packages in the RevenueCat `default` Offering. The RevenueCat
- * entitlement ids (`starter`, `business`, `pro`, `unlimited`) must match
- * `entitlementId` below exactly.
+ * RevenueCat setup this mirrors:
+ *  - one Offering, `metriqo_premium`, holding eight Packages
+ *    (`<plan>_<period>`, e.g. `starter_monthly`);
+ *  - one Entitlement, `metriqo_premium`, attached to all eight products;
+ *  - one product per plan + period, `metriqo_<plan>_<period>`.
+ * The entitlement says *whether* the user has paid; the product identifier on
+ * it says *which* tier. Billing period never changes the monthly allowance.
+ *
+ * Prices: the store's localized `priceString` from the RevenueCat Offering is
+ * the authoritative price whenever it has loaded. `FALLBACK_PRICES_USD` is
+ * only a *display* fallback so the pricing screen still shows each plan's
+ * standard price while offline or while the store can't be reached — it is
+ * never used to charge anything (a purchase always needs the store package).
+ *
+ * Moving from the RevenueCat Test Store to Google Play only means creating
+ * the same product ids in Play (RevenueCat reports a Play product as
+ * `<productId>:<basePlanId>`, which `findPlanByProductId` already accepts) and
+ * swapping the API key — nothing below changes.
  */
 
 export type PlanId = 'free' | 'starter' | 'business' | 'pro' | 'unlimited';
@@ -22,20 +33,50 @@ export const PAID_PLAN_IDS: readonly PaidPlanId[] = ['starter', 'business', 'pro
 export const BILLING_PERIODS: readonly BillingPeriod[] = ['monthly', 'yearly'];
 
 /** RevenueCat Offering that holds the eight paid packages. */
-export const REVENUECAT_OFFERING_ID = 'default';
+export const REVENUECAT_OFFERING_ID = 'metriqo_premium';
+
+/** The one RevenueCat entitlement every paid product unlocks. */
+export const REVENUECAT_ENTITLEMENT_ID = 'metriqo_premium';
+
+/**
+ * Invoices per **calendar month** for each plan — the same number for the
+ * monthly and yearly product of a tier (never multiplied by 12).
+ * `Infinity` = no limit.
+ */
+export const PLAN_LIMITS: Readonly<Record<PlanId, number>> = {
+  free: 5,
+  starter: 15,
+  business: 40,
+  pro: 100,
+  unlimited: Infinity,
+};
 
 /** How long a Free user keeps access to an invoice after `invoice.createdAt`. */
 export const FREE_INVOICE_ACCESS_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Standard USD list prices, shown only when the store price can't be loaded
+ * (offline, RevenueCat unreachable). Keep in sync with the products' prices in
+ * RevenueCat / Google Play — the store price always wins once it loads.
+ */
+export const FALLBACK_PRICES_USD: Readonly<Record<PaidPlanId, Record<BillingPeriod, number>>> = {
+  starter: { monthly: 5, yearly: 48 },
+  business: { monthly: 10, yearly: 96 },
+  pro: { monthly: 15, yearly: 144 },
+  unlimited: { monthly: 20, yearly: 192 },
+};
+
+/** "$5" / "$4.50" — the fallback display price for a plan + period. */
+export function formatFallbackPrice(plan: PaidPlanId, period: BillingPeriod): string {
+  const usd = FALLBACK_PRICES_USD[plan][period];
+  return Number.isInteger(usd) ? `$${usd}` : `$${usd.toFixed(2)}`;
+}
+
 export interface PlanProduct {
-  /** Google Play subscription (product) id. */
-  storeProductId: string;
-  /** Google Play base plan id inside that subscription. */
-  basePlanId: string;
-  /** Package identifier inside the RevenueCat Offering. */
+  /** Store / RevenueCat product identifier, e.g. `metriqo_starter_monthly`. */
+  productId: string;
+  /** Package identifier inside the RevenueCat Offering, e.g. `starter_monthly`. */
   packageId: string;
-  /** How RevenueCat names the product on Android: `<subscriptionId>:<basePlanId>`. */
-  revenueCatProductId: string;
 }
 
 export interface PlanConfig {
@@ -43,39 +84,26 @@ export interface PlanConfig {
   label: string;
   /** Short line under the plan name on the pricing screen. */
   tagline: string;
-  /** `null` = unlimited. */
+  /** `null` = unlimited. Derived from `PLAN_LIMITS`. */
   monthlyInvoiceLimit: number | null;
-  /**
-   * Reference USD prices, used only as a fallback label while RevenueCat
-   * offerings can't be loaded. The real, localised price always comes from
-   * the store product when available.
-   */
-  fallbackPriceUsd: Record<BillingPeriod, number>;
   badge: string | null;
   historicalInvoiceAccess: boolean;
   historicalCustomerAccess: boolean;
   /** `'all'` today — every plan can use every invoice pricing method. */
   allowedPricingMethods: 'all' | readonly string[];
-  /** RevenueCat entitlement id that unlocks this plan; null for Free. */
-  entitlementId: string | null;
   products: Record<BillingPeriod, PlanProduct> | null;
 }
 
-function product(subscriptionId: string, period: BillingPeriod, packageId: string): PlanProduct {
+function paidProducts(plan: PaidPlanId): Record<BillingPeriod, PlanProduct> {
   return {
-    storeProductId: subscriptionId,
-    basePlanId: period,
-    packageId,
-    revenueCatProductId: `${subscriptionId}:${period}`,
+    monthly: { productId: `metriqo_${plan}_monthly`, packageId: `${plan}_monthly` },
+    yearly: { productId: `metriqo_${plan}_yearly`, packageId: `${plan}_yearly` },
   };
 }
 
-function paidProducts(plan: PaidPlanId): Record<BillingPeriod, PlanProduct> {
-  const subscriptionId = `metriqo_${plan}`;
-  return {
-    monthly: product(subscriptionId, 'monthly', `${plan}_monthly`),
-    yearly: product(subscriptionId, 'yearly', `${plan}_yearly`),
-  };
+function limitOf(plan: PlanId): number | null {
+  const limit = PLAN_LIMITS[plan];
+  return Number.isFinite(limit) ? limit : null;
 }
 
 export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
@@ -83,65 +111,55 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     id: 'free',
     label: 'Free',
     tagline: 'Get started',
-    monthlyInvoiceLimit: 5,
-    fallbackPriceUsd: { monthly: 0, yearly: 0 },
+    monthlyInvoiceLimit: limitOf('free'),
     badge: null,
     historicalInvoiceAccess: false,
     historicalCustomerAccess: false,
     allowedPricingMethods: 'all',
-    entitlementId: null,
     products: null,
   },
   starter: {
     id: 'starter',
     label: 'Starter',
     tagline: 'For freelancers',
-    monthlyInvoiceLimit: 15,
-    fallbackPriceUsd: { monthly: 5, yearly: 48 },
+    monthlyInvoiceLimit: limitOf('starter'),
     badge: null,
     historicalInvoiceAccess: true,
     historicalCustomerAccess: true,
     allowedPricingMethods: 'all',
-    entitlementId: 'starter',
     products: paidProducts('starter'),
   },
   business: {
     id: 'business',
     label: 'Business',
     tagline: 'Growing operations',
-    monthlyInvoiceLimit: 40,
-    fallbackPriceUsd: { monthly: 10, yearly: 96 },
+    monthlyInvoiceLimit: limitOf('business'),
     badge: 'MOST POPULAR',
     historicalInvoiceAccess: true,
     historicalCustomerAccess: true,
     allowedPricingMethods: 'all',
-    entitlementId: 'business',
     products: paidProducts('business'),
   },
   pro: {
     id: 'pro',
     label: 'Pro',
     tagline: 'Established teams',
-    monthlyInvoiceLimit: 100,
-    fallbackPriceUsd: { monthly: 15, yearly: 144 },
+    monthlyInvoiceLimit: limitOf('pro'),
     badge: null,
     historicalInvoiceAccess: true,
     historicalCustomerAccess: true,
     allowedPricingMethods: 'all',
-    entitlementId: 'pro',
     products: paidProducts('pro'),
   },
   unlimited: {
     id: 'unlimited',
     label: 'Unlimited',
     tagline: 'Maximum scale',
-    monthlyInvoiceLimit: null,
-    fallbackPriceUsd: { monthly: 20, yearly: 192 },
+    monthlyInvoiceLimit: limitOf('unlimited'),
     badge: null,
     historicalInvoiceAccess: true,
     historicalCustomerAccess: true,
     allowedPricingMethods: 'all',
-    entitlementId: 'unlimited',
     products: paidProducts('unlimited'),
   },
 };
@@ -176,19 +194,21 @@ export function findPlanByPackageId(packageId: string): { plan: PaidPlanId; peri
   return null;
 }
 
-/** Resolves a Google Play product/base-plan pair (as RevenueCat reports it on an entitlement) back to its plan + period. */
-export function findPlanByStoreProduct(
-  storeProductId: string,
-  basePlanId?: string | null,
-): { plan: PaidPlanId; period: BillingPeriod | null } | null {
-  // RevenueCat may report the id as `metriqo_starter:monthly` or split it.
-  const [productPart, basePlanPart] = storeProductId.split(':');
-  const basePlan = basePlanId ?? basePlanPart ?? null;
+/**
+ * Resolves a RevenueCat product identifier (`metriqo_pro_yearly`) back to its
+ * plan + period. Google Play products arrive as `<productId>:<basePlanId>`;
+ * the base-plan suffix is ignored, so the same table serves the Test Store
+ * and Play. Unknown ids resolve to null and can never become a plan.
+ */
+export function findPlanByProductId(productIdentifier: string): { plan: PaidPlanId; period: BillingPeriod } | null {
+  const productId = productIdentifier.split(':')[0];
   for (const plan of PAID_PLAN_IDS) {
     const products = PLAN_CONFIG[plan].products;
-    if (products && products.monthly.storeProductId === productPart) {
-      const period = BILLING_PERIODS.find((p) => products[p].basePlanId === basePlan) ?? null;
-      return { plan, period };
+    if (!products) continue;
+    for (const period of BILLING_PERIODS) {
+      if (products[period].productId === productId) {
+        return { plan, period };
+      }
     }
   }
   return null;

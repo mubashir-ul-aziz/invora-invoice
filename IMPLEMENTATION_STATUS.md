@@ -5133,3 +5133,62 @@ generic entitlement. Both are additive UI, not a replacement for
   the user is doing that separately. `app.json`'s `revenueCatAndroidApiKey`
   is deliberately still `""`; the pasted setup instructions' `test_…` key
   is not a real RevenueCat SDK key format and was not used.
+
+### Addendum — RevenueCat Test Store, single `metriqo_premium` entitlement (2026-09-30)
+
+Supersedes the four-entitlement / `default` Offering / `metriqo_<plan>:<basePlan>`
+model above. The RevenueCat dashboard is now configured and the client matches it:
+
+- Offering `metriqo_premium`; Entitlement `metriqo_premium` (attached to all
+  eight products); Packages `<plan>_<period>`; Products `metriqo_<plan>_<period>`.
+- `plans.ts`: `PLAN_LIMITS` (`free 5 / starter 15 / business 40 / pro 100 /
+  unlimited Infinity`, per calendar month, same for monthly and yearly) is the
+  one limit table; `PLAN_CONFIG.monthlyInvoiceLimit` derives from it.
+  `fallbackPriceUsd` and the per-plan `entitlementId` were removed — there are
+  no local prices anywhere in the app. `findPlanByProductId()` maps a product
+  id (also `<productId>:<basePlanId>` for a future Google Play migration) to
+  its tier.
+- `entitlementMapping.ts`: paid only when `entitlements.active.metriqo_premium`
+  is active; tier from its `productIdentifier` (highest tier across
+  `activeSubscriptions` if several). Active entitlement + unknown product →
+  `starter` (lowest paid tier).
+- `offlinePolicy.ts`: `MAX_STALE_MS` (90 days) removed — a verified paid plan
+  now survives offline for at most `OFFLINE_GRACE_MS` (3 days) after
+  RevenueCat's last verification.
+- `planChange.ts`: with no local prices, upgrade vs. switch is ranked by real
+  store price when both packages are loaded, else by tier.
+- API key: `EXPO_PUBLIC_REVENUECAT_API_KEY` env var (see `.env.example`);
+  `app.json`'s `revenueCatAndroidApiKey` removed. `sk_…` secret keys are refused.
+- `PlanCard`/`PricingScreen`: loading spinner while the Offering loads,
+  "Price unavailable" + Retry on failure, never a hard-coded price.
+
+### Addendum — purchasing-flow audit fixes (2026-10-01)
+
+Supersedes the API-key and "no local prices" points of the addendum above.
+
+- Root cause of "Couldn't load plans and prices" / "Restore unavailable": the
+  JS bundle had no RevenueCat key. `.env.example` is never loaded by Expo and
+  there was no `.env`/`.env.local`, so `EXPO_PUBLIC_REVENUECAT_API_KEY` was
+  undefined under `expo start` → `isAvailable()` false → `not_configured`.
+  The RevenueCat dashboard itself was verified correct (Offering
+  `metriqo_premium` current, 8 packages → 8 `metriqo_<plan>_<period>`
+  products, all unlocking `metriqo_premium`).
+- Keys (`revenueCatConfig.ts`): `EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY`
+  (`test_…`, read only when `__DEV__`) and
+  `EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY` (`goog_…`, release). Release builds
+  refuse `test_` keys (RevenueCat crashes release builds that use one).
+  Verified: a release `expo export` contains no `test_` key. `eas.json`
+  `preview` no longer carries the Test Store key.
+- `ReactNativePurchasesAdapter`: `configure()` exactly once (shared promise +
+  `isConfigured()`), packages matched by exact product id, distinct
+  `configuration` errors (no Offering / empty / no expected products),
+  dev-only `[RevenueCat]` logs with masked key.
+- Prices: `FALLBACK_PRICES_USD` in `plans.ts` is a display-only fallback while
+  offline/unreachable; the store `priceString` wins once loaded. Upgrade
+  buttons are no longer silently disabled — the purchase outcome explains
+  offline / unavailable / missing package; purchases are never faked.
+- "Manage Subscription" is shown/opened only for an active `PLAY_STORE`
+  entitlement (`playManagementUrlFor`); never the generic empty Play page.
+  Test Store purchases show a note to manage them in the RevenueCat dashboard.
+- Tests: `purchaseFlow.test.ts` (scenarios A–P), `revenueCatConfig.test.ts`
+  (R, S), updated `PricingScreen`/store/service tests (J, K, L, Q).

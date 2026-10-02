@@ -1,5 +1,5 @@
 import type { CustomerInfoLike, EntitlementInfoLike } from '@/domain/subscription/entitlementMapping';
-import { PLAN_CONFIG, type BillingPeriod, type PaidPlanId } from '@/domain/subscription/plans';
+import { PLAN_CONFIG, REVENUECAT_ENTITLEMENT_ID, type BillingPeriod, type PaidPlanId } from '@/domain/subscription/plans';
 
 import { FakeConnectivityService } from './ConnectivityService';
 import { EMPTY_CUSTOMER_INFO, FakeRevenueCatAdapter } from './FakeRevenueCatAdapter';
@@ -18,36 +18,50 @@ interface ActiveInfoOptions {
   /** Epoch ms RevenueCat "answered" at. Defaults to the harness clock. */
   requestDate?: number | null;
   expiresAt?: number;
+  /** RevenueCat store of the entitlement. Defaults to Google Play. */
+  store?: 'PLAY_STORE' | 'TEST_STORE';
+  /** Override RevenueCat's `managementURL` (null = none supplied). */
+  managementURL?: string | null;
 }
 
+/** A CustomerInfo with the `metriqo_premium` entitlement active via `plan`'s product for `options.period`. */
 export function activeInfo(plan: PaidPlanId, now: number, options: ActiveInfoOptions = {}): CustomerInfoLike {
   const period = options.period ?? 'monthly';
+  const productId = PLAN_CONFIG[plan].products![period].productId;
   const entitlement: EntitlementInfoLike = {
     isActive: true,
     willRenew: options.willRenew ?? true,
     expirationDateMillis: options.expiresAt ?? now + 30 * DAY,
-    productIdentifier: PLAN_CONFIG[plan].products![period].storeProductId,
-    productPlanIdentifier: PLAN_CONFIG[plan].products![period].basePlanId,
+    productIdentifier: productId,
     billingIssueDetectedAtMillis: options.billingIssue ? now - DAY : null,
+    store: options.store ?? 'PLAY_STORE',
   };
   return {
-    entitlements: { active: { [PLAN_CONFIG[plan].entitlementId!]: entitlement }, all: { [PLAN_CONFIG[plan].entitlementId!]: entitlement } },
-    managementURL: 'https://play.google.com/store/account/subscriptions?package=com.metriqo.invoice',
+    entitlements: {
+      active: { [REVENUECAT_ENTITLEMENT_ID]: entitlement },
+      all: { [REVENUECAT_ENTITLEMENT_ID]: entitlement },
+    },
+    activeSubscriptions: [productId],
+    managementURL:
+      options.managementURL !== undefined
+        ? options.managementURL
+        : 'https://play.google.com/store/account/subscriptions?package=com.metriqo.invoice',
     requestDateMillis: options.requestDate === undefined ? now : options.requestDate,
   };
 }
 
+/** A CustomerInfo whose `metriqo_premium` entitlement (from `plan`'s monthly product) expired two days ago. */
 export function lapsedInfo(plan: PaidPlanId, now: number): CustomerInfoLike {
   const entitlement: EntitlementInfoLike = {
     isActive: false,
     willRenew: false,
     expirationDateMillis: now - 2 * DAY,
-    productIdentifier: PLAN_CONFIG[plan].products!.monthly.storeProductId,
-    productPlanIdentifier: 'monthly',
+    productIdentifier: PLAN_CONFIG[plan].products!.monthly.productId,
     billingIssueDetectedAtMillis: null,
   };
   return {
-    entitlements: { active: {}, all: { [PLAN_CONFIG[plan].entitlementId!]: entitlement } },
+    entitlements: { active: {}, all: { [REVENUECAT_ENTITLEMENT_ID]: entitlement } },
+    activeSubscriptions: [],
     requestDateMillis: now,
   };
 }

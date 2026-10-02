@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { getEntitlementService, getIdentityService, getSubscriptionService } from '@/data/container';
 import type { IdentityService } from '@/data/identity/IdentityService';
 import type { EntitlementService } from '@/data/subscription/EntitlementService';
-import type { StorePackage } from '@/data/subscription/RevenueCatAdapter';
+import { RevenueCatError, type StorePackage } from '@/data/subscription/RevenueCatAdapter';
 import type {
   CustomerCenterOutcome,
   PaywallOutcome,
@@ -19,6 +19,35 @@ import { deriveDisplayStatus, type SubscriptionBusyState } from '@/domain/subscr
 import { INITIAL_SNAPSHOT, type SubscriptionSnapshot, type SubscriptionStatus } from '@/domain/subscription/types';
 
 export type OfferingsStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+/**
+ * Why the store packages couldn't be loaded — each gets its own message, and
+ * none of them hides plans or prices (the screen falls back to the
+ * configured prices):
+ *  - `unavailable`: no usable RevenueCat SDK/key in this build;
+ *  - `offline`: no connection (or RevenueCat unreachable);
+ *  - `configuration`: RevenueCat answered but has no usable Offering/packages;
+ *  - `unknown`: anything else.
+ */
+export type OfferingsIssue = 'unavailable' | 'offline' | 'configuration' | 'unknown';
+
+function offeringsIssueOf(error: unknown): OfferingsIssue {
+  if (error instanceof RevenueCatError) {
+    switch (error.kind) {
+      case 'not_configured':
+        return 'unavailable';
+      case 'network':
+      case 'store_unavailable':
+        return 'offline';
+      case 'configuration':
+      case 'product_unavailable':
+        return 'configuration';
+      default:
+        return 'unknown';
+    }
+  }
+  return 'unknown';
+}
 
 interface SubscriptionState {
   /**
@@ -39,6 +68,7 @@ interface SubscriptionState {
   packages: StorePackage[];
   offeringsStatus: OfferingsStatus;
   offeringsError: string | null;
+  offeringsIssue: OfferingsIssue | null;
   /** Last known invoice usage; null until first loaded. */
   usage: InvoiceUsage | null;
 
@@ -52,9 +82,13 @@ interface SubscriptionState {
   loadOfferings: (force?: boolean) => Promise<void>;
   purchase: (plan: PaidPlanId, period: BillingPeriod) => Promise<PurchaseOutcome>;
   restore: () => Promise<RestoreOutcome>;
-  /** Opens Google Play's subscription management. Resolves false if it couldn't be opened. */
+  /**
+   * Opens Google Play's management page for the active Play subscription.
+   * Resolves false (and opens nothing) when there is no Google-Play-managed
+   * subscription — never the empty generic Play "Subscriptions" page.
+   */
   openManageSubscription: () => Promise<boolean>;
-  /** Presents RevenueCat's hosted Paywall UI (the dashboard's multi-tier `default` Offering paywall). */
+  /** Presents RevenueCat's hosted Paywall UI (the dashboard's multi-tier `metriqo_premium` Offering paywall). */
   presentPaywall: () => Promise<PaywallOutcome>;
   /** Presents RevenueCat's hosted Customer Center (manage/cancel/get help). */
   presentCustomerCenter: () => Promise<CustomerCenterOutcome>;
@@ -118,6 +152,7 @@ export function createSubscriptionStore(
       packages: [],
       offeringsStatus: 'idle',
       offeringsError: null,
+      offeringsIssue: null,
       usage: null,
 
       init: async () => {
@@ -178,13 +213,14 @@ export function createSubscriptionStore(
       },
 
       loadOfferings: async (force = false) => {
-        apply({ offeringsStatus: 'loading', offeringsError: null });
+        apply({ offeringsStatus: 'loading', offeringsError: null, offeringsIssue: null });
         try {
           const packages = await getService().getOfferings(force);
           apply({ packages, offeringsStatus: 'ready' });
         } catch (error) {
           apply({
             offeringsStatus: 'error',
+            offeringsIssue: offeringsIssueOf(error),
             offeringsError: error instanceof Error ? error.message : 'Plans could not be loaded.',
           });
         }
@@ -195,8 +231,13 @@ export function createSubscriptionStore(
         try {
           const outcome = await getService().purchase(plan, period);
           apply({ purchasing: false, purchasePending: outcome.status === 'pending' });
-          if (outcome.status === 'success' || outcome.status === 'scheduled') {
+          if (outcome.status === 'success' || outcome.status === 'scheduled' || outcome.status === 'already_subscribed') {
+            // The new plan's monthly limit applies right away (e.g. Free 5/5 → Starter 5/15).
             await get().refreshUsage();
+          }
+          if (outcome.status === 'product_unavailable' && get().offeringsStatus !== 'ready') {
+            // Re-check the Offering so the screen shows why the package is missing.
+            get().loadOfferings(true);
           }
           return outcome;
         } catch (error) {
@@ -210,6 +251,9 @@ export function createSubscriptionStore(
         try {
           const outcome = await getService().restore();
           apply({ busy: null });
+          if (outcome.status === 'restored' || outcome.status === 'already_active' || outcome.status === 'nothing_to_restore') {
+            await get().refreshUsage();
+          }
           return outcome;
         } catch (error) {
           apply({ busy: null });
@@ -217,7 +261,10 @@ export function createSubscriptionStore(
         }
       },
 
-      openManageSubscription: async () => openUrl(getService().getManagementUrl()),
+      openManageSubscription: async () => {
+        const url = getService().getManagementUrl();
+        return url ? openUrl(url) : false;
+      },
 
       presentPaywall: async () => {
         apply({ purchasing: true, purchasePending: false });

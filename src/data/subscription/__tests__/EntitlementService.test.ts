@@ -118,6 +118,36 @@ describe('EntitlementService — invoice limits', () => {
     expect((await e.entitlement.canCreateInvoice()).allowed).toBe(false);
   });
 
+  it.each([
+    ['starter', 15],
+    ['business', 40],
+    ['pro', 100],
+  ] as const)('gives the yearly %s product the same %i/month allowance (never × 12)', async (plan, limit) => {
+    const e = makeEntitlement(Array.from({ length: limit - 1 }, (_, i) => seedInvoice(String(i), START - HOUR)));
+    e.adapter.setCustomerInfo(activeInfo(plan, e.clock.now, { period: 'yearly' }));
+    await e.service.refresh();
+
+    expect(e.entitlement.getPlan()).toBe(plan);
+    expect((await e.entitlement.getInvoiceUsage()).limit).toBe(limit);
+    await createInvoiceRecorded(e, 'last');
+    expect((await e.entitlement.canCreateInvoice()).allowed).toBe(false);
+  });
+
+  it('falls back to the Free limit once RevenueCat reports the subscription expired', async () => {
+    const e = makeEntitlement(Array.from({ length: 10 }, (_, i) => seedInvoice(String(i), START - HOUR)));
+    e.adapter.setCustomerInfo(activeInfo('starter', e.clock.now));
+    await e.service.refresh();
+    expect((await e.entitlement.canCreateInvoice()).allowed).toBe(true);
+
+    e.adapter.setCustomerInfo(lapsedInfo('starter', e.clock.now));
+    await e.service.refresh();
+
+    expect(e.entitlement.getPlan()).toBe('free');
+    const decision = await e.entitlement.canCreateInvoice();
+    expect(decision.usage.limit).toBe(5);
+    expect(decision.allowed).toBe(false);
+  });
+
   it('never limits Unlimited', async () => {
     const e = makeEntitlement(Array.from({ length: 300 }, (_, i) => seedInvoice(String(i), START - HOUR)));
     e.adapter.setCustomerInfo(activeInfo('unlimited', e.clock.now));

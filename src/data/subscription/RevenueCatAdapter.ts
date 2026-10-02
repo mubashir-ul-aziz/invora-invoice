@@ -1,6 +1,8 @@
 import type { CustomerInfoLike } from '@/domain/subscription/entitlementMapping';
 import type { BillingPeriod, PaidPlanId } from '@/domain/subscription/plans';
 
+import type { RevenueCatStoreKind } from './revenueCatConfig';
+
 /** Everything that can go wrong talking to RevenueCat/Google Play, normalized so nothing above the adapter sees SDK error codes. */
 export type RevenueCatErrorKind =
   | 'cancelled'
@@ -10,7 +12,10 @@ export type RevenueCatErrorKind =
   | 'already_purchased'
   | 'pending'
   | 'not_allowed'
+  /** No usable SDK in this build (no public key for this build type, unsupported platform, native module missing). */
   | 'not_configured'
+  /** The SDK is running but RevenueCat rejected the setup: invalid key, no Offering, Offering without the expected packages/products. */
+  | 'configuration'
   | 'unknown';
 
 export class RevenueCatError extends Error {
@@ -39,7 +44,7 @@ export interface StorePackage {
 
 /** Tells Google Play to replace the user's existing subscription instead of creating a second one. */
 export interface ProductChange {
-  /** The Google Play subscription id being replaced, e.g. `metriqo_starter`. */
+  /** The product id being replaced, e.g. `metriqo_starter_monthly`. */
   oldProductIdentifier: string;
   timing: 'immediate' | 'deferred';
 }
@@ -60,8 +65,12 @@ export type PaywallPresentationResult = 'purchased' | 'restored' | 'cancelled' |
  * transaction. Metriqo never sees card or payment details.
  */
 export interface RevenueCatAdapter {
-  /** False when there's no API key, the platform isn't Android, or the native module isn't in this build (e.g. Expo Go). Nothing else may be called then. */
+  /** False when there's no public API key, the platform isn't Android/iOS, or the native module isn't in this build (e.g. Expo Go). Nothing else may be called then. */
   isAvailable(): boolean;
+  /** Which store this build talks to (`test_store` in development, `google_play` in release); null when unavailable. */
+  getStoreKind(): RevenueCatStoreKind | null;
+  /** Developer-facing reason `isAvailable()` is false (never contains a full API key); null when available. */
+  getUnavailableReason(): string | null;
   getCustomerInfo(): Promise<CustomerInfoLike>;
   getOfferings(): Promise<StorePackage[]>;
   /** Starts Google Play's purchase sheet for a package and resolves with RevenueCat's CustomerInfo. Rejects with `RevenueCatError`. */
@@ -86,7 +95,7 @@ export interface RevenueCatAdapter {
   /** Returns RevenueCat to a fresh anonymous identity (e.g. an explicit Google sign-out). */
   logOut(): Promise<CustomerInfoLike>;
   /**
-   * Presents RevenueCat's hosted Paywall UI for the `default` Offering
+   * Presents RevenueCat's hosted Paywall UI for the `metriqo_premium` Offering
    * (the one holding all eight packages) — the multi-tier paywall built in
    * the RevenueCat dashboard picks the plan; this call doesn't. Rejects with
    * `RevenueCatError` only when the paywall couldn't be shown at all (e.g.

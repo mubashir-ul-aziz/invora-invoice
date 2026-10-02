@@ -140,7 +140,7 @@ export function AccountScreen({ navigation }: Props) {
           </View>
           <View style={styles.flexShrink}>
             <Text style={styles.restoreLabel}>Restore Purchases</Text>
-            <Text style={styles.restoreCaption}>Re-sync your subscription from Google Play</Text>
+            <Text style={styles.restoreCaption}>Check your store account for an active Metriqo subscription</Text>
           </View>
           <Feather name="chevron-right" size={16} color={colors.textMuted} />
         </Pressable>

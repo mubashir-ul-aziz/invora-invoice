@@ -3,6 +3,7 @@ import { resolveEffectivePlan } from '@/domain/subscription/offlinePolicy';
 import { planChangeKind, type PlanChangeKind } from '@/domain/subscription/planChange';
 import {
   PLAN_CONFIG,
+  REVENUECAT_ENTITLEMENT_ID,
   isPaidPlan,
   planRank,
   type BillingPeriod,
@@ -20,9 +21,33 @@ import {
 import type { ConnectivityService } from './ConnectivityService';
 import { RevenueCatError, type ProductChange, type RevenueCatAdapter, type StorePackage } from './RevenueCatAdapter';
 import type { SubscriptionCache } from './SubscriptionCache';
+import type { RevenueCatStoreKind } from './revenueCatConfig';
 
-/** Google's documented subscription-management page. Used only when RevenueCat supplies no `managementURL` of its own. */
+/** The Android application id — must match `app.json` (`com.metriqo.invoice`). */
+export const ANDROID_PACKAGE_NAME = 'com.metriqo.invoice';
+
+/** Google's documented subscription-management page. */
 export const DEFAULT_MANAGE_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
+
+/**
+ * Where "Manage subscription" may send the user — ONLY for an active
+ * `metriqo_premium` entitlement that Google Play manages: RevenueCat's own
+ * `managementURL` when it's an https link, otherwise Google Play's deep link
+ * to this exact subscription. Everything else (Free, expired, a RevenueCat
+ * Test Store purchase, another store) returns null, so the app never opens an
+ * empty generic Play "Subscriptions" page.
+ */
+export function playManagementUrlFor(info: CustomerInfoLike): string | null {
+  const entitlement = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID];
+  if (!entitlement?.isActive || entitlement.store !== 'PLAY_STORE') {
+    return null;
+  }
+  if (info.managementURL && /^https:\/\//i.test(info.managementURL)) {
+    return info.managementURL;
+  }
+  const sku = entitlement.productIdentifier.split(':')[0];
+  return `${DEFAULT_MANAGE_SUBSCRIPTIONS_URL}?sku=${encodeURIComponent(sku)}&package=${ANDROID_PACKAGE_NAME}`;
+}
 
 /** A RevenueCat answer whose server timestamp is within this of the device clock counts as fresh (i.e. not the SDK's offline cache). */
 export const FRESH_TOLERANCE_MS = 15 * 60 * 1000;
@@ -43,8 +68,8 @@ export type PurchaseOutcome =
   | { status: 'network_error' }
   | { status: 'store_unavailable' }
   | { status: 'product_unavailable' }
-  /** RevenueCat isn't configured for this build (no key / not Android / no native module). */
-  | { status: 'unavailable' }
+  /** RevenueCat isn't configured for this build (no public key / not Android or iOS / no native module). `reason` is developer-facing. */
+  | { status: 'unavailable'; reason?: string | null }
   | { status: 'failed'; message: string };
 
 export type RestoreOutcome =
@@ -53,7 +78,7 @@ export type RestoreOutcome =
   | { status: 'nothing_to_restore'; snapshot: SubscriptionSnapshot }
   | { status: 'network_error' }
   | { status: 'store_unavailable' }
-  | { status: 'unavailable' }
+  | { status: 'unavailable'; reason?: string | null }
   | { status: 'failed'; message: string };
 
 export type PaywallOutcome =
@@ -110,6 +135,7 @@ export class SubscriptionService {
   private verified = false;
   private isOffline = false;
   private managementUrl: string | null = null;
+  private activeStore: string | null = null;
   private inflightRefresh: Promise<SubscriptionSnapshot> | null = null;
   private offerings: StorePackage[] | null = null;
   private listeners = new Set<(snapshot: SubscriptionSnapshot) => void>();
@@ -137,14 +163,22 @@ export class SubscriptionService {
     return this.adapter.isAvailable();
   }
 
+  /** `test_store` (development) / `google_play` (release) / null when RevenueCat isn't usable. */
+  getStoreKind(): RevenueCatStoreKind | null {
+    return this.adapter.getStoreKind();
+  }
+
+  /** Developer-facing reason RevenueCat isn't usable in this build; null when it is. */
+  getUnavailableReason(): string | null {
+    return this.adapter.getUnavailableReason();
+  }
+
   /**
-   * Where "Manage subscription" should open — RevenueCat's own link when it
-   * has one (a Google Play page for a Play subscription), otherwise Google's
-   * documented subscriptions page. Only `https://` links are ever opened.
+   * Where "Manage subscription" should open, or null when there is no
+   * Google-Play-managed subscription to manage (see `playManagementUrlFor`).
    */
-  getManagementUrl(): string {
-    const url = this.snapshot.managementUrl;
-    return url && /^https:\/\//i.test(url) ? url : DEFAULT_MANAGE_SUBSCRIPTIONS_URL;
+  getManagementUrl(): string | null {
+    return this.snapshot.managementUrl;
   }
 
   private publish(record: SubscriptionCacheRecord): SubscriptionSnapshot {
@@ -171,6 +205,7 @@ export class SubscriptionService {
       isOffline: this.isOffline,
       clockHighWaterMs: record.clockHighWaterMs,
       managementUrl: this.managementUrl,
+      activeStore: this.activeStore,
     };
     this.listeners.forEach((listener) => listener(this.snapshot));
     return this.snapshot;
@@ -260,17 +295,29 @@ export class SubscriptionService {
 
     this.verified = fresh;
     this.isOffline = !fresh;
-    this.managementUrl = info.managementURL ?? null;
+    this.managementUrl = playManagementUrlFor(info);
+    this.activeStore = info.entitlements.active[REVENUECAT_ENTITLEMENT_ID]?.store ?? null;
     return this.publish(record);
   }
 
-  /** Loads (and caches in memory) the purchasable packages. Rejects with `RevenueCatError` when they can't be loaded. */
+  /**
+   * Loads (and caches in memory) the purchasable packages. Rejects with
+   * `RevenueCatError`: `not_configured` (no usable SDK in this build),
+   * `network` (offline / unreachable), `configuration` (RevenueCat has no
+   * usable Offering). Callers keep showing the configured fallback prices.
+   */
   async getOfferings(force = false): Promise<StorePackage[]> {
     if (!force && this.offerings) {
       return this.offerings;
     }
     if (!this.adapter.isAvailable()) {
-      throw new RevenueCatError('not_configured', 'In-app subscriptions are not available in this build.');
+      throw new RevenueCatError(
+        'not_configured',
+        this.adapter.getUnavailableReason() ?? 'In-app subscriptions are not available in this build.',
+      );
+    }
+    if (!(await this.connectivity.isOnline())) {
+      throw new RevenueCatError('network', 'You are offline.');
     }
     this.offerings = await this.adapter.getOfferings();
     return this.offerings;
@@ -278,7 +325,7 @@ export class SubscriptionService {
 
   async purchase(plan: PaidPlanId, period: BillingPeriod): Promise<PurchaseOutcome> {
     if (!this.adapter.isAvailable()) {
-      return { status: 'unavailable' };
+      return { status: 'unavailable', reason: this.adapter.getUnavailableReason() };
     }
     const product = PLAN_CONFIG[plan].products?.[period];
     if (!product) {
@@ -291,7 +338,7 @@ export class SubscriptionService {
       period: current.subscription.billingPeriod,
     };
     // Real store prices when offerings are loaded (see `planChangeKind`'s doc
-    // comment) — falls back to the reference USD price when they aren't.
+    // comment) — falls back to ranking by tier when they aren't.
     const currentPackage = isPaidPlan(current.plan)
       ? this.offerings?.find((pkg) => pkg.plan === current.plan && pkg.period === currentRef.period) ?? null
       : null;
@@ -307,27 +354,37 @@ export class SubscriptionService {
       return { status: 'network_error' };
     }
 
-    // Switching between Play subscriptions must replace the old one, or the
-    // user would end up paying for two. `metriqo_<plan>` is the Play
-    // subscription id shared by both of that plan's base plans.
+    // Switching between subscriptions must replace the old one, or the user
+    // would end up paying for two. The old product is the one for the
+    // current plan + period (monthly when RevenueCat didn't say).
     let change: ProductChange | undefined;
     if ((kind === 'immediate' || kind === 'deferred') && isPaidPlan(current.plan)) {
       change = {
-        oldProductIdentifier: PLAN_CONFIG[current.plan].products!.monthly.storeProductId,
+        oldProductIdentifier: PLAN_CONFIG[current.plan].products![currentRef.period ?? 'monthly'].productId,
         timing: kind,
       };
     }
 
     try {
       const info = await this.adapter.purchase(product.packageId, change);
-      const snapshot = await this.applyCustomerInfo(info);
+      let snapshot = await this.applyCustomerInfo(info);
       if (kind === 'deferred') {
         // Google Play accepted the change; the current plan continues until renewal.
         return { status: 'scheduled', snapshot };
       }
-      const confirmed = snapshot.subscription.isActive && planRank(snapshot.subscription.plan) >= planRank(plan);
+      const isConfirmed = (s: SubscriptionSnapshot) =>
+        s.subscription.isActive && planRank(s.subscription.plan) >= planRank(plan);
+      if (!isConfirmed(snapshot)) {
+        // The purchase result can lag RevenueCat's backend by a moment: ask
+        // for a fresh CustomerInfo once before calling it pending.
+        try {
+          snapshot = await this.applyCustomerInfo(await this.adapter.getCustomerInfo());
+        } catch {
+          // Keep the purchase-result snapshot; the CustomerInfo listener will catch up.
+        }
+      }
       // Never report success on the strength of the store call alone.
-      return confirmed ? { status: 'success', snapshot } : { status: 'pending' };
+      return isConfirmed(snapshot) ? { status: 'success', snapshot } : { status: 'pending' };
     } catch (error) {
       return this.purchaseFailure(error);
     }
@@ -349,7 +406,9 @@ export class SubscriptionService {
       case 'pending':
         return { status: 'pending' };
       case 'not_configured':
-        return { status: 'unavailable' };
+        return { status: 'unavailable', reason: error.message };
+      case 'configuration':
+        return { status: 'product_unavailable' };
       case 'already_purchased': {
         const snapshot = await this.refresh('screen');
         return { status: 'already_subscribed', snapshot };
@@ -361,7 +420,7 @@ export class SubscriptionService {
 
   async restore(): Promise<RestoreOutcome> {
     if (!this.adapter.isAvailable()) {
-      return { status: 'unavailable' };
+      return { status: 'unavailable', reason: this.adapter.getUnavailableReason() };
     }
     if (!(await this.connectivity.isOnline())) {
       return { status: 'network_error' };
@@ -380,7 +439,7 @@ export class SubscriptionService {
       if (error instanceof RevenueCatError) {
         if (error.kind === 'network') return { status: 'network_error' };
         if (error.kind === 'store_unavailable') return { status: 'store_unavailable' };
-        if (error.kind === 'not_configured') return { status: 'unavailable' };
+        if (error.kind === 'not_configured') return { status: 'unavailable', reason: error.message };
       }
       return { status: 'failed', message: error instanceof Error ? error.message : 'Purchases could not be restored.' };
     }
@@ -388,7 +447,7 @@ export class SubscriptionService {
 
   /**
    * Presents RevenueCat's hosted Paywall UI (the multi-tier paywall built in
-   * the RevenueCat dashboard for the `default` Offering — this doesn't pick a
+   * the RevenueCat dashboard for the `metriqo_premium` Offering — this doesn't pick a
    * plan, the paywall does). `'purchased'`/`'restored'` are trusted as-is:
    * unlike `purchase()`, the SDK's own paywall already confirmed the
    * entitlement before resolving, so no extra "did it really activate?"

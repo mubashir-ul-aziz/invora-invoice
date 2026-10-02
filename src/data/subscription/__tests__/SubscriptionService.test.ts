@@ -91,7 +91,7 @@ describe('SubscriptionService — refresh and offline behaviour', () => {
     expect(snapshot.status).toBe('EXPIRED');
   });
 
-  it('falls back to Free once an offline paid cache is past expiry + grace', async () => {
+  it('falls back to Free once an offline paid cache is past the 3-day grace', async () => {
     const h = makeHarness();
     h.adapter.setCustomerInfo(activeInfo('business', h.clock.now, { expiresAt: h.clock.now + DAY }));
     await h.service.refresh();
@@ -101,8 +101,9 @@ describe('SubscriptionService — refresh and offline behaviour', () => {
     const restarted = h.restart();
     const snapshot = await restarted.loadCached();
 
+    // More than 3 days since RevenueCat last verified it: the offline grace is over.
     expect(snapshot.plan).toBe('free');
-    expect(snapshot.trust).toBe('expired');
+    expect(snapshot.trust).toBe('stale');
   });
 
   it('flags cancelled-but-active and billing-issue states without removing access', async () => {
@@ -307,7 +308,7 @@ describe('SubscriptionService — purchase', () => {
     expect(h.service.getSnapshot().plan).toBe('starter');
   });
 
-  it('upgrades by replacing the existing Play subscription, applied immediately', async () => {
+  it('upgrades by replacing the existing subscription product, applied immediately', async () => {
     const h = makeHarness();
     h.adapter.setCustomerInfo(activeInfo('starter', h.clock.now));
     await h.service.refresh();
@@ -317,7 +318,7 @@ describe('SubscriptionService — purchase', () => {
 
     expect(h.adapter.calls.purchase[0]).toEqual({
       packageId: 'business_monthly',
-      change: { oldProductIdentifier: 'metriqo_starter', timing: 'immediate' },
+      change: { oldProductIdentifier: 'metriqo_starter_monthly', timing: 'immediate' },
     });
     expect(outcome.status).toBe('success');
   });
@@ -330,16 +331,16 @@ describe('SubscriptionService — purchase', () => {
 
     const outcome = await h.service.purchase('starter', 'monthly');
 
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'deferred' });
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'deferred' });
     expect(outcome.status).toBe('scheduled');
     expect(h.service.getSnapshot().plan).toBe('pro');
   });
 
-  it('ranks an upgrade/downgrade by the real loaded store price, not just the fallback reference price', async () => {
+  it('ranks an upgrade/downgrade by the real loaded store price, not just tier order', async () => {
     const h = makeHarness();
     h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
     await h.service.refresh();
-    // Reference prices (fallbackPriceUsd) rank Business ($10/mo) below Pro ($15/mo) — an ordinary
+    // By tier, Pro → Business is an ordinary
     // downgrade. Give Business a real, regionally-priced package that actually costs more per day.
     h.adapter.packages = h.adapter.packages.map((pkg) =>
       pkg.plan === 'business' && pkg.period === 'monthly' ? { ...pkg, priceMicros: 20_000_000 } : pkg,
@@ -349,11 +350,11 @@ describe('SubscriptionService — purchase', () => {
 
     const outcome = await h.service.purchase('business', 'monthly');
 
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'immediate' });
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'immediate' });
     expect(outcome.status).toBe('success');
   });
 
-  it('falls back to the reference price when offerings were never loaded (same as before real prices existed)', async () => {
+  it('falls back to tier order when offerings were never loaded', async () => {
     const h = makeHarness();
     h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
     await h.service.refresh();
@@ -361,7 +362,7 @@ describe('SubscriptionService — purchase', () => {
 
     const outcome = await h.service.purchase('business', 'monthly');
 
-    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro', timing: 'deferred' });
+    expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', timing: 'deferred' });
     expect(outcome.status).toBe('scheduled');
   });
 });
@@ -428,19 +429,57 @@ describe('SubscriptionService — offerings and management', () => {
     await expect(h.service.getOfferings()).rejects.toMatchObject({ kind: 'network' });
   });
 
-  it("prefers RevenueCat's management URL, and otherwise uses Google's subscriptions page", async () => {
+  it('rejects offline without calling RevenueCat, and explains an unavailable build', async () => {
     const h = makeHarness();
-    expect(h.service.getManagementUrl()).toBe('https://play.google.com/store/account/subscriptions');
+    h.connectivity.setOnline(false);
+    await expect(h.service.getOfferings(true)).rejects.toMatchObject({ kind: 'network' });
+    expect(h.adapter.calls.getOfferings).toBe(0);
+
+    h.adapter.available = false;
+    await expect(h.service.getOfferings(true)).rejects.toMatchObject({
+      kind: 'not_configured',
+      message: expect.stringContaining('No RevenueCat key'),
+    });
+  });
+
+  it('has no management link for Free or a Test Store purchase', async () => {
+    const h = makeHarness();
+    await h.service.refresh();
+    expect(h.service.getManagementUrl()).toBeNull();
+
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now, { store: 'TEST_STORE', managementURL: null }));
+    await h.service.refresh();
+    expect(h.service.getManagementUrl()).toBeNull();
+    expect(h.service.getSnapshot().activeStore).toBe('TEST_STORE');
+  });
+
+  it("uses RevenueCat's management URL for an active Play subscription, else Play's deep link to that product", async () => {
+    const h = makeHarness();
     h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
     await h.service.refresh();
     expect(h.service.getManagementUrl()).toContain('package=com.metriqo.invoice');
+
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now, { managementURL: null }));
+    await h.service.refresh();
+    expect(h.service.getManagementUrl()).toBe(
+      'https://play.google.com/store/account/subscriptions?sku=metriqo_pro_monthly&package=com.metriqo.invoice',
+    );
   });
 
   it('never opens a management link that is not https', async () => {
     const h = makeHarness();
     h.adapter.setCustomerInfo({ ...activeInfo('pro', h.clock.now), managementURL: 'intent://evil' });
     await h.service.refresh();
-    expect(h.service.getManagementUrl()).toBe('https://play.google.com/store/account/subscriptions');
+    expect(h.service.getManagementUrl()).toMatch(/^https:\/\/play\.google\.com\//);
+  });
+
+  it('drops the management link once the subscription expires', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.refresh();
+    h.adapter.setCustomerInfo(lapsedInfo('pro', h.clock.now));
+    await h.service.refresh();
+    expect(h.service.getManagementUrl()).toBeNull();
   });
 });
 
@@ -638,8 +677,9 @@ describe('SubscriptionService — identifyUser (Account + Subscription Identity)
     const restarted = h.restart();
     const snapshot = await restarted.loadCached();
 
+    // More than 3 days since RevenueCat last verified it: the offline grace is over.
     expect(snapshot.plan).toBe('free');
-    expect(snapshot.trust).toBe('expired');
+    expect(snapshot.trust).toBe('stale');
   });
 });
 

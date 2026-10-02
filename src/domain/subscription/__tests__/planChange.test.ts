@@ -1,4 +1,7 @@
+import type { BillingPeriod, PaidPlanId } from '../plans';
 import { dayRate, planChangeKind } from '../planChange';
+
+const price = (plan: PaidPlanId, period: BillingPeriod, priceMicros: number) => ({ plan, period, priceMicros });
 
 describe('planChangeKind', () => {
   it('treats a Free user as a plain new purchase', () => {
@@ -9,66 +12,59 @@ describe('planChangeKind', () => {
     expect(planChangeKind({ plan: 'pro', period: 'yearly' }, { plan: 'pro', period: 'yearly' })).toBe('same');
   });
 
-  it('applies a higher tier immediately', () => {
+  it('without store prices, applies a higher tier immediately and defers everything else', () => {
     expect(planChangeKind({ plan: 'starter', period: 'monthly' }, { plan: 'business', period: 'monthly' })).toBe('immediate');
     expect(planChangeKind({ plan: 'business', period: 'yearly' }, { plan: 'unlimited', period: 'yearly' })).toBe('immediate');
-  });
-
-  it('defers a lower tier to the next renewal', () => {
     expect(planChangeKind({ plan: 'pro', period: 'monthly' }, { plan: 'starter', period: 'monthly' })).toBe('deferred');
-  });
-
-  it('defers monthly → yearly on the same tier (lower day rate), applies yearly → monthly immediately', () => {
     expect(planChangeKind({ plan: 'business', period: 'monthly' }, { plan: 'business', period: 'yearly' })).toBe('deferred');
-    expect(planChangeKind({ plan: 'business', period: 'yearly' }, { plan: 'business', period: 'monthly' })).toBe('immediate');
   });
 
   it('defers when the current billing period is unknown', () => {
     expect(planChangeKind({ plan: 'business', period: null }, { plan: 'pro', period: 'monthly' })).toBe('deferred');
   });
 
-  it('ranks by price per day', () => {
-    expect(dayRate('starter', 'monthly')).toBeGreaterThan(dayRate('starter', 'yearly'));
-  });
-
   describe('real store prices', () => {
-    it('dayRate prefers a matching real package price over the fallback reference price', () => {
-      // fallbackPriceUsd.starter.monthly is $5 — a real store price of $50/mo should win, not be ignored.
-      const real = { plan: 'starter' as const, period: 'monthly' as const, priceMicros: 50_000_000 };
-      expect(dayRate('starter', 'monthly', real)).toBeCloseTo(50_000_000 / 30);
-      expect(dayRate('starter', 'monthly')).not.toBeCloseTo(50_000_000 / 30);
+    it('dayRate is computed only from a matching real package — there is no local price', () => {
+      expect(dayRate('starter', 'monthly', price('starter', 'monthly', 50_000_000))).toBeCloseTo(50_000_000 / 30);
+      expect(dayRate('starter', 'monthly')).toBeNull();
+      expect(dayRate('starter', 'monthly', price('business', 'monthly', 50_000_000))).toBeNull();
     });
 
-    it('ignores a package for the wrong plan/period and falls back to the reference price', () => {
-      const wrongPlan = { plan: 'business' as const, period: 'monthly' as const, priceMicros: 50_000_000 };
-      expect(dayRate('starter', 'monthly', wrongPlan)).toBe(dayRate('starter', 'monthly'));
-    });
-
-    it('ranks by real store prices, reversing what the reference USD prices alone would say', () => {
-      // Reference prices rank Business ($10/mo) below Pro ($15/mo) — an ordinary downgrade. A real,
-      // regionally-priced Business package that actually costs more per day than Pro must flip that
-      // to an upgrade, since Google Play bills off the real price, not Metriqo's reference label.
-      const current = { plan: 'pro' as const, period: 'monthly' as const, priceMicros: 15_000_000 };
-      const target = { plan: 'business' as const, period: 'monthly' as const, priceMicros: 20_000_000 };
-
-      expect(planChangeKind({ plan: 'pro', period: 'monthly' }, { plan: 'business', period: 'monthly' })).toBe(
-        'deferred',
-      );
+    it('defers monthly → yearly on the same tier (lower day rate), applies yearly → monthly immediately', () => {
+      const monthly = price('business', 'monthly', 10_000_000);
+      const yearly = price('business', 'yearly', 96_000_000);
       expect(
         planChangeKind(
-          { plan: 'pro', period: 'monthly' },
           { plan: 'business', period: 'monthly' },
-          { current, target },
+          { plan: 'business', period: 'yearly' },
+          { current: monthly, target: yearly },
+        ),
+      ).toBe('deferred');
+      expect(
+        planChangeKind(
+          { plan: 'business', period: 'yearly' },
+          { plan: 'business', period: 'monthly' },
+          { current: yearly, target: monthly },
         ),
       ).toBe('immediate');
     });
 
-    it('falls back to the reference price for whichever side has no real package', () => {
-      // Only the target's real price is known; the current side still uses its fallback.
-      const target = { plan: 'business' as const, period: 'monthly' as const, priceMicros: 20_000_000 };
+    it('ranks by real store prices, even against tier order', () => {
+      // By tier, Pro → Business is a downgrade. A regionally-priced Business package that costs more per
+      // day than Pro must be an upgrade, since the store bills off the real price.
+      const current = price('pro', 'monthly', 15_000_000);
+      const target = price('business', 'monthly', 20_000_000);
+      expect(planChangeKind({ plan: 'pro', period: 'monthly' }, { plan: 'business', period: 'monthly' })).toBe('deferred');
+      expect(
+        planChangeKind({ plan: 'pro', period: 'monthly' }, { plan: 'business', period: 'monthly' }, { current, target }),
+      ).toBe('immediate');
+    });
+
+    it('falls back to tier order when only one side has a real price', () => {
+      const target = price('business', 'monthly', 20_000_000);
       expect(
         planChangeKind({ plan: 'pro', period: 'monthly' }, { plan: 'business', period: 'monthly' }, { target }),
-      ).toBe('immediate');
+      ).toBe('deferred');
     });
   });
 });
