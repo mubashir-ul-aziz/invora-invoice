@@ -1,0 +1,501 @@
+# Copy this into Claude Design
+
+You are redesigning **Metriqo Invoice**, an existing Android mobile invoicing app. The app already works. Your job is a cohesive visual and UX redesign: make it clearer, calmer, more readable and more consistent. **Do not change what it does.** Everything below comes from the app's real source code and is the source of truth. You do not have access to the code, so rely only on this brief.
+
+---
+
+## 0. Ground rules
+
+1. Keep every field, action, business rule and state described here. Do not remove working functionality.
+2. Do not invent data or features. No fake trends, stock levels, customer IDs, "verified" badges, account emails, fiscal years, compliance claims, or "viewed by client" signals.
+3. The current app shows about 80 visible "DESIGN ONLY" placeholders: controls with no working behaviour (listed in §9). **Leave them out of the redesign.** If you think one is valuable, put it in §10 "Optional new" with a **NEEDS DEVELOPMENT** tag.
+4. Tag every screen and component you deliver as either **EXISTING – REDESIGN** or **NEW – NEEDS DEVELOPMENT**. Keep the two groups in separate sections of your output.
+5. Where a rule is unclear or inconsistent (§11), design for current behaviour and add a visible design note. Do not quietly choose a new rule.
+6. Navigation changes (for example, adding a real tab bar) are allowed as proposals, but label them as structural changes for developers.
+
+---
+
+## 1. Product summary
+
+- **What it is:** professional invoicing for small businesses (about 1–20 people) in the US, UK and Europe, built for non-accountants. Create invoices, track customers and payments, share invoice PDFs, and share a digital business card.
+- **Offline-first:** all data lives in a SQLite database on the phone. The app is fully usable with no internet.
+- **No user account or sign-in.** The business profile is the identity. All data stays on the device unless the user backs it up.
+- **It is not** a POS, inventory, accounting ledger, expense tracker, CRM or payment processor. Don't design stock, ledgers, card payments or online payment collection.
+- **Platform:** Android (Google Play). Portrait only. Light mode only today. Phones first.
+- **Tech stack (for handoff):** React Native 0.86 + Expo SDK 57 (development client / EAS builds), TypeScript, React Navigation 7 (native stack), Zustand state, React Hook Form + Zod validation, Drizzle ORM + expo-sqlite, expo-print (HTML → PDF) + pdf-lib (page numbers), expo-sharing, expo-mail-composer, react-native-qrcode-svg, react-native-svg, @expo/vector-icons (the **Feather** icon set is used everywhere), react-native-safe-area-context, RevenueCat (react-native-purchases + react-native-purchases-ui) with Google Play Billing, expo-auth-session (Google sign-in for Drive), expo-local-authentication (app lock), @react-native-community/datetimepicker. No UI kit library: styles are React Native `StyleSheet` objects that read one token file. The system font is used; no custom font is loaded.
+
+---
+
+## 2. Current visual language ("Kinetic Ledger") and proposed changes
+
+Professional, minimal, financial. White cards on a cool grey background, subtle 1px borders, a blue primary colour, Feather line icons, generous but controlled spacing. **Keep this direction.**
+
+**Existing tokens (keep the names for the developer handoff):**
+
+| Token | Value | Use |
+|---|---|---|
+| background | #F5F6FA | screen background |
+| surface | #FFFFFF | cards |
+| surfaceAlt | #F8FAFC | card inside a card |
+| primary / primaryDark | #2563EB / #1D4ED8 | brand, primary buttons / pressed |
+| primaryText | #FFFFFF | text on primary |
+| primarySurface | #EFF4FF | light blue tint for pills and chips |
+| text / textMuted / textFaint | #171923 / #5B6270 / #94A0B8 | text levels |
+| border / borderStrong | #E2E5EC / #C7CEDC | borders |
+| placeholder | #C8CCD6 | input placeholder |
+| danger / dangerBg | #C0362C / #FBE4E2 | errors, Overdue |
+| success / successBg | #1E7B41 / #E3F3E8 | Paid |
+| warning / warningBg | #8A6D1D / #FFF3D6 | Partial |
+| locked / lockedBg | #5B6270 / #EEF0F5 | plan-locked content (deliberately calm, not red) and Unpaid |
+
+Spacing: 4, 8, 12, 16, 24, 32. Radius: 8, 12, 16, 20, pill. Type: h1 24/30 800, h2 18/24 700, h3 15/20 700, body 14/20 400, bodyBold 14/20 600, caption 12/16 500, label 11/14 700.
+
+**Suggested palette and type changes (please confirm or adjust each one explicitly):**
+1. `textFaint` #94A0B8 is about 2.6:1 on white, so it fails WCAG AA. Use it only for disabled or decorative items, or darken it to about #6B7489 (about 4.7:1) for any text people need to read.
+2. `placeholder` #C8CCD6 is very faint (about 1.6:1). Darken it to about #8A93A6.
+3. The current screens use 9–11 px text in roughly 170 places, and several hard-coded colours outside the token file (#006243, #DBFCEC, #3F465C, #DAE2FD, #003EA8, #F5C6C1, #DCE9FF). Fold these into tokens. Use at least 12 sp for readable text; keep 11 sp only for uppercase overline labels.
+4. Buttons are currently at least 40 px tall. Move every touch target to at least 48 dp.
+5. The PDF "Modern" template uses #2952CC, a different blue from the app's #2563EB. Propose one brand blue for both, or justify keeping them separate.
+6. Optional (NEW – NEEDS DEVELOPMENT): a dark-mode token set. The app is light-only today.
+
+---
+
+## 3. Logo
+
+The current app icon is the default Expo template icon (a light-blue chevron over construction lines), not a Metriqo brand mark. The adaptive icon background is #E6F4FE.
+
+Design a **simple, symbol-only logo**: **no "Metriqo" text, no letters, no initials** inside the mark. A theme that fits the product is measurement plus a document or invoice, since the app prices by quantity, weight, length, area, volume and time. It must read clearly at 24 px and work in one colour.
+
+Deliver: the app icon (Android adaptive foreground and background, plus a monochrome themed icon), a splash mark, and a small in-app mark. The word "Metriqo" may appear as plain text elsewhere in the UI, but never inside the symbol.
+
+---
+
+## 4. Navigation today
+
+- One native stack navigator. The **Dashboard** is the start screen. **There is no real tab navigator.**
+- A bottom bar (Dashboard · Invoices · Customers · Settings) is drawn only on Dashboard, Invoice List and Customer List. Each tap pushes a new screen on the stack. The bar has no bottom safe-area padding.
+- The Dashboard header has a briefcase icon that opens the **Business** hub.
+- The **Items catalog** and **Payment History** can only be reached from the Business hub's Quick Access tiles. Items can also be reached from the invoice item picker.
+- A custom header (title, back button, optional right icon) handles the top safe area.
+- Three list screens double as pickers: Customer List becomes "Select Customer", Item List becomes "Select Item" (limited to the invoice's pricing method), and Invoice List lets the user pick an invoice to record a payment against.
+
+**Please propose** a clearer structure that reuses these screens. For example: a real bottom tab bar shown consistently on top-level screens (Dashboard, Invoices, Customers, Items, More/Settings), with Business, Payments, Backup and Plans under More. Mark it as a structural change.
+
+---
+
+## 5. Core business rules your designs must express
+
+### 5.1 One pricing method per invoice
+- Every invoice has **exactly one Pricing Method**, and **all its lines use that method**. There are nine methods: General, Quantity, Weight, Length, Area, Volume, Time, Service, Custom.
+- The business's default method (set on the Invoice Type screen or in Invoice Settings) pre-fills new invoices.
+- On the Invoice Items screen the method is a dropdown:
+  - With no lines, it can be changed freely.
+  - With lines, a confirmation dialog appears. Switching within the same family (General ↔ Quantity ↔ Service) keeps the lines ("Changing the pricing method will affect all existing invoice items. Do you want to continue?"). Any other switch **removes all lines** and uses a destructive confirmation ("…isn't compatible with the items already on this invoice — they'll be removed…").
+- When **editing** an existing invoice, the method is read-only. A **duplicate** can change it.
+- Each catalog item also has one pricing method. The item picker shows only items with the invoice's method. Tapping an incompatible item shows: "Incompatible pricing method — This item uses X pricing and cannot be added to this Y invoice." Creating a new item from the picker preselects the invoice's method.
+- Every pricing method is available on every subscription plan.
+
+### 5.2 Fields and units by method
+
+| Method | Measurement input(s) | Unit choices | Price label | Billable quantity |
+|---|---|---|---|---|
+| General | Quantity | Unit: pcs, unit, box, pack, set, dozen, hr, kg, ltr, m | Unit Price | quantity |
+| Quantity | Quantity | same as General | Unit Price | quantity |
+| Service | Quantity | same as General | "Service price" (name label: "Service name") | quantity |
+| Weight | Weight | kg, g, lb, oz | Price per weight unit | weight |
+| Length | Length | m, cm, mm, ft, in, yd | Price per length unit | length |
+| Area | Length, Width (one shared unit) | m, cm, mm, ft, in, yd | Price per area unit | length × width (shown as "m²") |
+| Volume | Length, Width, Height (one shared unit) | m, cm, mm, ft, in, yd | Price per volume unit | L × W × H (shown as "m³") |
+| Time | Duration | minute, hr, day (8 hr), week (40 hr) | Rate per time unit | duration |
+| Custom | Business picks from: description, SKU, quantity, unit, weight, length, width, height, discount, tax | generic units | Unit Price | **quantity only** (other measurements are informational) |
+
+- Every line has Item name (required) and a price (required). Description, SKU (not on Time), Discount % and Tax % (0–100) appear depending on the method.
+- Every unit dropdown ends with "+ Add custom unit". Custom units are saved for the business, per unit family.
+- Changing a unit **does not convert** the number. The price is always per the unit entered.
+- The method's measurement must be greater than 0. Quantity, when present, must be greater than 0.
+- The line editor groups fields into cards: Pricing Method (read-only, or a dropdown only when this is the first line), Line Details (name, description, SKU), Quantity & Unit, Pricing, Logistics & Dimensions, and a live Line Total Preview.
+
+### 5.3 Unit Price vs Total Item Price (per line)
+- Each invoice line and each catalog item has a two-option toggle: **Unit Price | Total Item Price**. This is separate from the invoice's pricing method, and lines on one invoice can use different modes.
+- **Unit Price:** line subtotal = billable quantity × unit price.
+- **Total Item Price:** the amount entered **is** the line subtotal and is **never multiplied** by the quantity. Measurements are still required and still shown for information (for example "20 m²").
+- Both values stay in the form while the user switches modes.
+- Discount % is taken off first, then Tax % is applied to the discounted amount. Each line is rounded to the cent.
+- The live "Line Total Preview" shows: the calculated quantity with its unit; "× [price] unit price" or "Total Item Price (not multiplied by quantity)"; any discount; "+[tax] VAT" or "No VAT"; and the **Line Total**.
+- A catalog item's mode pre-fills the line's mode.
+- On the PDF, a Total Item Price line shows "—" in the Unit price column.
+- Line rows in lists show the item name, the measurement text (for example "5m × 4m (20 m²)"), the price or mode, and the line total.
+
+### 5.4 Totals
+- Invoice totals are Subtotal, Discount, Tax and Grand total. (The app says "VAT" in some places and "Tax" in others; please standardise.)
+- There is **no** invoice-level discount, shipping or fee. Discount and tax are per line only.
+- Line amounts are frozen when the invoice is saved. Later changes to catalog items never change old invoices.
+
+### 5.5 Status = payment status only
+- Status is calculated, never set by hand:
+  - **Paid:** paid ≥ total, and total > 0.
+  - otherwise **Overdue:** the due date has passed.
+  - otherwise **Partial:** some amount has been paid.
+  - otherwise **Unpaid**.
+- There is **no workflow status**: no Draft, Sent, Viewed or Void. Pressing Save on the Review screen creates the real, numbered invoice immediately. (The current Review screen wrongly shows a "DRAFT" pill and a fake "Save as Draft" button. Remove both.)
+- Invoice number: automatic, in the format prefix + business code + "-" + sequence (for example `INV-<code>-12`). The "next number" preview is shown on Review and the number is reserved on save. It cannot be edited on the invoice. The prefix can be edited in settings; the next sequence number is read-only.
+- Status filter options: All, Unpaid, Partial, Paid, Overdue.
+
+### 5.6 Payments
+- A payment always belongs to one invoice. Fields:
+  - Amount Received: required, greater than 0, and **no more than the remaining balance** ("Amount can't exceed the remaining balance (X).").
+  - Payment Date: required, not before the invoice issue date.
+  - Method: Cash, Bank transfer, Card, PayPal or Other.
+  - Reference / Transaction ID: optional.
+  - Internal Notes: optional.
+- Invoice money summary: Total invoiced, Amount paid, Remaining (or **Overpaid**, if an edit lowered the total below what was already paid), percentage settled with a progress bar, and the list of payments.
+- "Record Payment" is disabled when nothing is left to pay.
+- Edit Payment lets the user change any field or delete the payment.
+- Payment History lists every payment, with search and a method filter.
+- Customer balances (total invoiced, paid, outstanding, overdue, invoice count) are always calculated.
+- Deleting an invoice **also deletes its payments**. The current confirmation doesn't say this; please include it in the copy.
+
+### 5.7 Subscription plans (RevenueCat + Google Play)
+
+| Plan | Invoices per calendar month | Older invoices | Customer history | Fallback display price (monthly / yearly) |
+|---|---|---|---|---|
+| Free | 5 | Only for 24 hours after each invoice is created | Locked | — |
+| Starter "For freelancers" | 15 | Yes | Yes | $5 / $48 |
+| Business "Growing operations" — badge "MOST POPULAR" | 40 | Yes | Yes | $10 / $96 |
+| Pro "Established teams" | 100 | Yes | Yes | $15 / $144 |
+| Unlimited "Maximum scale" | Unlimited | Yes | Yes | $20 / $192 |
+
+Plan card features are generated from rules: "N invoices / month" or "Unlimited invoices", "Historical invoices" or "Recent invoices only (24 hours)", "Historical customers" or "Customer history locked", and "Works offline".
+
+- **Prices:** the localized Google Play price appears once it has loaded. The USD prices above are shown only when the store can't be reached. A yearly saving ("Save X%") is shown only when the real store prices make yearly cheaper.
+- **Allowance:** monthly and yearly versions of a plan have the same monthly allowance. It **resets on the 1st of each calendar month** in local time. Deleting an invoice does **not** give the slot back. Editing an invoice doesn't use a slot; duplicating one does.
+- **Usage meter** (on the Dashboard and the Pricing screen): "X of Y invoices" with a bar and "Resets 1 Nov", or "Unlimited invoices".
+- **Limit reached:**
+  - Tapping New Invoice or Duplicate at the limit opens a modal: "Monthly invoice limit reached", the plan name, "X of Y used", "Your plan includes N invoices a month. Upgrade to create more — your existing invoices are safe.", with buttons **View Plans** and **Not now**.
+  - The same check runs again on Save. The modal appears there too, and the work in progress is kept.
+- **Free 24-hour lock:** an invoice older than 24 hours opens as a full-screen locked view (lock icon, "Historical invoices are locked", invoice number and created date, "Free plans can open an invoice for 24 hours after it is created. Upgrade to open older invoices — nothing has been deleted.", with **View plans** and **Go back**). This covers Invoice Detail, Edit Invoice, the PDF screen, Record Payment and Edit Payment. In lists, these rows show a **Locked** badge.
+- **Customer History** is locked on Free. A modal says "Customer history is locked" with the customer name and "Basic customer info stays available — nothing is locked or removed." Customer contacts themselves are never locked.
+- **Pricing screen** ("Plans & Subscription"):
+  - An optional reason banner (invoice limit, locked invoice or locked customer) with an **Upgrade now** button.
+  - A "Verify your subscription" banner when the plan is stale.
+  - A Current Plan card: plan name, status pill, renewal or end date line, offline note, usage meter, plan features, Change Plan, **Manage Subscription** (only for an active Google Play subscription), Restore Purchases and Customer Center.
+  - A Monthly / Yearly toggle.
+  - Plan cards with these CTAs:
+    - "Upgrade to X", "Switch to X", "Current plan" (disabled) or "Working…".
+    - For a downgrade: "Starts at your next renewal — you keep your current plan until then."
+    - On Free, for a paid user: "Switch to Free", with "Cancel your subscription in Google Play. You keep your paid plan until the end of the billing period." Once cancelled: "Your X plan ends <date>. Metriqo moves to Free automatically after that."
+  - A store error card with Retry.
+  - Fine print: Google Play handles billing, and "Your invoices, customers and payments always stay saved on this device."
+- **Statuses to design:** Free, Active ("Renews <date>"), Cancelled but active ("Access ends <date> — it will not renew"), Expired, Billing issue, Pending, Unknown, Offline, Restoring, Loading.
+- **Offline:** a paid plan last confirmed by RevenueCat keeps working offline for up to **3 days** after that check. After that the app applies Free rules (so older invoices look locked) until it reconnects. Purchases, restores and plan changes need internet. Moving to Free never deletes data.
+
+### 5.8 What works offline
+- **Fully offline:** dashboard; invoices (create, edit, duplicate, delete); customers; items; payments; PDF generation and templates; QR code; business card; app lock.
+- **Needs internet:**
+  - Google Drive sign-in, backup and restore.
+  - Cloud backup.
+  - Subscription purchase, restore, verification and Customer Center.
+  - Actually sending something through WhatsApp, email or the share sheet.
+  - Opening website and map links.
+- Today there is **no global offline indicator**. Offline state appears only on the Pricing screen and in backup errors ("You're offline — connect to the internet to back up or restore."). Design offline states for those surfaces. A small global offline indicator is optional and NEW.
+
+### 5.9 Backup and restore (Google Drive)
+- **Sign in with Google / Sign out.** Sign-out confirmation: "Sign out of Google Drive? You can sign back in any time — your existing backups stay on Drive."
+- **Backup now:** shows "Backing up…" while running, then an alert: "Backup complete" or "Backup failed" with the reason.
+- **Automatic Daily Backup** toggle. It runs at most about once a day, and only when the app is opened or brought to the foreground while signed in. It is not a true background job, so don't promise backups while the app is closed.
+- **Last Successful Backup** card: time, archive size, and counts (invoices, customers, items). A "Last attempt" row shows the status.
+- The 10 most recent Drive backups are kept.
+- **Backup History:** a summary (number of backups, total size), the list of Drive backups each with **Restore**, an attempt log with filter chips (All / Automatic / Manual), **Retry** on failed backups, and a "Create Manual Backup Now" button.
+- **Restore confirmation** (one destructive dialog): "Restore this backup? This replaces all data currently on this device with the backup from <date>. This cannot be undone." with Cancel and Restore. The file is checked before anything changes, and the restore is all-or-nothing. If it fails: "Restore failed — Your existing data was not changed." On success: "Restore complete." **No safety copy of the current data is taken before restoring.**
+- **Cloud Backup** (optional paid add-on) screens exist: an enable toggle, storage used vs limit (Free 250 MB; Plus 5 GB marked "Coming soon"), status, Backup now, Cloud Backup History with restore, and an Upgrade Storage plan picker. **The cloud server is not deployed**, so today these screens show a "not configured" error. Redesign them, but label them "backend not live". Keep them visually separate from the RevenueCat invoice plans, because the two are easy to confuse.
+
+### 5.10 PDF and sharing
+- The PDF is built on the phone from HTML, with page numbers added afterwards.
+- **Templates:** Classic (serif type, black borders), Modern (blue header band, blue totals) and Compact (denser). The default is chosen in settings. The template can be switched on the preview screen, but that choice is not saved to the invoice.
+- **PDF content, top to bottom:**
+  - Logo (at most 48 × 140 px), business name, address, phone, email, website and Tax ID.
+  - "Invoice", the invoice number and a payment-status badge.
+  - **Bill to:** name, address, phone, email, website.
+  - Invoice date and due date.
+  - Line-item table.
+  - Totals: Subtotal, Discount, Tax, Total, Paid, and Remaining or Overpaid.
+  - Payment history table: date, method, reference, amount.
+  - Notes and Terms.
+- **Table columns follow the invoice's method:** Item (with description underneath), SKU, Qty, Unit, Weight, Length, Width, Height, Unit price, Discount, Tax, Total. Only the method's fields appear. Columns are weighted so they always fit the page width; a Volume invoice is the densest case.
+- **Constraints to solve:**
+  - Body text is currently 7.5–9 px, which is too small. Propose a readable layout that still fits a portrait page with up to about 10 columns.
+  - The page size isn't set explicitly. Specify safe areas for both A4 and US Letter.
+  - Rows must not split across pages, and the table header must repeat on each page.
+- **PDF Preview & Share screen:**
+  - A header strip with status, customer and total.
+  - A template selector.
+  - An in-app preview. This is a native re-drawing, not the real PDF; say so in the UI.
+  - **Quick share:**
+    - **WhatsApp** opens a chat with a text message (number, total, remaining and an app link). It does **not** attach the PDF.
+    - **Email PDF** attaches the PDF, addressed to the customer's email if known. It is hidden or disabled when no email app exists.
+    - **Share Link** opens the system share sheet with the app link.
+  - A sticky bar with **Share PDF** (system share sheet with the file) and **Preview PDF** (system print preview).
+  - Loading, not-found and error states, plus a "Couldn't complete this action" alert for each failure.
+- **Share links** are app deep links (`metriqo://invoice/<id>`, `metriqo://card/<slug>`). They only open on a phone that has Metriqo installed, and they are not web pages. Don't design them as "view online" links (see §11).
+
+### 5.11 Digital business card
+- **Fields** (one combined form with the business profile): business name, owner/contact name, logo, phone, email, website, address, currency, tax/VAT number, and social links (WhatsApp Business, Facebook Page, Instagram Handle, Google Maps Location).
+- **Business Card screen:** a card preview (including a small QR code containing a vCard contact) and contact actions.
+- **QR Code screen:** a large QR code (it currently encodes the `metriqo://` link), the link text, and "Share QR Link".
+- **Share Card screen:** quick share via WhatsApp, Email, SMS, or More (system share); a "Share business card" button; and a link to the QR code.
+
+---
+
+## 6. Screens to redesign — EXISTING – REDESIGN
+
+For each screen, design the default state plus the states listed. Common states: loading spinner; load error ("Couldn't load …" with **Try again**); not found ("This invoice no longer exists." with **Go back**); empty; field validation (an inline red message under the field with a red border); save failure alert ("Couldn't save — … Please try again."); submitting ("Saving…", button disabled).
+
+**A. App level**
+1. **Startup:** loading, and the error "Couldn't open the local database."
+2. **App Lock gate:** shown on launch and on return when enabled. "Use Face ID / fingerprint, or your device passcode, to continue." (Use Android wording: fingerprint, face unlock, or device PIN.)
+
+**B. Home**
+3. **Dashboard:**
+   - A greeting header with the business name and Tax ID.
+   - Quick actions: New Invoice, Add Client, Record Payment (which picks an invoice first).
+   - A usage meter card that opens Plans.
+   - A 2×2 metrics grid: Total Sales, Collected, Outstanding, Overdue. These are all-time totals with no date range.
+   - A status breakdown with paid / pending / overdue counts.
+   - **Recent invoices:** today's invoices, or the 5 most recent if none today. Show a count badge and "See all". Each row has the number, customer, amount, status and an optional Locked badge.
+   - States: empty ("You haven't created any invoices yet."), loading, error.
+
+**C. Business**
+4. **Business hub:**
+   - Logo and name, Business ID (code), next invoice number preview.
+   - Registration & Contact: address, phone, email, website, tax/VAT.
+   - Configuration links: Business profile, Business settings, Invoice settings, Invoice type, Digital business card.
+   - Quick Access tiles: Dashboard, Business card, Items, Customers, Invoices, Payments, Settings.
+5. **Edit Business:** this one form also edits the business card. Fields:
+   - Business Name* and Owner/Contact Name.
+   - Logo picker: pick from photos, or remove.
+   - Phone, Email Address, Website, Business Address.
+   - Base Currency (3-letter code).
+   - Tax / VAT Number.
+   - Invoice Prefix, with a read-only next-number preview.
+   - Social links: WhatsApp Business, Facebook Page, Instagram Handle, Google Maps Location.
+   - Inline validation on each field.
+6. **Business Settings:** the only working parts are links to Business profile, Invoice settings, Invoice type, Digital business card, and Default Payment Terms. Everything else is placeholder. Recommend merging this screen into Settings.
+7. **Invoice Settings:**
+   - Numbering: Prefix (editable), Next Sequence (read-only), and a live number preview.
+   - Currency (3-letter code).
+   - Pricing Method default (dropdown) and "Configure invoice fields" (opens Custom).
+   - Default tax rate (%).
+   - Default Due Date Rules: No default, Due on receipt, Net 7, Net 15, Net 30, Net 45, Net 60. This pre-fills the due date and terms on new invoices.
+   - Invoice template selection.
+8. **Invoice Type (Pricing Method) selection:** a card for each of the nine methods, with icon, description, radio button and an "ACTIVE" badge, plus an "Applies to new invoices" note. Tapping a fixed method saves and goes back. Tapping Custom opens the Custom builder.
+9. **Custom Invoice Type:** a field checklist grouped into sections. Item Name and Unit Price are always on and cannot be turned off. Includes a live sample preview ("sample values, not real data"), "Save Custom Configuration", and a selected-fields counter.
+
+**D. Items (catalog)**
+10. **Item List:**
+    - Search with a live count, an A–Z / Price sort, and pricing-method filter chips with counts (shown only for methods in use).
+    - Item cards show name, method, unit, price and price mode.
+    - A floating "Add Item" button, and delete with confirmation.
+    - **Picker mode ("Select Item"):** limited to one method, with no chips, and offers "create new item".
+    - Empty and search-empty states.
+11. **Create Item / Edit Item:**
+    - Item Name*.
+    - SKU.
+    - Pricing method. On Edit, changing it is behind "Change pricing method".
+    - Billing Unit, shown when relevant.
+    - The Unit Price / Total Item Price toggle and price.
+    - Tax rate: presets plus a custom %.
+    - Measurement fields for the method (weight + unit; length, width, height + unit).
+    - Description.
+    - Edit Item also has delete.
+
+**E. Customers**
+12. **Customer List:**
+    - Search, with rows showing avatar initials, name, contact and balance information.
+    - "+ New customer", and delete with confirmation.
+    - **Picker mode ("Select Customer"):** step 1 of New Invoice, also with "create new" (the new customer is selected automatically).
+    - Empty state.
+13. **Create Customer:**
+    - Full or Company Name*, Phone Number, Billing Email, Website.
+    - Address entry: Street and Number, City / Town, Postcode / ZIP, State / County, Country. These are **combined into one stored address**.
+    - Notes, up to 500 characters with a counter.
+    - Cancel / Save Customer.
+14. **Edit Customer:** Name*, Phone, Email, Website, Address (one field), Notes, and delete.
+15. **Customer Detail:**
+    - Name and contact chips.
+    - Outstanding balance with an overdue badge, the collected vs unpaid percentage, Total Invoiced (with invoice count) and Paid to Date.
+    - Buttons: Create Invoice (skips the customer step) and Record Payment (pick one of this customer's invoices).
+    - Contact actions: email, WhatsApp, website, directions.
+    - Tabs: Invoices / Payments, each with a count. Invoice rows can show a Locked badge.
+    - "View full history" (locked on Free, opens a modal).
+    - States: empty tabs ("No invoices yet." / "No payments yet.").
+16. **Customer History** (paid plans): a timeline of the customer's invoices and payments grouped by date, with the summary card. On Free this screen shows the locked view.
+
+**F. Invoices**
+17. **Invoice List:**
+    - Search ("Search invoices, clients, INV#…"), status chips (All / Unpaid / Partial / Paid / Overdue), and sort (Newest / Oldest).
+    - An outstanding summary.
+    - Rows show number, customer, date, total, status and an optional Locked badge.
+    - Create invoice (with the limit guard).
+    - **Picker mode:** used for Record Payment; can be limited to one customer.
+    - States: empty, no results.
+18. **New Invoice step 1, Select Customer:** Customer List in picker mode. It currently has no step indicator.
+19. **Invoice Items (step 2):**
+    - A "Bill to" chip.
+    - The Pricing Method dropdown (read-only when editing).
+    - Line cards, each with edit and remove (confirmation: "Remove "<name>"?").
+    - "Add Line Item" (from the catalog) and "Add custom line".
+    - Empty state: "No items added yet — Tap below to add catalog items or enter custom services."
+    - A sticky dock with totals and "Continue to review". Without lines, continuing shows the alert "Add at least one item".
+    - Also used when editing an invoice and when duplicating one.
+20. **Line Item editor:** see §5.2 and §5.3. Includes "Remove line" (with confirmation) when editing an existing line, and discount preset chips: 0%, 5%, 10%.
+21. **Review (step 3):**
+    - Invoice number preview ("Next number, reserved on save", or the existing number when editing).
+    - Customer card: name, address, email.
+    - Pricing method.
+    - Payment & Timing: Issue date* and Due date. Validation: "Due date cannot be before the issue date."
+    - Items Billed (N) with "Review details", which goes back to Items.
+    - Totals.
+    - Notes & Payment Terms, collapsible.
+    - Primary action: "Save & Issue Invoice (£total)", then "Saving…".
+    - The limit modal can appear on save.
+22. **Invoice Detail:**
+    - Header: pricing method, and an overflow menu with Edit invoice, Duplicate, Download PDF and Delete invoice (destructive confirmation).
+    - Hero: invoice number, status badge, a customer tile (opens Customer Detail), Issued On, and timing ("Due in N days", "Due today", "Overdue by N days", "No due date" or "Settled").
+    - Balances card: Remaining or Overpaid, Total Invoiced, Amount Paid, settlement % bar.
+    - Contact actions: call, email, website, directions.
+    - Line items (read-only) and totals.
+    - Payment history: summary and rows (tap to edit). Empty: "No payments recorded yet."
+    - Payment terms and notes.
+    - Sticky bar: Edit, Share PDF, and Record Payment (primary; disabled when fully paid).
+    - States: loading, not found, error, locked.
+23. **Edit Invoice:** loads the invoice into Items → Review. The customer and pricing method can't be changed.
+
+**G. Payments**
+24. **Record Payment:** an invoice summary (Outstanding Balance, or Overpaid), the payment form (§5.6), and a "Record £X Payment" button.
+25. **Edit Payment:** the same form, plus a delete confirmation.
+26. **Payment History:** search, method filter chips (All, Cash, Bank transfer, Card, PayPal, Other), rows grouped by date (amount, method, invoice number, customer), and an empty state.
+
+**H. PDF**
+27. **Invoice PDF Preview & Share:** see §5.10.
+
+**I. Business card**
+28. **Business Card**, 29. **QR Code**, 30. **Share Card**: see §5.11. The QR screen has an empty state when there is no card yet.
+
+**J. Settings and account**
+31. **Settings hub:**
+    - Business: Business profile, Digital business card.
+    - Invoice: Invoice type, Invoice numbering, Currency, Tax, Payment terms, Invoice template. Each row shows its current value.
+    - Backup: Backup & restore, Cloud backup.
+    - Security.
+    - Account: Plans & subscription, Account.
+32. **Invoice Templates:** Classic / Modern / Compact cards with previews, "Current active layout", the note "nothing already generated changes retroactively", and **Done**.
+33. **Security:**
+    - App Lock toggle.
+    - Biometric Unlock toggle, disabled or explained when the device has no biometrics.
+    - States: loading, error.
+34. **Account:**
+    - Business identity ("All data stored locally on this device").
+    - An explanation that there is no account.
+    - A subscription card with the plan pill and Plans & subscription.
+    - The cloud storage promo, which is the separate add-on.
+    - Restore Purchases.
+    - "Log out", which only explains that there is nothing to log out of. Recommend removing it.
+
+**K. Backup**
+35. **Backup & Restore**, 36. **Backup History**: see §5.9. Include states for: not signed in, not configured, signing in, running, success, failure, offline, and no backups yet.
+37. **Cloud Backup**, 38. **Cloud Backup History**, 39. **Upgrade Storage**: see §5.9. Label them "backend not live".
+
+**L. Subscription**
+40. **Plans & Subscription (Pricing):** see §5.7.
+
+**Global overlays:** Invoice Limit modal, Customer History Locked modal, full-screen Locked view, Locked badge, Usage meter, native confirmation dialogs (please design a consistent custom dialog component), and the share sheet hand-off.
+
+---
+
+## 7. Flows to design end-to-end (with every state)
+
+1. **New invoice:** Dashboard → limit check (modal if the limit is reached) → Select Customer (or create one inline) → Invoice Items (choose method; add from catalog, filtered, or create an item inline; or add a custom line) → Line editor (both price modes; validation) → Review (dates, notes, totals) → Save → limit check again → Invoice Detail.
+2. **Change pricing method** with lines already added: the safe switch and the destructive switch.
+3. **Edit invoice** and **Duplicate invoice** (duplicate uses a slot; the method can change).
+4. **Record a payment:** from Invoice Detail, from Customer Detail (pick invoice), and from the Dashboard (pick invoice). Include partial → paid, the amount-too-high validation, and edit or delete a payment.
+5. **Share an invoice:** PDF preview → change template → WhatsApp / Email (available and unavailable) / Share Link / Share PDF / Preview PDF, plus the failure alert.
+6. **Free-plan limits:** usage meter → limit modal → Plans → purchase states (working, success, cancelled, pending, store unavailable, offline); locked invoice → View plans; locked customer history.
+7. **Subscription management:** upgrade, deferred downgrade, switch to Free (cancel in Google Play), restore purchases, offline more than 3 days → "Verify your subscription".
+8. **Google Drive:** sign in → Backup now → automatic backup toggle → Backup History → Restore confirmation → success, failure, or file invalid (data unchanged) → offline error.
+9. **Business setup:** first launch with an empty profile → Edit Business (logo, currency, prefix) → Invoice Settings → pricing method default → Custom fields.
+10. **Business card:** edit → preview → QR → share.
+
+---
+
+## 8. Components to specify (with all variants and states)
+
+Colour, typography, spacing, radius and elevation tokens; screen scaffold (header, safe areas, scroll, sticky footer or dock); header (back, title, right action, overflow menu); bottom tab bar; buttons (primary, secondary, text, destructive, icon; default, pressed, disabled, loading); text input, multiline, money input (currency symbol), number input with unit suffix, and search field; dropdown or select sheet with "+ Add custom unit"; date field (Android date picker); segmented toggle (Unit Price / Total Item Price, Monthly / Yearly, tabs); switch row; filter chips with counts; list rows (invoice, customer, item, payment, settings row with value and chevron); cards (summary, metric tile, stat, balance with progress bar, empty state, error state); badges (the four payment statuses, Locked, plan pill, ACTIVE, MOST POPULAR, count badge); usage meter; dialog / modal / bottom sheet (confirm, destructive confirm, limit, locked); full-screen locked view; inline banners (info, warning, offline, error); step indicator for the New Invoice wizard (3 steps, including the customer step); line-item card and live line-total preview; totals summary; avatar with initials; logo picker; QR card; template preview card; toast or snackbar (NEW: the app currently uses native alerts for everything).
+
+---
+
+## 9. Placeholders to remove (they do nothing today)
+
+Dashboard sales trend chip; "Fixed £" discount chip; line reorder handle; barcode scan button; item stock badge, usage stats and item image; Backup Frequency, Include PDF Attachments, Restore from File (.metriqo); Business Settings preferences (Active Status, Tax Inclusive Pricing, Fiscal Year End, Timezone & Format, Auto Payment Receipts, SMS Reminders, Biometric Authorization, Export Ledger, Archive Business Account); Industry/Tagline and phone country code on Edit Business; Late Fee Policy and Default Notes & Terms on Invoice Settings; QR Save Image, Add to Wallet, Print Desk Standee; vCard file and PDF summary export on Share Card; Restore Purchases on Upgrade Storage; customer Net 7 / Net 14 default terms toggles; Client ID, Active status, Verified badge, Tax ID chip and date filter on Customer Detail; ID and health badges on Customer History; customer code, VAT badge, health bar, City/Postcode/Country fields on Edit Customer; customer list ledger tag; invoice-level Add Discount and Add Shipping; cash-flow sparkline on Invoice List; editable invoice number, change-customer button, Client Purchase Order, Instant Dispatch, Save as Draft and the DRAFT pill on Review; Export CSV and Void on Invoice Detail; Export ledger and Date range on Payment History; Send receipt on Record Payment; Bank Details & Payment QR, SMS share, zoom/page/file-size stats on PDF Preview; Account Credentials rows; Lock Timeout, Sensitive Action Confirmation, Change Passcode, Device Sessions and Two-Factor Authentication on Security; Export Tax & Audit Bundle on Settings.
+
+---
+
+## 10. Optional new screens and features — NEW – NEEDS DEVELOPMENT
+
+Show these separately, clearly labelled, and only as ideas. None of them exist.
+
+- **Reports:** there is no Reports screen. The Dashboard has only all-time totals. An optional Reports screen could cover sales by period, outstanding by customer, and payments by method.
+- Invoice workflow status (Draft / Sent) and saving a draft.
+- A web-viewable invoice link and business-card page (would need a hosted service).
+- A safety backup of current data before restoring, and restore from a local file.
+- Invoice-level discount and shipping/fee lines.
+- A global offline indicator, toasts, dark mode.
+- Structured customer address fields stored separately; a per-customer default payment term.
+- Applying the business default tax rate automatically to new lines and items.
+
+---
+
+## 11. Known inconsistencies — design for current behaviour and flag each one in your notes
+
+1. The Review screen says "DRAFT" and "Ready to issue", and Invoice Detail says "Issued Invoice", but there is no draft state. Saving issues the invoice.
+2. The step indicator reads "Step 2 of 3 · Next: Payment & Review" on Items and "Step 3 of 3" on Review, but step 1 (Select Customer) shows no indicator.
+3. **Time method:** the time-unit dropdown is not shown in the line editor (it's inside a card that only appears for weight or length fields), and catalog items have no time unit. Time lines therefore always use "hour". Design the time-unit selector as intended; developers must fix this.
+4. **Custom method:** weight, length, width and height can be turned on, but the price is still quantity × price; those values are only informational. Also, the chosen custom field set isn't saved with each invoice, so changing it later changes which columns old Custom invoices show on the PDF.
+5. The default tax rate in Invoice Settings is saved but not applied anywhere.
+6. Create Customer has structured address fields, but Edit Customer has a single address field (plus placeholder City/Postcode/Country). Customer data stores one address string.
+7. The QR Code screen encodes a `metriqo://` app link, which a customer's camera can't use without the app. The small QR on the card preview encodes a vCard, which works anywhere. Invoice and card links are app-only links that the app doesn't currently route to a screen.
+8. Deleting a customer who has invoices fails with a generic "Please try again." message. The real reason is that their invoices must be deleted first.
+9. The invoice delete confirmation doesn't mention that payments are deleted too.
+10. "VAT" vs "Tax" wording is mixed. "Biometric Unlock (Face ID)" uses iOS wording on an Android app.
+11. The Account screen offers both "Plans & subscription" (invoice plans) and "Upgrade to Plus" (cloud storage, "Coming soon"). These are easy to confuse.
+12. "Email PDF" is shown with a placeholder label when no email app exists, instead of a clear "No email app" state.
+13. Bottom bars and sticky footers don't add the bottom safe-area inset. On Android gesture or 3-button navigation they may sit under the system bar (needs screenshot confirmation).
+
+---
+
+## 12. Accessibility and Android requirements
+
+- WCAG 2.2 AA contrast: 4.5:1 for body text and 3:1 for large text and icons. Never use colour alone for status; always pair it with a text label.
+- Touch targets of at least 48 × 48 dp, with 8 dp spacing between them.
+- Support font scaling up to 200%: no clipped money values, and long names wrap or truncate with ellipsis on purpose.
+- Respect Android safe areas: status bar, display cutouts, the gesture bar, and 3-button navigation. Apply bottom insets to tab bars, sticky docks and modals. Handle the keyboard on forms (sticky actions must stay visible above it).
+- Money: right-aligned tabular figures, the business currency symbol, two decimals, negative discounts shown as "-£x".
+- Screen reader labels for icon-only buttons, a selected state on chips and toggles, and announced errors.
+- Portrait phone sizes: design at 360 × 800 dp and check 412 × 915 dp.
+
+---
+
+## 13. Deliverables
+
+1. **Design system:** tokens (colour with the proposed changes, type, spacing, radius, elevation, icon sizes), and the logo set from §3.
+2. **High-fidelity screens** for every EXISTING screen in §6, each with its states (default, loading, empty, error, validation, offline, locked, disabled, success).
+3. **Connected flows** for §7, showing transitions, dialogs and the alerts users see.
+4. **Component specifications** for §8: anatomy, variants, states, sizes in dp, and tokens used.
+5. **PDF template designs** for Classic, Modern and Compact, on A4 and Letter, with a General invoice and a dense Volume invoice spanning two pages.
+6. **Screen-by-screen developer handoff** for React Native + Expo:
+   - Layout in dp; which token each value maps to; Feather icon names.
+   - Which parts are scroll content and which are sticky; safe-area and keyboard behaviour.
+   - Which native control to use (Switch, the Android date picker, the system share sheet, the system print preview).
+   - Tags: EXISTING – REDESIGN vs NEW – NEEDS DEVELOPMENT, and structural navigation changes.
+   - A list of removed placeholders.
+   - A list of the inconsistencies from §11 with your proposed design treatment for each.
+7. A **separate page** for the optional NEW ideas from §10.

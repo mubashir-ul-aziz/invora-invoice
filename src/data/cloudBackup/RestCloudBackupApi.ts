@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import * as Network from 'expo-network';
 
@@ -22,7 +21,7 @@ const DEVICE_TOKEN_STORAGE_KEY = 'metriqo_cloud_backup_device_token';
  * API directly rather than pulling in Google's client library.
  *
  * **Requires configuration this environment cannot provide**: a deployed
- * backend URL, set as `expo.extra.cloudBackupApiUrl` in `app.json` (currently
+ * backend URL, set as `EXPO_PUBLIC_CLOUD_BACKUP_API_URL` in `.env` (currently
  * `""`, per `MVP_BUILD_PLAN.md` §10's still-open "Optional cloud backup
  * backend" decision — no such service has been built or chosen yet). Without
  * it, every method throws `CloudBackupNotConfiguredError` immediately
@@ -38,8 +37,8 @@ const DEVICE_TOKEN_STORAGE_KEY = 'metriqo_cloud_backup_device_token';
  */
 export class RestCloudBackupApi implements CloudBackupApi {
   private getBaseUrl(): string | undefined {
-    const extra = Constants.expoConfig?.extra as { cloudBackupApiUrl?: string } | undefined;
-    return extra?.cloudBackupApiUrl || undefined;
+    // Literal `process.env.EXPO_PUBLIC_…` access so Expo inlines it at bundle time.
+    return process.env.EXPO_PUBLIC_CLOUD_BACKUP_API_URL || undefined;
   }
 
   private async ensureOnline(): Promise<void> {

@@ -51,8 +51,6 @@
       "@react-native-community/datetimepicker"
     ],
     "extra": {
-      "googleDriveClientId": "",
-      "cloudBackupApiUrl": "",
       "eas": {
         "projectId": "a9d05f07-1a63-42f1-b413-608e84464b52"
       }

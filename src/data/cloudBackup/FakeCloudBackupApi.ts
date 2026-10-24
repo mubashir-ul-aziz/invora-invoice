@@ -29,7 +29,7 @@ export class FakeCloudBackupApi implements CloudBackupApi {
   simulateOffline = false;
   /** When true, every method throws `CloudBackupUnavailableError`. */
   simulateUnavailable = false;
-  /** When true, every method throws `CloudBackupNotConfiguredError` — simulates a build with no `cloudBackupApiUrl` set. */
+  /** When true, every method throws `CloudBackupNotConfiguredError` — simulates a build with no `EXPO_PUBLIC_CLOUD_BACKUP_API_URL` set. */
   simulateNotConfigured = false;
 
   private guard(): void {

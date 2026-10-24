@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import {
   AuthRequest,
@@ -58,14 +57,14 @@ interface StoredTokens {
  *
  * **Requires configuration this environment cannot provide**: a real Google
  * Cloud OAuth 2.0 client ID for this app's bundle id/package name, set as
- * `expo.extra.googleDriveClientId` in `app.json` (see "Known limitations" in
+ * `EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID` in `.env` (see "Known limitations" in
  * `IMPLEMENTATION_STATUS.md`). Without it, `signIn()` throws a clear,
  * actionable error instead of attempting a request that could never succeed.
  */
 export class ExpoGoogleDriveBackupService implements GoogleDriveBackupService {
   private getClientId(): string | undefined {
-    const extra = Constants.expoConfig?.extra as { googleDriveClientId?: string } | undefined;
-    return extra?.googleDriveClientId || undefined;
+    // Literal `process.env.EXPO_PUBLIC_…` access so Expo inlines it at bundle time.
+    return process.env.EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID || undefined;
   }
 
   private async loadTokens(): Promise<StoredTokens | null> {

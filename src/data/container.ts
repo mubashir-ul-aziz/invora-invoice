@@ -332,7 +332,7 @@ export function getCloudUpgradeService(): CloudUpgradeService {
 /**
  * See the doc comment on `RevenueCatAdapter`, and `resolveRevenueCatConfig`
  * for the key rules. RevenueCat **public** SDK keys come from environment
- * variables (`.env.local` for `expo start`, EAS build-profile env for cloud
+ * variables (`.env` for `expo start`, EAS build-profile env for cloud
  * builds):
  *
  *  - `EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY` (`test_…`) — read ONLY when

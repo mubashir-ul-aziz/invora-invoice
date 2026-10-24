@@ -20,7 +20,7 @@ export class CloudBackupUnavailableError extends Error {
 
 /**
  * Thrown by every `CloudBackupApi` method when this build has no cloud
- * backend to talk to — `expo.extra.cloudBackupApiUrl` is unset. Distinct
+ * backend to talk to — `EXPO_PUBLIC_CLOUD_BACKUP_API_URL` is unset. Distinct
  * from `CloudBackupUnavailableError` (a *real* backend that's having
  * trouble) so the UI can say "not set up yet" instead of "try again later" —
  * see `RestCloudBackupApi` and the "Known limitations" note this mirrors

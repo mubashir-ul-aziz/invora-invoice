@@ -98,7 +98,7 @@ export function resolveRevenueCatConfig({ isDev, platform, testStoreKey, googleP
     issue = 'No RevenueCat key for iOS in this build.';
   } else {
     issue = isDev
-      ? 'No RevenueCat key in this bundle. Set EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY in .env.local and restart `expo start --clear`.'
+      ? 'No RevenueCat key in this bundle. Set EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY in .env and restart `expo start --clear`.'
       : 'No RevenueCat key in this build. Set EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY (goog_…) for this EAS build profile.';
   }
   return { apiKey: null, store: null, issue };

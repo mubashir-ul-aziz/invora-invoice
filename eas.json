@@ -7,9 +7,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_REVENUECAT_TEST_STORE_API_KEY": "test_RzMAKSICYkgzcDHSRAxrYNmpqXP"
-      }
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
