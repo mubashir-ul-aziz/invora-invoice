@@ -38,17 +38,30 @@ export const REVENUECAT_OFFERING_ID = 'metriqo_premium';
 /** The one RevenueCat entitlement every paid product unlocks. */
 export const REVENUECAT_ENTITLEMENT_ID = 'metriqo_premium';
 
+/** A whole number ≥ 0, or `unlimited`; anything else (incl. unset) keeps the default. */
+function envLimit(value: string | undefined, fallback: number): number {
+  const raw = value?.trim().toLowerCase();
+  if (!raw) {
+    return fallback;
+  }
+  if (raw === 'unlimited') {
+    return Infinity;
+  }
+  return /^\d+$/.test(raw) ? Number(raw) : fallback;
+}
+
 /**
  * Invoices per **calendar month** for each plan — the same number for the
  * monthly and yearly product of a tier (never multiplied by 12).
- * `Infinity` = no limit.
+ * `Infinity` = no limit. Overridable per plan via `EXPO_PUBLIC_<PLAN>_MONTHLY_INVOICE_LIMIT`
+ * in `.env`; these must stay literal `process.env.EXPO_PUBLIC_…` reads so Expo inlines them.
  */
 export const PLAN_LIMITS: Readonly<Record<PlanId, number>> = {
-  free: 5,
-  starter: 15,
-  business: 40,
-  pro: 100,
-  unlimited: Infinity,
+  free: envLimit(process.env.EXPO_PUBLIC_FREE_MONTHLY_INVOICE_LIMIT, 5),
+  starter: envLimit(process.env.EXPO_PUBLIC_STARTER_MONTHLY_INVOICE_LIMIT, 15),
+  business: envLimit(process.env.EXPO_PUBLIC_BUSINESS_MONTHLY_INVOICE_LIMIT, 40),
+  pro: envLimit(process.env.EXPO_PUBLIC_PRO_MONTHLY_INVOICE_LIMIT, 100),
+  unlimited: envLimit(process.env.EXPO_PUBLIC_UNLIMITED_MONTHLY_INVOICE_LIMIT, Infinity),
 };
 
 /** How long a Free user keeps access to an invoice after `invoice.createdAt`. */
@@ -94,10 +107,39 @@ export interface PlanConfig {
   products: Record<BillingPeriod, PlanProduct> | null;
 }
 
+/** A trimmed env value, or the fallback when unset/blank. */
+function envId(value: string | undefined, fallback: string): string {
+  return value?.trim() || fallback;
+}
+
+/**
+ * Store / RevenueCat product id for each plan + period. Overridable via
+ * `EXPO_PUBLIC_<PLAN>_<PERIOD>_PRODUCT_ID` in `.env`; these must stay literal
+ * `process.env.EXPO_PUBLIC_…` reads so Expo inlines them.
+ */
+export const PRODUCT_IDS: Readonly<Record<PaidPlanId, Record<BillingPeriod, string>>> = {
+  starter: {
+    monthly: envId(process.env.EXPO_PUBLIC_STARTER_MONTHLY_PRODUCT_ID, 'metriqo_starter_monthly'),
+    yearly: envId(process.env.EXPO_PUBLIC_STARTER_YEARLY_PRODUCT_ID, 'metriqo_starter_yearly'),
+  },
+  business: {
+    monthly: envId(process.env.EXPO_PUBLIC_BUSINESS_MONTHLY_PRODUCT_ID, 'metriqo_business_monthly'),
+    yearly: envId(process.env.EXPO_PUBLIC_BUSINESS_YEARLY_PRODUCT_ID, 'metriqo_business_yearly'),
+  },
+  pro: {
+    monthly: envId(process.env.EXPO_PUBLIC_PRO_MONTHLY_PRODUCT_ID, 'metriqo_pro_monthly'),
+    yearly: envId(process.env.EXPO_PUBLIC_PRO_YEARLY_PRODUCT_ID, 'metriqo_pro_yearly'),
+  },
+  unlimited: {
+    monthly: envId(process.env.EXPO_PUBLIC_UNLIMITED_MONTHLY_PRODUCT_ID, 'metriqo_unlimited_monthly'),
+    yearly: envId(process.env.EXPO_PUBLIC_UNLIMITED_YEARLY_PRODUCT_ID, 'metriqo_unlimited_yearly'),
+  },
+};
+
 function paidProducts(plan: PaidPlanId): Record<BillingPeriod, PlanProduct> {
   return {
-    monthly: { productId: `metriqo_${plan}_monthly`, packageId: `${plan}_monthly` },
-    yearly: { productId: `metriqo_${plan}_yearly`, packageId: `${plan}_yearly` },
+    monthly: { productId: PRODUCT_IDS[plan].monthly, packageId: `${plan}_monthly` },
+    yearly: { productId: PRODUCT_IDS[plan].yearly, packageId: `${plan}_yearly` },
   };
 }
 
