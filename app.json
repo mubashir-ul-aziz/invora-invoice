@@ -3,7 +3,7 @@
     "name": "Metriqo Invoice",
     "slug": "metriqo-invoice",
     "scheme": "metriqo",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -48,7 +48,17 @@
       ],
       "expo-web-browser",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.revenuecat.purchases.** { *; }\n-keep class com.android.billingclient.** { *; }"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
