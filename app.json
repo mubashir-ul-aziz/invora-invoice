@@ -58,7 +58,9 @@
             "extraProguardRules": "-keep class com.revenuecat.purchases.** { *; }\n-keep class com.android.billingclient.** { *; }"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {
