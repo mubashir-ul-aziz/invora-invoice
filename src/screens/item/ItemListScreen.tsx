@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextIn
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { ItemListRow } from '@/components/item/ItemListRow';
+import { FilterChip, FilterChipRow } from '@/components/shared/FilterChips';
 import {
   getInvoiceTypeDefinition,
   INVOICE_TYPE_REGISTRY,
@@ -190,32 +191,18 @@ export function ItemListScreen({ navigation, route }: Props) {
             </Text>
           </View>
         ) : (
-          <View testID="item-type-filter">
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={[{ id: 'all' as const, label: 'All Items' }, ...presentCategories]}
-              keyExtractor={(entry) => entry.id}
-              contentContainerStyle={styles.chipRow}
-              renderItem={({ item: entry }) => {
-                const active = categoryFilter === entry.id;
-                const count = entry.id === 'all' ? items.length : categoryCounts[entry.id as InvoiceTypeId] ?? 0;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Filter: ${entry.label}`}
-                    accessibilityState={{ selected: active }}
-                    testID={`item-type-filter-${entry.id}`}
-                    onPress={() => setCategoryFilter(entry.id as CategoryFilter)}
-                    style={[styles.chip, active && styles.chipActive]}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{entry.label}</Text>
-                    <Text style={[styles.chipCount, active && styles.chipCountActive]}>({count})</Text>
-                  </Pressable>
-                );
-              }}
-            />
-          </View>
+          <FilterChipRow testID="item-type-filter">
+            {[{ id: 'all' as const, label: 'All Items' }, ...presentCategories].map((entry) => (
+              <FilterChip
+                key={entry.id}
+                label={entry.label}
+                count={entry.id === 'all' ? items.length : categoryCounts[entry.id as InvoiceTypeId] ?? 0}
+                active={categoryFilter === entry.id}
+                onPress={() => setCategoryFilter(entry.id as CategoryFilter)}
+                testID={`item-type-filter-${entry.id}`}
+              />
+            ))}
+          </FilterChipRow>
         )}
       </View>
 
@@ -321,21 +308,6 @@ const styles = StyleSheet.create({
   sortButtonText: { fontSize: 12, fontWeight: '700', color: colors.text },
   lockedFilterNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   lockedFilterText: { flex: 1, fontSize: 12, color: colors.textMuted },
-  chipRow: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-  },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  chipTextActive: { color: colors.primaryText },
-  chipCount: { fontSize: 11, fontWeight: '500', color: colors.placeholder },
-  chipCountActive: { color: colors.primaryText, opacity: 0.8 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },

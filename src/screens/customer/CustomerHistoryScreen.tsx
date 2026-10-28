@@ -1,9 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
+import { FilterChip, FilterChipRow } from '@/components/shared/FilterChips';
 import { STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
 import type { Customer, CustomerActivityEntry, CustomerActivityType, CustomerBalanceSummary } from '@/domain/customer/types';
 import { INVOICE_STATUS_LABELS } from '@/domain/invoice/status';
@@ -267,34 +268,20 @@ function OverviewBanner({ customer, summary }: { customer: Customer; summary: Cu
 
 function FilterChipsRow({ filter, onChange }: { filter: ChipFilter; onChange: (value: ChipFilter) => void }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filterRow}
-      testID="history-type-filter"
-    >
-      {FILTER_CHIPS.map((chip) => {
-        const selected = filter === chip.value;
-        return (
-          <Pressable
+    <View style={styles.filterRow}>
+      <FilterChipRow testID="history-type-filter">
+        {FILTER_CHIPS.map((chip) => (
+          <FilterChip
             key={chip.value}
-            accessibilityRole="button"
-            accessibilityLabel={chip.label}
-            accessibilityState={{ selected }}
-            testID={`history-type-filter-${chip.value}`}
+            label={chip.label}
+            icon={chip.icon}
+            active={filter === chip.value}
             onPress={() => onChange(chip.value)}
-            style={({ pressed }) => [
-              styles.filterChip,
-              selected && styles.filterChipSelected,
-              pressed && !selected && styles.filterChipPressed,
-            ]}
-          >
-            <Feather name={chip.icon} size={14} color={selected ? colors.primaryText : colors.textMuted} />
-            <Text style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>{chip.label}</Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+            testID={`history-type-filter-${chip.value}`}
+          />
+        ))}
+      </FilterChipRow>
+    </View>
   );
 }
 
@@ -426,20 +413,7 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: 15, fontWeight: '700', color: colors.text },
   metricValuePrimary: { color: colors.primary },
 
-  filterRow: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingBottom: 12 },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-  },
-  filterChipPressed: { opacity: 0.7 },
-  filterChipSelected: { backgroundColor: colors.primary },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  filterChipTextSelected: { color: colors.primaryText },
+  filterRow: { paddingTop: 4, paddingBottom: 12 },
 
   sectionHeader: {
     flexDirection: 'row',

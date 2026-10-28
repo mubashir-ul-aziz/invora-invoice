@@ -1,13 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
 import { InvoiceListRow } from '@/components/invoice/InvoiceListRow';
 import { DateSectionHeader } from '@/components/shared/DateSectionHeader';
 import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
+import { FilterChip, FilterChipRow } from '@/components/shared/FilterChips';
 import { FAB_LIST_BOTTOM_PADDING, FloatingActionButton } from '@/components/shared/FloatingActionButton';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
@@ -201,32 +202,18 @@ export function InvoiceListScreen({ navigation, route }: Props) {
           </View>
 
           {!onSelectInvoice && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.chipScroll}
-              contentContainerStyle={styles.chipRow}
-              testID="invoice-status-filter"
-            >
-              {STATUS_FILTERS.map((option) => {
-                const active = statusFilter === option.value;
-                const count = option.value === 'all' ? entries.length : statusCounts[option.value] ?? 0;
-                return (
-                  <Pressable
-                    key={option.value}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Filter: ${option.label}`}
-                    accessibilityState={{ selected: active }}
-                    testID={`invoice-status-filter-${option.value}`}
-                    onPress={() => setStatusFilter(option.value)}
-                    style={[styles.chip, active && styles.chipActive]}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
-                    <Text style={[styles.chipCount, active && styles.chipCountActive]}>({count})</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <FilterChipRow testID="invoice-status-filter">
+              {STATUS_FILTERS.map((option) => (
+                <FilterChip
+                  key={option.value}
+                  label={option.label}
+                  count={option.value === 'all' ? entries.length : statusCounts[option.value] ?? 0}
+                  active={statusFilter === option.value}
+                  onPress={() => setStatusFilter(option.value)}
+                  testID={`invoice-status-filter-${option.value}`}
+                />
+              ))}
+            </FilterChipRow>
           )}
 
           {!onSelectInvoice && status === 'ready' && entries.length > 0 && (
@@ -366,24 +353,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   sortButtonText: { fontSize: 12, fontWeight: '700', color: colors.text },
-
-  // Bleeds past controlBar's 16px padding so chips scroll edge-to-edge, while the first chip still lines up with the search bar.
-  chipScroll: { flexGrow: 0, marginHorizontal: -16 },
-  chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-  },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  chipTextActive: { color: colors.primaryText },
-  chipCount: { fontSize: 11, fontWeight: '500', color: colors.placeholder },
-  chipCountActive: { color: colors.primaryText, opacity: 0.8 },
 
   summaryCard: {
     backgroundColor: colors.surface,

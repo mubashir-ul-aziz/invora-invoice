@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
+import { FilterChip, FilterChipRow } from '@/components/shared/FilterChips';
 import { formatBackupSize, formatBackupTimestamp } from '@/domain/backup/formatting';
 import type { BackupLogEntry, BackupTrigger } from '@/domain/backup/types';
 import type { RootStackParamList } from '@/navigation/types';
@@ -208,7 +209,7 @@ export function BackupHistoryScreen({}: Props) {
           <Text style={[styles.sectionHeader, styles.historyHeader]}>Backup &amp; restore history</Text>
 
           {/* Real filter chips over the real history log */}
-          <View style={styles.chipRow}>
+          <FilterChipRow>
             <FilterChip label="All" count={counts.all} active={filter === 'all'} onPress={() => setFilter('all')} />
             <FilterChip
               label="Automatic"
@@ -222,7 +223,7 @@ export function BackupHistoryScreen({}: Props) {
               active={filter === 'manual'}
               onPress={() => setFilter('manual')}
             />
-          </View>
+          </FilterChipRow>
 
           {history.length === 0 && (
             <Text style={styles.emptyState} testID="backup-history-empty">
@@ -246,33 +247,6 @@ export function BackupHistoryScreen({}: Props) {
         />
       }
     />
-  );
-}
-
-function FilterChip({
-  label,
-  count,
-  active,
-  onPress,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`Filter: ${label}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && styles.pressed]}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-      <View style={[styles.chipCount, active && styles.chipCountActive]}>
-        <Text style={[styles.chipCountText, active && styles.chipCountTextActive]}>{count}</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -353,25 +327,6 @@ const styles = StyleSheet.create({
   summaryMetric: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   summaryMetricText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
 
-  chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '600', color: colors.text },
-  chipTextActive: { color: colors.primaryText },
-  chipCount: { backgroundColor: colors.background, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1 },
-  chipCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  chipCountText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
-  chipCountTextActive: { color: colors.primaryText },
 
   row: {
     flexDirection: 'row',

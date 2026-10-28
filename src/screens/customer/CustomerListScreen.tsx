@@ -7,6 +7,7 @@ import { ActionButton } from '@/components/businessCard/ActionButton';
 import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
 import { CustomerListRow } from '@/components/customer/CustomerListRow';
 import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
+import { FilterChip, FilterChipRow } from '@/components/shared/FilterChips';
 import { FAB_LIST_BOTTOM_PADDING, FloatingActionButton } from '@/components/shared/FloatingActionButton';
 import { classifyBalanceStatus } from '@/domain/customer/activity';
 import type { Customer, CustomerBalanceSummary } from '@/domain/customer/types';
@@ -375,32 +376,30 @@ export function CustomerListScreen({ navigation, route }: Props) {
             </Pressable>
           </View>
 
-          <View style={styles.filterRow}>
-            <View style={styles.pillsRow}>
-              <FilterPill
-                label="All"
-                count={customers.length}
-                active={statusFilter === 'all'}
-                onPress={() => setStatusFilter('all')}
-                testID="customer-filter-all"
-              />
-              <FilterPill
-                label="Due"
-                count={dueCount}
-                active={statusFilter === 'due'}
-                onPress={() => setStatusFilter('due')}
-                testID="customer-filter-due"
-                danger
-              />
-              <FilterPill
-                label="Settled"
-                count={settledCount}
-                active={statusFilter === 'settled'}
-                onPress={() => setStatusFilter('settled')}
-                testID="customer-filter-settled"
-              />
-            </View>
-          </View>
+          <FilterChipRow>
+            <FilterChip
+              label="All"
+              count={customers.length}
+              active={statusFilter === 'all'}
+              onPress={() => setStatusFilter('all')}
+              testID="customer-filter-all"
+            />
+            <FilterChip
+              label="Due"
+              count={dueCount}
+              active={statusFilter === 'due'}
+              onPress={() => setStatusFilter('due')}
+              testID="customer-filter-due"
+              danger
+            />
+            <FilterChip
+              label="Settled"
+              count={settledCount}
+              active={statusFilter === 'settled'}
+              onPress={() => setStatusFilter('settled')}
+              testID="customer-filter-settled"
+            />
+          </FilterChipRow>
         </View>
       )}
 
@@ -495,52 +494,9 @@ export function CustomerListScreen({ navigation, route }: Props) {
   );
 }
 
-function FilterPill({
-  label,
-  count,
-  active,
-  danger,
-  onPress,
-  testID,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  danger?: boolean;
-  onPress: () => void;
-  testID: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Filter: ${label}`}
-      testID={testID}
-      onPress={onPress}
-      style={[styles.pill, active && styles.pillActive]}
-    >
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
-      <View
-        style={[
-          styles.pillCount,
-          active ? styles.pillCountActive : danger ? styles.pillCountDanger : styles.pillCountDefault,
-        ]}
-      >
-        <Text
-          style={[
-            styles.pillCountText,
-            active ? styles.pillCountTextActive : danger ? styles.pillCountTextDanger : styles.pillCountTextDefault,
-          ]}
-        >
-          {count}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  controlBar: { padding: 16, paddingBottom: 8, gap: 10, backgroundColor: colors.background },
+  controlBar: { padding: 16, paddingBottom: 10, gap: 10, backgroundColor: colors.background },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   searchPill: {
     flex: 1,
@@ -563,28 +519,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   sortButtonText: { fontSize: 12, fontWeight: '700', color: colors.text },
-  filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  pillsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-  },
-  pillActive: { backgroundColor: colors.primary },
-  pillText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  pillTextActive: { color: colors.primaryText },
-  pillCount: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 999 },
-  pillCountDefault: { backgroundColor: colors.background },
-  pillCountDanger: { backgroundColor: '#FBE4E2' },
-  pillCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  pillCountText: { fontSize: 10, fontWeight: '700' },
-  pillCountTextDefault: { color: colors.textMuted },
-  pillCountTextDanger: { color: colors.danger },
-  pillCountTextActive: { color: colors.primaryText },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },

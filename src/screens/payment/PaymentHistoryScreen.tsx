@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
+import { FilterChip, FilterChipRow } from '@/components/shared/FilterChips';
 import { PaymentListRow } from '@/components/payment/PaymentListRow';
 import { sumPayments } from '@/domain/payment/calculations';
 import { PAYMENT_METHOD_FILTER_OPTIONS } from '@/domain/payment/types';
@@ -104,24 +105,17 @@ export function PaymentHistoryScreen({ navigation }: Props) {
           />
         </View>
 
-        <View style={styles.chipRow} testID="payment-method-filter">
-          {PAYMENT_METHOD_FILTER_OPTIONS.map((option) => {
-            const active = filter.method === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                accessibilityRole="button"
-                accessibilityLabel={`Filter: ${option.label}`}
-                accessibilityState={{ selected: active }}
-                testID={`payment-method-filter-${option.value}`}
-                onPress={() => setFilter({ method: option.value })}
-                style={[styles.chip, active && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <FilterChipRow testID="payment-method-filter">
+          {PAYMENT_METHOD_FILTER_OPTIONS.map((option) => (
+            <FilterChip
+              key={option.value}
+              label={option.label}
+              active={filter.method === option.value}
+              onPress={() => setFilter({ method: option.value })}
+              testID={`payment-method-filter-${option.value}`}
+            />
+          ))}
+        </FilterChipRow>
       </View>
 
       {(status === 'loading' || status === 'idle') && (
@@ -256,11 +250,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: colors.text, padding: 0 },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.surface },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
-  chipTextActive: { color: colors.primaryText },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
