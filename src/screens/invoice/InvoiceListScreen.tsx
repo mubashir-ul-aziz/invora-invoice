@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
@@ -191,7 +191,13 @@ export function InvoiceListScreen({ navigation, route }: Props) {
         </View>
 
         {!onSelectInvoice && (
-          <View style={styles.chipRow} testID="invoice-status-filter">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+            contentContainerStyle={styles.chipRow}
+            testID="invoice-status-filter"
+          >
             {STATUS_FILTERS.map((option) => {
               const active = statusFilter === option.value;
               const count = option.value === 'all' ? entries.length : statusCounts[option.value] ?? 0;
@@ -210,7 +216,7 @@ export function InvoiceListScreen({ navigation, route }: Props) {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         )}
 
         {!onSelectInvoice && status === 'ready' && entries.length > 0 && (
@@ -347,7 +353,9 @@ const styles = StyleSheet.create({
   },
   sortButtonText: { fontSize: 12, fontWeight: '700', color: colors.text },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // Bleeds past controlBar's 16px padding so chips scroll edge-to-edge, while the first chip still lines up with the search bar.
+  chipScroll: { flexGrow: 0, marginHorizontal: -16 },
+  chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
