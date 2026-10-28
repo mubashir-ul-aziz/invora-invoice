@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import React, { useEffect } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -209,6 +210,10 @@ export function SettingsScreen({ navigation }: Props) {
         <Feather name="download" size={18} color={colors.primary} />
         <Text style={styles.exportButtonText}>Export Tax &amp; Audit Bundle · DESIGN ONLY</Text>
       </Pressable>
+
+      <Text style={styles.versionText} testID="settings-app-version">
+        Version {Constants.expoConfig?.version ?? '1.0.0'}
+      </Text>
     </ScrollView>
   );
 }
@@ -276,4 +281,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   exportButtonText: { fontSize: 13, fontWeight: '700', color: colors.primary },
+
+  versionText: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 8 },
 });
