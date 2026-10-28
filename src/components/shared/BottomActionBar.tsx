@@ -18,8 +18,12 @@ export interface BottomAction {
 interface Props {
   /** The screen's main call-to-action (Save, Create, Record…). Full width when there's no `secondary`. */
   primary: BottomAction;
-  /** A lesser action shown to the left of `primary` — Cancel by default, or a destructive one with `tone: 'danger'`. */
-  secondary?: BottomAction & { tone?: 'neutral' | 'danger' };
+  /**
+   * A lesser action shown to the left of `primary` — Cancel by default, a
+   * Cancel filled with the app background colour with `tone: 'muted'`, or a
+   * destructive one with `tone: 'danger'`.
+   */
+  secondary?: BottomAction & { tone?: 'neutral' | 'muted' | 'danger' };
   /** Optional content shown above the buttons, e.g. a running totals summary. */
   children?: React.ReactNode;
   testID?: string;
@@ -41,7 +45,13 @@ export function BottomActionBar({ primary, secondary, children, testID }: Props)
         {secondary && (
           <BarButton
             action={secondary}
-            style={secondary.tone === 'danger' ? styles.danger : styles.secondary}
+            style={
+              secondary.tone === 'danger'
+                ? styles.danger
+                : secondary.tone === 'muted'
+                  ? styles.muted
+                  : styles.secondary
+            }
             color={secondary.tone === 'danger' ? colors.danger : colors.text}
           />
         )}
@@ -92,6 +102,7 @@ const styles = StyleSheet.create({
   },
   primary: { flex: 2, backgroundColor: colors.primary },
   secondary: { flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  muted: { flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   danger: { flex: 1, backgroundColor: colors.dangerBg },
   disabled: { opacity: 0.6 },
   pressed: { opacity: 0.75 },

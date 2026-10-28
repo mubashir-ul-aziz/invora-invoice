@@ -111,7 +111,12 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
       testID="create-customer-screen"
       footer={
         <BottomActionBar
-          secondary={{ label: 'Cancel', onPress: () => navigation.goBack(), testID: 'action-cancel-bottom' }}
+          secondary={{
+            label: 'Cancel',
+            tone: 'muted',
+            onPress: () => navigation.goBack(),
+            testID: 'action-cancel-bottom',
+          }}
           primary={{
             label: isSubmitting ? 'Saving…' : 'Save Customer',
             accessibilityLabel: 'Save Customer',
@@ -296,17 +301,6 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
           }}
         />
       </View>
-
-      {/* Informational preview — describes real, existing functionality (Customer Detail's Create Invoice action), not a form field. */}
-      <View style={styles.infoCard}>
-        <View style={styles.infoIcon}>
-          <Feather name="shield" size={18} color="#1E7B41" />
-        </View>
-        <View style={styles.infoTextCol}>
-          <Text style={styles.infoTitle}>Instant Verification Ready</Text>
-          <Text style={styles.infoCaption}>Once saved, tap to issue invoices in under 15 seconds.</Text>
-        </View>
-      </View>
     </KeyboardAvoidingScreen>
   );
 }
@@ -369,25 +363,4 @@ const styles = StyleSheet.create({
 
   notesHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   notesCount: { fontSize: 11, color: colors.textMuted, fontVariant: ['tabular-nums'] },
-
-  infoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E4F5EA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoTextCol: { flex: 1, gap: 2 },
-  infoTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
-  infoCaption: { fontSize: 11, color: colors.textMuted },
-
 });
