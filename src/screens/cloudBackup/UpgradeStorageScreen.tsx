@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { formatBackupSize, formatStorageUsage, storageUsageRatio } from '@/domain/cloudBackup/formatting';
@@ -38,8 +38,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UpgradeStorage'>;
  * Stitch's fabricated tiers. The usage gauge is real (`storageUsage`). The
  * one verified-true trust badge from `CloudBackupScreen` (AES-256-GCM) is
  * kept; Stitch's GDPR/CCPA/uptime-SLA claims (no backend is deployed to
- * verify them against) are dropped. "Restore Purchases" is DESIGN ONLY, no
- * IAP integration exists anywhere in this app.
+ * verify them against) are dropped.
  */
 export function UpgradeStorageScreen(_props: Props) {
   const { storageUsage, load, getUpgradePlans, requestUpgrade } = useCloudBackupStore();
@@ -59,8 +58,6 @@ export function UpgradeStorageScreen(_props: Props) {
       setPendingPlanId(null);
     }
   };
-
-  const notAvailable = (what: string) => Alert.alert('Not available', `${what} is not implemented yet.`);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="upgrade-storage-screen">
@@ -124,17 +121,6 @@ export function UpgradeStorageScreen(_props: Props) {
           <Text style={styles.trustText}>Backups encrypted with AES-256-GCM before upload</Text>
         </View>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Restore purchases — DESIGN ONLY, not implemented"
-        testID="action-restore-purchases-design-only"
-        onPress={() => notAvailable('Restoring purchases')}
-        style={({ pressed }) => [styles.restoreLink, pressed && styles.pressed]}
-      >
-        <Feather name="rotate-ccw" size={15} color={colors.primary} />
-        <Text style={styles.restoreLinkText}>Restore Purchases · DESIGN ONLY</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -142,7 +128,6 @@ export function UpgradeStorageScreen(_props: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
-  pressed: { opacity: 0.75 },
   flexShrink: { flexShrink: 1, minWidth: 0 },
 
   heading: { fontSize: 20, fontWeight: '700', color: colors.text },
@@ -192,7 +177,4 @@ const styles = StyleSheet.create({
   trustTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trustText: { fontSize: 12, color: colors.textMuted, flexShrink: 1 },
-
-  restoreLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
-  restoreLinkText: { fontSize: 13, fontWeight: '600', color: colors.primary },
 });

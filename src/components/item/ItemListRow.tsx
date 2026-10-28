@@ -33,12 +33,6 @@ export const METHOD_STYLE: Record<InvoiceTypeId, { icon: keyof typeof Feather.gl
  * One card on the Items List screen — Stitch's "Items Catalog" row: a
  * Pricing-Method icon, name, SKU/method detail line, a unit + tax badge row,
  * the price, and edit/delete actions.
- *
- * The Stitch mock also shows a per-item stock figure ("Stock: 140 m",
- * "In Stock", "82 packs") — `Item` (domain/item/types.ts) has no
- * stock/quantity-on-hand field at all, so that figure can't be connected to
- * real data. Rather than invent a number, the right-hand caption is a
- * "DESIGN ONLY" badge instead of a fabricated stock status.
  */
 export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) {
   const methodDef = getInvoiceTypeDefinition(item.invoiceTypeId);
@@ -84,10 +78,6 @@ export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) 
 
       <View style={styles.valueBlock}>
         <Text style={styles.price}>{currencySymbol}{item.defaultPrice.toFixed(2)}</Text>
-        {/* DESIGN ONLY: Stitch shows a real-looking stock figure here ("In Stock", "82 packs") that `Item` has no field to back — see this file's doc comment. */}
-        <Text style={styles.designOnly} testID={testID ? `${testID}-stock-design-only` : undefined}>
-          DESIGN ONLY
-        </Text>
       </View>
 
       <View style={styles.actions}>
@@ -141,7 +131,6 @@ const styles = StyleSheet.create({
   taxText: { fontSize: 11, color: colors.textMuted },
   valueBlock: { alignItems: 'flex-end', gap: 3, flexShrink: 0, paddingLeft: 4 },
   price: { fontSize: 16, fontWeight: '700', color: colors.text },
-  designOnly: { fontSize: 9, fontWeight: '700', color: colors.placeholder, letterSpacing: 0.3 },
   actions: { flexDirection: 'column', gap: 2, flexShrink: 0 },
   actionButton: { padding: 6, borderRadius: 8 },
 });

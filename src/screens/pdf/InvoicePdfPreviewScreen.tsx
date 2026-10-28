@@ -38,21 +38,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoicePdfPreview'>;
  * context strip (status pill, customer, total), a template grid reusing
  * `TemplatePreview`'s real per-template swatch (from the Invoice Templates
  * screen), a "Quick Dispatch" grid for WhatsApp/Email/Link, and a sticky
- * bottom Preview/Share bar.
+ * bottom Preview/Share bar. The Email tile only appears when an email app is
+ * available on the device.
  *
- * Several Stitch elements have no backing capability and are DESIGN ONLY:
- * - Zoom / fit-to-width / refresh viewer controls, and the "Page 1 of 1
- *   (A4 • 142 KB)" stat — the in-app preview is a fixed native re-render,
- *   not a real document viewer (no `react-native-webview`, per the "no
- *   unnecessary packages" rule already documented for this screen), so
- *   there's no real zoom/page-count/file-size to report.
- * - The rendered PDF paper's "Bank Details & Payment QR" block — no bank
- *   account or payment-QR field exists anywhere on `BusinessProfile`.
- * - "SMS / Text" quick-share — no SMS capability is wired (only
- *   WhatsApp/Email/native-share/link are real).
- * - The sticky bar's separate "Download PDF (142 KB)" utility — sharing
- *   already covers "save a copy" via the native share sheet; there's no
- *   distinct device-storage download path.
  * "Copy Link" is relabeled "Share Link" and wired to the real `shareLink()`
  * (native `Share.share`, not a clipboard copy — this app doesn't use
  * `expo-clipboard`) rather than faking a "copied to clipboard" toast.
@@ -294,15 +282,6 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
                 <Text style={styles.muted}>{data.terms}</Text>
               </View>
             )}
-
-            {/* DESIGN ONLY: no bank account or payment-QR field exists on `BusinessProfile`. */}
-            <View style={styles.bankCard} accessibilityLabel="Bank details and payment QR — DESIGN ONLY, no such fields exist">
-              <View style={styles.bankLeft}>
-                <Text style={styles.bankLabel}>Bank Details · DESIGN ONLY</Text>
-                <Text style={styles.bankValue}>Not stored — not included in the generated PDF</Text>
-              </View>
-              <Feather name="lock" size={16} color={colors.placeholder} />
-            </View>
           </View>
         </View>
 
@@ -319,7 +298,7 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
               onPress={() => runAction('whatsapp', shareViaWhatsApp, 'WhatsApp could not be opened.')}
               testID="pdf-action-whatsapp"
             />
-            {emailAvailable ? (
+            {emailAvailable && (
               <DispatchTile
                 icon="mail"
                 label="Email PDF"
@@ -328,15 +307,6 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
                 disabled={!!busyAction}
                 onPress={() => runAction('email', shareViaEmail, 'No email app is available on this device.')}
                 testID="pdf-action-email"
-              />
-            ) : (
-              <DispatchTile
-                icon="mail"
-                label="Email PDF · DESIGN ONLY"
-                caption="No email app on this device"
-                tone="muted"
-                disabled
-                onPress={() => Alert.alert('Not available', 'No email app is available on this device.')}
               />
             )}
             <DispatchTile
@@ -347,16 +317,6 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
               disabled={!!busyAction}
               onPress={() => runAction('link', shareLink, 'The share link could not be shared.')}
               testID="pdf-action-link"
-            />
-            {/* DESIGN ONLY: no SMS capability is wired anywhere in this app. */}
-            <DispatchTile
-              icon="message-square"
-              label="SMS / Text · DESIGN ONLY"
-              caption="Not supported"
-              tone="muted"
-              disabled
-              onPress={() => Alert.alert('Not available', 'SMS sharing is not implemented yet.')}
-              testID="pdf-action-sms-design-only"
             />
           </View>
         </View>
@@ -400,7 +360,7 @@ function DispatchTile({
   icon: keyof typeof Feather.glyphMap;
   label: string;
   caption: string;
-  tone: 'tertiary' | 'primary' | 'secondary' | 'muted';
+  tone: 'tertiary' | 'primary' | 'secondary';
   disabled?: boolean;
   onPress: () => void;
   testID?: string;
@@ -412,8 +372,8 @@ function DispatchTile({
       accessibilityLabel={label}
       testID={testID}
       onPress={onPress}
-      disabled={disabled && tone !== 'muted'}
-      style={({ pressed }) => [styles.dispatchTile, pressed && styles.pressed, disabled && tone !== 'muted' && styles.dispatchTileDisabled]}
+      disabled={disabled}
+      style={({ pressed }) => [styles.dispatchTile, pressed && styles.pressed, disabled && styles.dispatchTileDisabled]}
     >
       <View style={[styles.dispatchIcon, { backgroundColor: toneStyle.bg }]}>
         <Feather name={icon} size={18} color={toneStyle.fg} />
@@ -430,11 +390,10 @@ function DispatchTile({
   );
 }
 
-const TONE_STYLES: Record<'tertiary' | 'primary' | 'secondary' | 'muted', { bg: string; fg: string }> = {
+const TONE_STYLES: Record<'tertiary' | 'primary' | 'secondary', { bg: string; fg: string }> = {
   tertiary: { bg: '#DBFCEC', fg: '#006243' },
   primary: { bg: '#DCE9FF', fg: colors.primary },
   secondary: { bg: '#DAE2FD', fg: '#3F465C' },
-  muted: { bg: colors.background, fg: colors.textMuted },
 };
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
@@ -556,20 +515,6 @@ const styles = StyleSheet.create({
   itemsHeaderCellWide: { width: PDF_ITEM_NAME_CELL_WIDTH },
   itemsHeaderCellRight: { textAlign: 'right' },
   textBlock: { gap: 4, marginTop: 6 },
-
-  bankCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 6,
-  },
-  bankLeft: { flexShrink: 1, gap: 2 },
-  bankLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
-  bankValue: { fontSize: 11, color: colors.placeholder },
 
   dispatchSection: { gap: 10 },
   dispatchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

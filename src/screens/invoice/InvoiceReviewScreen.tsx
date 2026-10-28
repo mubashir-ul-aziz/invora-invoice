@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceDetailsFormFields } from '@/components/invoice/InvoiceDetailsFormFields';
@@ -43,23 +43,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceReview'>;
  * "Payment & Timing" card wrapping the real issue/due date pickers, a Line
  * Items preview, the totals card, a collapsible Notes & Terms section, and a
  * sticky Save footer.
- *
- * DESIGN ONLY elements (no backing field/capability anywhere in this app):
- * - The invoice-number edit pencil — the number is reserved server-side
- *   (`BusinessRepository.reserveNextInvoiceNumber`) and isn't user-editable.
- * - The customer card's "verified" checkmark and "Change customer" swap
- *   icon — `Customer` has no verification field, and there's no flow to
- *   swap the customer of an in-progress draft from this screen.
- * - The "Client Purchase Order" reference chip — `Invoice` has no PO field.
- * - "Instant Dispatch" (auto-send via Email/WhatsApp on save) — saving an
- *   invoice never sends it; sharing is a separate, manual step from Invoice
- *   Detail/PDF Preview afterward.
- * - "Save as Draft" — `Invoice` has no draft/issued status; there is only
- *   one real save path (the primary button).
- * The Stitch mock's "HMRC & UK VAT compliant... cryptographic hash" trust
- * copy isn't reproduced at all — this app makes no such compliance claim
- * and has no hashing of any kind, so no in-between "DESIGN ONLY" phrasing
- * would be honest here either.
  */
 export function InvoiceReviewScreen({ navigation }: Props) {
   const draft = useInvoiceDraftStore();
@@ -68,7 +51,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   const currencySymbol = useCurrencySymbol();
   const [existingInvoiceNumber, setExistingInvoiceNumber] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(true);
-  const [instantDispatch, setInstantDispatch] = useState(false);
   const [limitError, setLimitError] = useState<InvoiceLimitError | null>(null);
 
   useEffect(() => {
@@ -155,16 +137,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
             {!!invoiceNumberLabel && (
               <View style={styles.numberRow} testID="review-invoice-number">
                 <Text style={styles.numberText}>{invoiceNumberLabel}</Text>
-                {/* DESIGN ONLY: the invoice number is server-reserved, not user-editable. */}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Edit invoice number — DESIGN ONLY, the number is auto-generated"
-                  testID="action-edit-number-design-only"
-                  onPress={() => Alert.alert('Not available', 'The invoice number is generated automatically and cannot be edited.')}
-                  hitSlop={8}
-                >
-                  <Feather name="edit-3" size={14} color={colors.primary} />
-                </Pressable>
               </View>
             )}
             <Text style={styles.numberCaption}>
@@ -197,17 +169,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
               </View>
             )}
           </View>
-          {/* DESIGN ONLY: no flow exists to swap the customer of an in-progress draft from Review. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Change customer — DESIGN ONLY, not supported from this screen"
-            testID="action-change-customer-design-only"
-            onPress={() => Alert.alert('Not available', 'To use a different customer, start a new invoice.')}
-            hitSlop={8}
-            style={styles.customerSwapButton}
-          >
-            <Feather name="repeat" size={16} color={colors.textMuted} />
-          </Pressable>
         </View>
         <View style={styles.pricingMethodRow}>
           <Text style={styles.pricingMethodLabel}>Pricing Method</Text>
@@ -221,17 +182,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
           <Text style={styles.cardTitle}>Payment &amp; Timing</Text>
         </View>
         <InvoiceDetailsFormFields control={control} errors={errors} section="dates" />
-
-        {/* DESIGN ONLY: `Invoice` has no purchase-order reference field. */}
-        <View style={styles.poRow} accessibilityLabel="Client purchase order — DESIGN ONLY, no such field exists">
-          <View style={styles.poIcon}>
-            <Feather name="tag" size={16} color={colors.textMuted} />
-          </View>
-          <View style={styles.flexShrink}>
-            <Text style={styles.poLabel}>Client Purchase Order · DESIGN ONLY</Text>
-            <Text style={styles.poValue}>Not tracked</Text>
-          </View>
-        </View>
       </View>
 
       {/* Line Items preview */}
@@ -283,27 +233,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
         )}
       </View>
 
-      {/* DESIGN ONLY: saving an invoice never auto-sends it — sharing is a separate manual step afterward. */}
-      <View style={styles.card}>
-        <View style={styles.dispatchRow}>
-          <View style={styles.dispatchLeft}>
-            <View style={styles.headerIconSmall}>
-              <Feather name="send" size={18} color={colors.primary} />
-            </View>
-            <View style={styles.flexShrink}>
-              <Text style={styles.dispatchTitle}>Instant Dispatch · DESIGN ONLY</Text>
-              <Text style={styles.dispatchCaption}>Send copy immediately via Email &amp; WhatsApp to client</Text>
-            </View>
-          </View>
-          <Switch
-            value={instantDispatch}
-            onValueChange={setInstantDispatch}
-            trackColor={{ true: colors.primary, false: colors.border }}
-            testID="toggle-instant-dispatch-design-only"
-          />
-        </View>
-      </View>
-
       {/* Sticky footer */}
       <View style={styles.footer}>
         <ActionButton
@@ -314,17 +243,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
           disabled={isSubmitting}
           testID="save-invoice"
         />
-        {/* DESIGN ONLY: `Invoice` has no draft/issued status — there is only one real save path. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Save as draft — DESIGN ONLY, invoices have no draft status"
-          testID="action-save-as-draft-design-only"
-          onPress={() => Alert.alert('Not available', 'There is no separate draft state — Save creates the real invoice.')}
-          style={({ pressed }) => [styles.draftButton, pressed && styles.pressed]}
-        >
-          <Feather name="bookmark" size={16} color={colors.textMuted} />
-          <Text style={styles.draftButtonText}>Save as Draft · DESIGN ONLY</Text>
-        </Pressable>
       </View>
     </KeyboardAvoidingScreen>
     <InvoiceLimitModal
@@ -345,7 +263,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
-  pressed: { opacity: 0.75 },
   flexShrink: { flexShrink: 1, minWidth: 0 },
 
   stepBar: { gap: 6 },
@@ -395,14 +312,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerIconSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   customerTile: {
     flexDirection: 'row',
@@ -417,35 +326,14 @@ const styles = StyleSheet.create({
   customerName: { fontSize: 15, fontWeight: '700', color: colors.text },
   customerDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   customerDetail: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  customerSwapButton: { padding: 6, borderRadius: 8 },
   pricingMethodRow: { flexDirection: 'row', justifyContent: 'space-between' },
   pricingMethodLabel: { fontSize: 12, color: colors.textMuted },
   pricingMethodText: { fontSize: 12, fontWeight: '600', color: colors.text },
-
-  poRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.background, borderRadius: 12, padding: 12 },
-  poIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  poLabel: { fontSize: 10, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
-  poValue: { fontSize: 13, color: colors.text, marginTop: 2 },
 
   itemsList: { gap: 8 },
 
   accordionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   accordionBody: { gap: 12, marginTop: 2 },
 
-  dispatchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  dispatchLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
-  dispatchTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
-  dispatchCaption: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-
   footer: { gap: 8, marginTop: 4 },
-  draftButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  draftButtonText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
 });

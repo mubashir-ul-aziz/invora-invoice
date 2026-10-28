@@ -47,12 +47,7 @@ const STATUS_ICON: Record<InvoiceStatus, keyof typeof Feather.glyphMap> = {
  *
  * Every number here is derived from `CustomerBalanceSummary` (via
  * `customerActivityStore`) and the customer's real invoices/payments — never
- * fabricated. The Stitch mock's "#CUST-084" client code, "Active Account"
- * status, "Verified Corporate" tick, and VAT number have no backing field on
- * `Customer` (see `domain/customer/types.ts`) — each is marked DESIGN ONLY
- * rather than invented. "Filter by date" is likewise decorative: neither
- * `customerActivityStore` nor `invoiceStore` support a date-range filter for
- * one customer's ledger.
+ * fabricated.
  */
 export function CustomerDetailScreen({ navigation, route }: Props) {
   const { customerId } = route.params;
@@ -186,15 +181,8 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
       contentContainerStyle={styles.content}
       testID="customer-detail-screen"
     >
-      {/* Interactive Top Action Sub-bar (Stitch: "Client ID: #CUST-084" + "Active Account"). Neither a display customer code nor an active/inactive status exists on `Customer` (domain/customer/types.ts) — both are DESIGN ONLY. */}
+      {/* Interactive Top Action Sub-bar */}
       <View style={styles.subBar}>
-        <View style={styles.subBarLeft}>
-          <View style={styles.idBadge}>
-            <Text style={styles.idBadgeText}>Client ID: DESIGN ONLY</Text>
-          </View>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>DESIGN ONLY</Text>
-        </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Edit customer details"
@@ -220,18 +208,14 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
               <Text style={styles.name} numberOfLines={1}>
                 {customer.name}
               </Text>
-              {/* Stitch shows a "Verified Corporate" checkmark here; there is no verification concept on `Customer`. */}
-              <View style={styles.designOnlyChip} accessibilityLabel="Verified badge — DESIGN ONLY, no verification field exists">
-                <Text style={styles.designOnlyChipText}>DESIGN ONLY</Text>
-              </View>
             </View>
             {!!(customer.address || customer.email) && (
               <Text style={styles.profileSubtitle} numberOfLines={1}>
                 {[customer.address, customer.email].filter(Boolean).join(' • ')}
               </Text>
             )}
-            <View style={styles.chipsRow}>
-              {!!customer.phone && (
+            {!!customer.phone && (
+              <View style={styles.chipsRow}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Call customer"
@@ -242,12 +226,8 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
                   <Feather name="phone" size={12} color={colors.primary} />
                   <Text style={styles.contactChipText}>{customer.phone}</Text>
                 </Pressable>
-              )}
-              {/* Stitch shows a "VAT: GB 982 4410 19" chip here; there is no tax/VAT id field on `Customer`. */}
-              <View style={styles.contactChip}>
-                <Text style={styles.contactChipText}>Tax ID: DESIGN ONLY</Text>
               </View>
-            </View>
+            )}
           </View>
         </View>
       </View>
@@ -416,11 +396,6 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
       <View style={styles.listSection}>
         <View style={styles.listHeaderRow}>
           <Text style={styles.listHeaderLabel}>Recent Transactions</Text>
-          {/* Stitch's "Filter by date" control has no backing implementation — neither invoiceStore nor customerActivityStore support a date-range filter scoped to one customer. */}
-          <View style={styles.filterByDateBadge} testID="customer-detail-date-filter-design-only">
-            <Feather name="calendar" size={12} color={colors.textMuted} />
-            <Text style={styles.filterByDateText}>DESIGN ONLY</Text>
-          </View>
         </View>
 
         {activeTab === 'invoices' && (
@@ -573,12 +548,7 @@ const styles = StyleSheet.create({
   errorText: { color: colors.danger, fontWeight: '600' },
   pressed: { opacity: 0.75 },
 
-  subBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  subBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  idBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: colors.surface },
-  idBadgeText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
-  statusDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.textMuted },
-  statusText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
+  subBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -607,8 +577,6 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1, minWidth: 0, gap: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: 17, fontWeight: '700', color: colors.text, flexShrink: 1 },
-  designOnlyChip: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.background },
-  designOnlyChipText: { fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.2 },
   profileSubtitle: { fontSize: 13, color: colors.textMuted },
   chipsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 },
   contactChip: {
@@ -723,8 +691,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  filterByDateBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  filterByDateText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
   invoicesList: { gap: 10 },
   emptyText: { fontSize: 13, color: colors.textMuted },
 

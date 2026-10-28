@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { ActivityIndicator, Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceStatusBadge } from '@/components/invoice/InvoiceStatusBadge';
@@ -40,10 +40,7 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
  * Restyled to match the Stitch "Record Payment" design: a Linked Invoice
  * card (real status badge + total/outstanding, from the same `detail`/
  * `summary` already loaded), `PaymentFormFields`'s card sections, and a
- * sticky bottom "Record £X Payment" button. The Stitch mock's "Send receipt"
- * toggle is DESIGN ONLY — recording a payment never emails anything; the
- * only real receipt-adjacent capability is Invoice PDF Preview's manual
- * "Share via Email" action, which isn't triggered from here.
+ * sticky bottom "Record £X Payment" button.
  *
  * The actual form (`RecordPaymentForm`) only mounts once the invoice has
  * loaded, so its validation schema can be built with the invoice's own
@@ -142,7 +139,6 @@ function RecordPaymentForm({
   summary: InvoicePaymentSummary;
   create: (input: PaymentInput) => Promise<unknown>;
 }) {
-  const [sendReceipt, setSendReceipt] = useState(true);
   const currencySymbol = useCurrencySymbol();
   const {
     control,
@@ -234,27 +230,6 @@ function RecordPaymentForm({
           onHalfPay={handleHalfPay}
           maxAmount={summary.remaining}
         />
-
-        {/* DESIGN ONLY: recording a payment never sends an email — no receipt-on-save capability exists. */}
-        <View style={styles.receiptCard}>
-          <View style={styles.receiptLeft}>
-            <View style={styles.receiptIcon}>
-              <Feather name="mail" size={16} color={colors.primary} />
-            </View>
-            <View style={styles.flexShrink}>
-              <Text style={styles.receiptTitle}>Send receipt · DESIGN ONLY</Text>
-              <Text style={styles.receiptCaption} numberOfLines={1}>
-                {detail.invoice.customerName} — not sent on save
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={sendReceipt}
-            onValueChange={setSendReceipt}
-            trackColor={{ true: colors.primary, false: colors.border }}
-            testID="toggle-send-receipt-design-only"
-          />
-        </View>
       </KeyboardAvoidingScreen>
 
       <View style={styles.footer}>
@@ -277,7 +252,6 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, paddingBottom: 24 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
-  flexShrink: { flexShrink: 1, minWidth: 0 },
 
   headerCard: {
     backgroundColor: colors.surface,
@@ -307,20 +281,6 @@ const styles = StyleSheet.create({
   balanceLabelDue: { color: colors.danger },
   balanceValue: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 },
   balanceValueDue: { color: colors.danger, fontWeight: '700' },
-
-  receiptCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-  },
-  receiptLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
-  receiptIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-  receiptTitle: { fontSize: 13, fontWeight: '600', color: colors.text },
-  receiptCaption: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
 
   footer: { padding: 12, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
 });

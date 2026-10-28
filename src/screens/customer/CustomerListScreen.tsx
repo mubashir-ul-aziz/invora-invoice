@@ -32,7 +32,7 @@ type SortMode = 'name' | 'balance';
  * and `MVP_BUILD_PLAN.md`'s "Create Invoice – Customer is `CustomerList` in
  * picker mode" note). That mode renders a dedicated branch near the top of
  * this component matching the Stitch mock (step tracker, pinned "+ New
- * Customer" quick-add, count/sort caption, "Smart Pre-filling" hint) instead
+ * Customer" quick-add, count/sort caption) instead
  * of reusing the plain-mode layout below, since the two designs diverge too
  * much to share JSX cleanly. Tapping a row calls `onSelectCustomer` and pops
  * back to the caller instead of opening Customer Detail; the screen-local
@@ -48,13 +48,9 @@ type SortMode = 'name' | 'balance';
  * backing field (`CustomerBalanceSummary` has no due date; `Customer` has no
  * category or default-terms field) — the badge instead shows a plain
  * "Due"/"Overdue"/"Settled" status, and the row's second line falls back to
- * phone/email, matching the mock's own email-detail row variants. The plain
- * mode's "Active Ledger" live-status pill and the mock's empty-state
- * "Zero-State Mode" preview watermark are Stitch-only decoration with no real
- * sync/preview concept behind them, so the former is marked DESIGN ONLY and
- * the latter isn't reproduced. The Select Customer mode's "Smart Pre-filling"
- * banner is marked DESIGN ONLY for the same reason (see the banner's own
- * comment below).
+ * phone/email, matching the mock's own email-detail row variants. The mock's
+ * empty-state "Zero-State Mode" preview watermark is Stitch-only decoration
+ * with no real preview concept behind it, so it isn't reproduced.
  */
 export function CustomerListScreen({ navigation, route }: Props) {
   const onSelectCustomer = route.params?.onSelectCustomer;
@@ -150,31 +146,6 @@ export function CustomerListScreen({ navigation, route }: Props) {
   // own render branch rather than sprinkling `onSelectCustomer` checks
   // through one shared layout.
   if (onSelectCustomer) {
-    const hintBanner = (
-      <View style={styles.hintBanner}>
-        <View style={styles.hintIconWrap}>
-          <Feather name="zap" size={16} color={colors.primary} />
-        </View>
-        <View style={styles.hintTextCol}>
-          <View style={styles.hintTitleRow}>
-            <Text style={styles.hintTitle}>Smart Pre-filling</Text>
-            <Text style={styles.designOnlyTag}>DESIGN ONLY</Text>
-          </View>
-          {/*
-            DESIGN ONLY: `Customer` (domain/customer/types.ts) has no
-            default-payment-terms field, and `invoiceDraftStore.setCustomer`
-            only stores the chosen customer — it doesn't copy their address
-            onto the invoice. Stitch's copy describes this auto-fill as if it
-            already happens; it doesn't, so the badge above flags it.
-          */}
-          <Text style={styles.hintCaption}>
-            Invoices could inherit a customer&apos;s default payment terms and registered billing address
-            automatically.
-          </Text>
-        </View>
-      </View>
-    );
-
     return (
       <View style={styles.screen} testID="customer-list-screen">
         <View style={styles.stepTrackerWrap}>
@@ -329,8 +300,6 @@ export function CustomerListScreen({ navigation, route }: Props) {
             />
           )}
         </View>
-
-        {status === 'ready' && hintBanner}
       </View>
     );
   }
@@ -416,11 +385,6 @@ export function CustomerListScreen({ navigation, route }: Props) {
               onPress={() => setStatusFilter('settled')}
               testID="customer-filter-settled"
             />
-          </View>
-          {/* DESIGN ONLY: the Stitch mock's "Active Ledger" pill implies a live sync status; there is no such concept in this app's backend. */}
-          <View style={styles.ledgerStatus}>
-            <View style={styles.ledgerDot} />
-            <Text style={styles.ledgerText}>DESIGN ONLY</Text>
           </View>
         </View>
       </View>
@@ -607,9 +571,6 @@ const styles = StyleSheet.create({
   pillCountTextDefault: { color: colors.textMuted },
   pillCountTextDanger: { color: colors.danger },
   pillCountTextActive: { color: colors.primaryText },
-  ledgerStatus: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 0 },
-  ledgerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary },
-  ledgerText: { fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.3 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
@@ -741,27 +702,4 @@ const styles = StyleSheet.create({
   noMatchesSubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 260, marginBottom: 8 },
   noMatchesButton: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 12, backgroundColor: colors.primary },
   noMatchesButtonText: { color: colors.primaryText, fontWeight: '700', fontSize: 13 },
-  hintBanner: {
-    margin: 16,
-    marginTop: 8,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  hintIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  hintTextCol: { flex: 1, minWidth: 0, gap: 2 },
-  hintTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  hintTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
-  designOnlyTag: { fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.3 },
-  hintCaption: { fontSize: 12, color: colors.textMuted, lineHeight: 17 },
 });

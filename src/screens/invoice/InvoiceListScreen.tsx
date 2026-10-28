@@ -50,12 +50,8 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
  * currently selected. Search still hits the store for real (`setFilter`),
  * same as before.
  *
- * The Stitch mock's "Cash flow" sparkline has no historical trend data
- * source anywhere in this app (no day-by-day payment history is computed) —
- * it's rendered as a static, clearly-labeled DESIGN ONLY placeholder rather
- * than implying a real trend. "Total Outstanding" and its "N pending or
- * overdue invoices" caption ARE real, computed from each entry's own
- * `totals`/`status`/`amountPaid`.
+ * "Total Outstanding" and its "N pending or overdue invoices" caption are
+ * computed from each entry's own `totals`/`status`/`amountPaid`.
  *
  * "Create Invoice – Customer" (the brief's screen #2) isn't a separate
  * screen here — starting a new invoice seeds `invoiceDraftStore` and opens
@@ -231,14 +227,6 @@ export function InvoiceListScreen({ navigation, route }: Props) {
                 {outstandingEntries.length} pending or overdue invoice{outstandingEntries.length === 1 ? '' : 's'}
               </Text>
             </View>
-            {/* DESIGN ONLY: no historical day-by-day payment trend is computed anywhere in this app. */}
-            <View style={styles.sparkline} accessibilityLabel="Cash flow trend — DESIGN ONLY, no historical trend data exists">
-              <View style={styles.sparkBars}>
-                {[6, 10, 7, 14, 9, 16].map((h, i) => (
-                  <View key={i} style={[styles.sparkBar, { height: h }]} />
-                ))}
-              </View>
-            </View>
           </View>
         )}
       </View>
@@ -409,18 +397,6 @@ const styles = StyleSheet.create({
   summaryEyebrowText: { fontSize: 11, color: colors.textMuted },
   summaryValue: { fontSize: 26, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
   summaryCaption: { fontSize: 11, color: colors.textMuted },
-  sparkline: { alignItems: 'flex-end', gap: 3 },
-  sparkBars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 3,
-    backgroundColor: colors.background,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    height: 24,
-  },
-  sparkBar: { width: 4, borderRadius: 2, backgroundColor: colors.primary, opacity: 0.6 },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { FormField } from '@/components/businessCard/FormField';
@@ -35,7 +35,7 @@ const COUNTRY_OPTIONS = [
 /**
  * Create Customer screen, restyled to match the Stitch "Create Customer"
  * design: a Basic Information card, a structured Billing Address card, and a
- * Terms & Customer Notes card, ending in a sticky Cancel/Save Customer dock.
+ * Customer Notes card, ending in a sticky Cancel/Save Customer dock.
  *
  * `Customer` (`domain/customer/types.ts`) only has one freeform `address`
  * string — there are no separate street/city/postcode/state/country columns.
@@ -43,11 +43,6 @@ const COUNTRY_OPTIONS = [
  * country picker are combined into that single existing `address` field on
  * submit (see `composeAddress` below), so the data still saves for real, just
  * through a friendlier entry form.
- *
- * Two Stitch elements have no backing field at all and are marked DESIGN
- * ONLY (rendered, interactive where harmless, but never submitted):
- * - "Net 14 Default Terms" (no default-payment-terms field on `Customer`).
- * - "Net 7 Default Terms" (same; duplicated from the Net 14 toggle above).
  *
  * The notes counter uses the shared `NOTES_MAX_LENGTH` (500) rather than the
  * Stitch mock's 240 — that constant is validated by `customerFormSchema` and
@@ -72,10 +67,6 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
   const [postcode, setPostcode] = useState('');
   const [stateCounty, setStateCounty] = useState('');
   const [country, setCountry] = useState('United Kingdom');
-
-  // DESIGN ONLY: no backing fields on `Customer` — local UI state only, never submitted.
-  const [net14Terms, setNet14Terms] = useState(true);
-  const [net7Terms, setNet7Terms] = useState(true);
 
   const {
     control,
@@ -274,13 +265,13 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
         />
       </View>
 
-      {/* Card 3: Terms & Customer Notes */}
+      {/* Card 3: Customer Notes */}
       <View style={styles.card}>
         <View style={styles.cardHeaderLeft}>
           <View style={styles.cardIcon}>
             <Feather name="clipboard" size={16} color={colors.primary} />
           </View>
-          <Text style={styles.cardTitle}>Terms &amp; Customer Notes</Text>
+          <Text style={styles.cardTitle}>Customer Notes</Text>
         </View>
 
         <Controller
@@ -312,36 +303,6 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
             );
           }}
         />
-
-        {/* DESIGN ONLY: no default-payment-terms field exists on `Customer`; this toggle is local UI state and is never submitted. */}
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleTextCol}>
-            <Text style={styles.toggleLabel}>Net 14 Default Terms</Text>
-            <Text style={styles.toggleCaption}>Auto-apply 14 day due dates on new draft invoices</Text>
-            <Text style={styles.designOnlyTag}>DESIGN ONLY</Text>
-          </View>
-          <Switch
-            value={net14Terms}
-            onValueChange={setNet14Terms}
-            trackColor={{ true: colors.primary, false: colors.border }}
-            testID="toggle-net14-design-only"
-          />
-        </View>
-
-        {/* DESIGN ONLY: no default-payment-terms field exists on `Customer`; this toggle is local UI state and is never submitted. */}
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleTextCol}>
-            <Text style={styles.toggleLabel}>Net 7 Default Terms</Text>
-            <Text style={styles.toggleCaption}>Auto-apply 7 day due dates on new draft invoices</Text>
-            <Text style={styles.designOnlyTag}>DESIGN ONLY</Text>
-          </View>
-          <Switch
-            value={net7Terms}
-            onValueChange={setNet7Terms}
-            trackColor={{ true: colors.primary, false: colors.border }}
-            testID="toggle-net7-design-only"
-          />
-        </View>
       </View>
 
       {/* Informational preview — describes real, existing functionality (Customer Detail's Create Invoice action), not a form field. */}
@@ -446,20 +407,6 @@ const styles = StyleSheet.create({
 
   notesHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   notesCount: { fontSize: 11, color: colors.textMuted, fontVariant: ['tabular-nums'] },
-
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-  },
-  toggleTextCol: { flex: 1, gap: 2 },
-  toggleLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
-  toggleCaption: { fontSize: 11, color: colors.textMuted },
-  designOnlyTag: { fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.3, marginTop: 2 },
 
   infoCard: {
     flexDirection: 'row',

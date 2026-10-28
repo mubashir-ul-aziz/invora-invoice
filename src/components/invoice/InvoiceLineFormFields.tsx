@@ -37,7 +37,7 @@ interface Props {
   onPricingMethodChange?: (invoiceTypeId: InvoiceTypeId) => void;
 }
 
-/** Matches the Stitch "Discount" preset chips — the 0/5/10% presets write into the real `discountPercent` field; "Fixed £" has no backing field (see below) and is DESIGN ONLY. */
+/** Matches the Stitch "Discount" preset chips — the 0/5/10% presets write into the real `discountPercent` field. */
 const DISCOUNT_PRESETS = ['0', '5', '10'];
 
 /**
@@ -67,11 +67,6 @@ const DISCOUNT_PRESETS = ['0', '5', '10'];
  * `calculateLineTotal` (the same function `CreateInvoiceItemsScreen`/
  * `InvoiceReviewScreen` use to freeze the real snapshot at save time) — this
  * screen previously showed no running total at all while editing.
- *
- * One Stitch element has no backing field: the "Fixed £" discount option —
- * `InvoiceItemSnapshot.discountPercent` is a percentage only, there is no
- * fixed-amount discount field, so that specific preset is DESIGN ONLY
- * (shown, inert) while the 0/5/10% presets are real.
  */
 export function InvoiceLineFormFields({
   control,
@@ -83,7 +78,6 @@ export function InvoiceLineFormFields({
   const has = (key: string) => fieldConfig.fields.some((field) => field.key === key);
   const label = (key: Parameters<typeof getFieldLabel>[1]) => getFieldLabel(fieldConfig.invoiceTypeId, key);
   const hasDimensions = has('weight') || has('length') || has('width') || has('height');
-  const currencySymbol = useCurrencySymbol();
   const priceMode = useWatch({ control, name: 'priceMode' });
 
   return (
@@ -157,16 +151,6 @@ export function InvoiceLineFormFields({
               {DISCOUNT_PRESETS.map((preset) => (
                 <DiscountPresetChip key={preset} value={preset} control={control} />
               ))}
-              {/* DESIGN ONLY: `discountPercent` is a percentage only — there is no fixed-amount discount field. */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Fixed amount discount — DESIGN ONLY, only percentage discounts are supported"
-                testID="field-discount-fixed-design-only"
-                onPress={() => undefined}
-                style={styles.presetChip}
-              >
-                <Text style={styles.presetChipText}>Fixed {currencySymbol} · DESIGN ONLY</Text>
-              </Pressable>
             </View>
           </View>
         )}

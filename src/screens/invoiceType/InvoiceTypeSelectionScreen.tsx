@@ -28,9 +28,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceTypeSelection'>;
  * be a fabricated usage-popularity claim with no real data behind it, and
  * the recalculation tip describes `CreateInvoiceItemsScreen`'s per-invoice
  * pricing-method switch (§19), not this business-level default — it doesn't
- * apply here. Its "View calculation guide" link is dropped rather than
- * marked DESIGN ONLY, matching how Invoice Review's compliance-claim copy
- * was dropped rather than badged.
+ * apply here. Its "View calculation guide" link is dropped too.
  */
 export function InvoiceTypeSelectionScreen({ navigation }: Props) {
   const { status, selection, error, load, save } = useInvoiceTypeStore();

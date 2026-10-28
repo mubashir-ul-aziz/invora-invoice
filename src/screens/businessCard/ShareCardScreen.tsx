@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { CardPreview } from '@/components/businessCard/CardPreview';
@@ -17,7 +17,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ShareCard'>;
  * Uses the native share sheet — works with or without internet; no backend involved.
  *
  * Restyled to match the Stitch "Share Card" design's Quick Share grid +
- * Direct Link + additional-options list. The direct link shown is the
+ * Direct Link. The direct link shown is the
  * real, app-generated share link (`metriqo://card/{slug}` — a deep link,
  * not a web URL; this app has no web backend/domain like Stitch's fake
  * "metriqo.me"). WhatsApp/Email/SMS quick-share icons are real: each opens
@@ -28,11 +28,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ShareCard'>;
  * pattern — no new dependency, just more `Linking` URL schemes). The
  * direct-link text is `selectable` so it can be copied via the OS's own
  * text-selection UI — this app has no clipboard library, so a fake "Copy"
- * button is skipped rather than added as inert chrome. "Save contact file
- * (.vCard)" and "Export as PDF summary" are DESIGN ONLY: nothing in this
- * app exports a standalone .vcf file or a card-summary PDF (PDF generation
- * exists only for invoices). Stitch's "Verified" badge is dropped (no
- * verification concept exists for a business card).
+ * button is skipped rather than added as inert chrome. Stitch's "Verified"
+ * badge is dropped (no verification concept exists for a business card).
  */
 export function ShareCardScreen({ navigation }: Props) {
   const { card, getShareLink } = useBusinessCardStore();
@@ -49,8 +46,6 @@ export function ShareCardScreen({ navigation }: Props) {
       // The user cancelling the share sheet also lands here on some platforms — no-op.
     }
   };
-
-  const notAvailable = (what: string) => Alert.alert('Not available', `${what} is not implemented yet.`);
 
   if (!card || !shareLink) {
     return (
@@ -92,40 +87,6 @@ export function ShareCardScreen({ navigation }: Props) {
             {shareLink}
           </Text>
         </View>
-      </View>
-
-      <View style={styles.optionsCard}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Save contact file — DESIGN ONLY, not implemented"
-          testID="action-save-vcard-design-only"
-          onPress={() => notAvailable('Saving a .vCard file')}
-          style={({ pressed }) => [styles.optionRow, pressed && styles.pressed]}
-        >
-          <View style={styles.optionIcon}>
-            <Feather name="user-plus" size={17} color={colors.primary} />
-          </View>
-          <View style={styles.flexShrink}>
-            <Text style={styles.optionLabel}>Save contact file (.vCard) · DESIGN ONLY</Text>
-            <Text style={styles.optionCaption}>Imports directly to phone contacts</Text>
-          </View>
-        </Pressable>
-        <View style={styles.divider} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Export as PDF summary — DESIGN ONLY, not implemented"
-          testID="action-export-pdf-summary-design-only"
-          onPress={() => notAvailable('Exporting a PDF summary')}
-          style={({ pressed }) => [styles.optionRow, pressed && styles.pressed]}
-        >
-          <View style={styles.optionIcon}>
-            <Feather name="file-text" size={17} color={colors.primary} />
-          </View>
-          <View style={styles.flexShrink}>
-            <Text style={styles.optionLabel}>Export as PDF summary · DESIGN ONLY</Text>
-            <Text style={styles.optionCaption}>Print-ready portfolio sheet</Text>
-          </View>
-        </Pressable>
       </View>
 
       <View style={styles.row}>
@@ -174,7 +135,6 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyText: { color: colors.textMuted, textAlign: 'center' },
   pressed: { opacity: 0.75 },
-  flexShrink: { flexShrink: 1, minWidth: 0 },
 
   sectionHeader: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase' },
   quickShareRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
@@ -216,21 +176,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   linkText: { fontSize: 12, color: colors.text, fontWeight: '600', flexShrink: 1 },
-
-  optionsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  optionIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-  optionLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
-  optionCaption: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  divider: { height: 1, backgroundColor: colors.background, marginLeft: 60 },
 
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 });

@@ -16,12 +16,7 @@ interface Props {
  * / Overdue) — always rendered from a `DashboardSummary` that was
  * *calculated* by `domain/dashboard/calculations.ts`, never a hard-coded or
  * stored figure. Matches the Stitch "Key Metrics" cards: a label + icon
- * chip, a large value, and one real, derived secondary line per card.
- *
- * The Stitch design also shows a month-over-month "+12.4% vs last mo" trend
- * chip on the Total Sales card. There is no prior-period/historical sales
- * figure anywhere in the schema to compute that from, so it is rendered as a
- * visible "DESIGN ONLY" chip instead of a fabricated percentage.
+ * chip, a large value, and a real, derived secondary line where one exists.
  */
 export function DashboardSummaryCard({ summary, testID }: Props) {
   const collectedPercent = summary.totalSales > 0 ? (summary.totalPaid / summary.totalSales) * 100 : 0;
@@ -38,12 +33,7 @@ export function DashboardSummaryCard({ summary, testID }: Props) {
           iconBg="#E5EEFF"
           iconColor={colors.primary}
           testID="summary-total-sales"
-        >
-          {/* DESIGN ONLY: no prior-month sales figure exists to compute a real trend from. */}
-          <View style={styles.designOnlyChip}>
-            <Text style={styles.designOnlyChipText}>DESIGN ONLY</Text>
-          </View>
-        </MetricTile>
+        />
         <MetricTile
           label="Collected"
           value={formatAmount(summary.totalPaid)}
@@ -159,12 +149,4 @@ const styles = StyleSheet.create({
   tileValueDanger: { color: colors.danger },
   secondaryText: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
   dangerText: { color: colors.danger },
-  designOnlyChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F0F1F5',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  designOnlyChipText: { fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.3 },
 });

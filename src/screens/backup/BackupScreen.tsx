@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
@@ -35,15 +35,11 @@ const SUCCESS_FG = '#006243';
  * shown, since this app has no Drive account-profile, storage-quota, or
  * encryption capability at all (confirmed — `BackupService` does not
  * encrypt backup payloads) — same "never fake a backend feature/claim"
- * precedent as other restyled screens. "Backup Frequency" and "Include
- * PDF Attachments" have no backing setting (`BackupSettings` only has
- * `autoBackupEnabled`), so both are DESIGN ONLY.
+ * precedent as other restyled screens.
  */
 export function BackupScreen({ navigation }: Props) {
   const { status, signedIn, settings, history, error, load, signIn, signOut, setAutoBackupEnabled, backupNow } =
     useBackupStore();
-
-  const [includePdfs, setIncludePdfs] = useState(true);
 
   useEffect(() => {
     load();
@@ -70,8 +66,6 @@ export function BackupScreen({ navigation }: Props) {
       { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
     ]);
   };
-
-  const notAvailable = (what: string) => Alert.alert('Not available', `${what} is not implemented yet.`);
 
   const lastSuccess = history.find((entry) => entry.direction === 'backup' && entry.status === 'success');
   const backupsLogged = history.filter((entry) => entry.direction === 'backup' && entry.status === 'success').length;
@@ -179,23 +173,6 @@ export function BackupScreen({ navigation }: Props) {
           onToggle={() => setAutoBackupEnabled(!settings.autoBackupEnabled)}
           testID="backup-auto-toggle"
         />
-        {/* DESIGN ONLY: BackupSettings has no configurable frequency — backups always run opportunistically once a day. */}
-        <ValueRow
-          icon="clock"
-          label="Backup Frequency · DESIGN ONLY"
-          value="Daily"
-          onPress={() => notAvailable('Choosing a backup frequency')}
-          testID="action-backup-frequency-design-only"
-        />
-        {/* DESIGN ONLY: backups always archive full database tables; there's no separate PDF-attachment inclusion setting. */}
-        <FieldToggleRow
-          icon="file-text"
-          label="Include PDF Attachments · DESIGN ONLY"
-          description="Archive generated invoice PDFs alongside the database"
-          checked={includePdfs}
-          onToggle={() => setIncludePdfs((v) => !v)}
-          testID="toggle-include-pdfs-design-only"
-        />
       </View>
 
       <Pressable
@@ -216,28 +193,6 @@ export function BackupScreen({ navigation }: Props) {
         </View>
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </Pressable>
-
-      {/* DESIGN ONLY: restoring from an offline .metriqo file isn't implemented — restore only works from a Drive file (see Backup History). */}
-      <View style={styles.card}>
-        <View style={styles.cardTitleRow}>
-          <Feather name="rotate-ccw" size={18} color={colors.primary} />
-          <Text style={styles.cardTitle}>Disaster Recovery</Text>
-        </View>
-        <Text style={styles.cardBody}>
-          Need to migrate to a new device or recover deleted records? Restore an earlier snapshot from Google Drive, or
-          load an offline archive directly.
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Restore from file — DESIGN ONLY, not implemented"
-          testID="action-restore-from-file-design-only"
-          onPress={() => notAvailable('Restoring from an offline .metriqo file')}
-          style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}
-        >
-          <Feather name="upload" size={16} color={colors.primary} />
-          <Text style={styles.textButtonLabel}>Restore from File (.metriqo) · DESIGN ONLY</Text>
-        </Pressable>
-      </View>
     </ScrollView>
   );
 }
@@ -256,39 +211,6 @@ function Chip({ label }: { label: string }) {
     <View style={styles.chip}>
       <Text style={styles.chipText}>{label}</Text>
     </View>
-  );
-}
-
-function ValueRow({
-  icon,
-  label,
-  value,
-  onPress,
-  testID,
-}: {
-  icon: keyof typeof Feather.glyphMap;
-  label: string;
-  value: string;
-  onPress: () => void;
-  testID?: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label} — DESIGN ONLY, not implemented`}
-      testID={testID}
-      onPress={onPress}
-      style={({ pressed }) => [styles.valueRow, pressed && styles.pressed]}
-    >
-      <View style={styles.valueIcon}>
-        <Feather name={icon} size={16} color={colors.primary} />
-      </View>
-      <Text style={styles.valueLabel}>{label}</Text>
-      <View style={styles.valueRight}>
-        <Text style={styles.valueText}>{value}</Text>
-        <Feather name="chevron-right" size={16} color={colors.textMuted} />
-      </View>
-    </Pressable>
   );
 }
 
@@ -332,12 +254,6 @@ const styles = StyleSheet.create({
   errorDetail: { fontSize: 12, color: colors.danger },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 
-  valueRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  valueIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-  valueLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.text },
-  valueRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  valueText: { fontSize: 12, color: colors.textMuted },
-
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -354,7 +270,4 @@ const styles = StyleSheet.create({
   navIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
   navLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
   navCaption: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-
-  textButton: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
-  textButtonLabel: { fontSize: 13, fontWeight: '600', color: colors.primary },
 });

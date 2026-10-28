@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Alert, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { PaymentListRow } from '@/components/payment/PaymentListRow';
@@ -23,14 +23,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PaymentHistory'>;
  * + method filter chips (still store-driven, unchanged behavior), payments
  * grouped into real month sections, and a "Record Payment" FAB.
  *
- * DESIGN ONLY:
- * - "Export ledger" — no CSV/PDF export capability exists anywhere in this
- *   app (same reasoning as Invoice Detail's "Export CSV" menu item).
- * - The date-range pill ("This Month" / "Custom Range") — `PaymentFilter`
- *   has no date-range field, only `searchText`/`method`.
  * The Stitch mock's "+14.2%" trend badge and "Inflow velocity" sparkline
- * aren't reproduced at all (like Invoice List's cash-flow sparkline, no
- * historical/period-over-period data is computed anywhere) — nor are
+ * aren't reproduced (no historical/period-over-period data is computed
+ * anywhere) — nor are
  * per-row "Settled/Partial" status badges (see `PaymentListRow`'s doc
  * comment: that's the invoice's status, not the payment's, and would need
  * an extra per-row invoice lookup this cross-invoice list doesn't do).
@@ -71,17 +66,6 @@ export function PaymentHistoryScreen({ navigation }: Props) {
               <Feather name="credit-card" size={16} color={colors.primary} />
             </View>
             <Text style={styles.title}>Payment History</Text>
-          </View>
-          <View style={styles.titleActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Export ledger — DESIGN ONLY, no export capability exists"
-              testID="action-export-ledger-design-only"
-              onPress={() => Alert.alert('Not available', 'CSV/PDF export is not implemented yet.')}
-              style={styles.titleActionButton}
-            >
-              <Feather name="upload" size={16} color={colors.textMuted} />
-            </Pressable>
           </View>
         </View>
 
@@ -138,17 +122,6 @@ export function PaymentHistoryScreen({ navigation }: Props) {
             );
           })}
         </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Date range — DESIGN ONLY, no date-range filter exists"
-          testID="action-date-range-design-only"
-          onPress={() => Alert.alert('Not available', 'Filtering by date range is not implemented yet.')}
-          style={styles.dateRangePill}
-        >
-          <Feather name="calendar" size={13} color={colors.textMuted} />
-          <Text style={styles.dateRangeText}>Date range · DESIGN ONLY</Text>
-        </Pressable>
       </View>
 
       {(status === 'loading' || status === 'idle') && (
@@ -252,8 +225,6 @@ const styles = StyleSheet.create({
   titleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   titleIcon: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '700', color: colors.text },
-  titleActions: { flexDirection: 'row', gap: 8 },
-  titleActionButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
 
   heroCard: {
     backgroundColor: colors.surface,
@@ -290,9 +261,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.primary },
   chipText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
   chipTextActive: { color: colors.primaryText },
-
-  dateRangePill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.surface, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  dateRangeText: { fontSize: 11, color: colors.textMuted },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },

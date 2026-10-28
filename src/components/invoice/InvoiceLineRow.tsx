@@ -39,12 +39,9 @@ interface Props {
  * to match the Stitch line-item card: name + total up top, a measurement
  * chip + edit/delete icon buttons below.
  *
- * Stitch's mock also shows a drag handle for manual reordering and a per-item
- * "category" tag (e.g. "Materials & Supplies") — `InvoiceItemSnapshot` has no
- * category field, and `invoiceDraftStore` has no reorder method (only
- * `addLine`/`updateLine`/`removeLine`), so the drag handle is shown as an
- * inert DESIGN ONLY affordance (only in editable contexts) and the category
- * tag isn't reproduced rather than inventing a value.
+ * Stitch's mock also shows a per-item "category" tag (e.g. "Materials &
+ * Supplies") — `InvoiceItemSnapshot` has no category field, so it isn't
+ * reproduced rather than inventing a value.
  */
 export function InvoiceLineRow({
   itemName,
@@ -69,7 +66,6 @@ export function InvoiceLineRow({
       : quantityLabel
         ? `${quantityLabel} × ${currencySymbol}${unitPrice.toFixed(2)}`
         : `${currencySymbol}${unitPrice.toFixed(2)} each`;
-  const editable = !!onEdit || !!onDelete;
 
   return (
     <Pressable
@@ -81,15 +77,6 @@ export function InvoiceLineRow({
       style={({ pressed }) => [styles.card, pressed && !!onPress && styles.pressed]}
     >
       <View style={styles.topRow}>
-        {editable && (
-          // DESIGN ONLY: `invoiceDraftStore` has no reorder method — decorative handle only.
-          <View
-            style={styles.dragHandle}
-            accessibilityLabel="Reorder line — DESIGN ONLY, not supported"
-          >
-            <Feather name="menu" size={16} color={colors.placeholder} />
-          </View>
-        )}
         <Text style={styles.name} numberOfLines={1}>
           {itemName || 'Untitled line'}
         </Text>
@@ -152,7 +139,6 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.7 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dragHandle: { padding: 2 },
   name: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
   total: { fontSize: 15, fontWeight: '700', color: colors.text },
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

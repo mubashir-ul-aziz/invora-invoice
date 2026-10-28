@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
@@ -39,12 +39,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EditBusiness' | 'EditBu
  *
  * Restyled to match the Stitch "Business Details" design's card sections —
  * Brand Identity & Logo, Business Details, Financial & Tax, Social Links &
- * Maps — with every existing field/testID unchanged. The Stitch mock's
- * "Industry / Tagline" field has no backing column anywhere in
- * `BusinessProfile`/`BusinessCard`, so it's DESIGN ONLY (local state, never
- * submitted); its phone field's "🇬🇧 +44" country-code prefix is likewise
- * decorative — this app stores whatever the user types verbatim, same
- * DESIGN ONLY treatment as Create/Edit Customer's phone field.
+ * Maps — with every existing field/testID unchanged.
  */
 export function EditBusinessScreen({ navigation }: Props) {
   // Neither store is loaded here — same convention the two screens this
@@ -58,9 +53,6 @@ export function EditBusinessScreen({ navigation }: Props) {
   const profileStore = useBusinessProfileStore();
   const cardStore = useBusinessCardStore();
   const bothLoaded = profileStore.status === 'ready' && cardStore.status === 'ready';
-
-  // DESIGN ONLY: no backing field exists on `BusinessProfile`/`BusinessCard`.
-  const [tagline, setTagline] = useState('');
 
   const {
     control,
@@ -120,43 +112,14 @@ export function EditBusinessScreen({ navigation }: Props) {
           <Text style={styles.cardTitle}>Business Details</Text>
         </View>
         <Field name="businessName" label="Business Name *" control={control} errors={errors} />
-        {/* DESIGN ONLY: no industry/tagline field exists on `BusinessProfile`/`BusinessCard`. */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Industry / Tagline · DESIGN ONLY</Text>
-          <FormField
-            label=""
-            value={tagline}
-            onChangeText={setTagline}
-            placeholder="e.g. Architectural Design & Contracting"
-            testID="field-tagline-design-only"
-          />
-        </View>
         <Field name="ownerName" label="Owner / Contact Name" control={control} errors={errors} />
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Phone</Text>
-          <View style={styles.phoneRow}>
-            {/* DESIGN ONLY: no country-code field exists — the number is saved exactly as typed. */}
-            <View style={styles.countryBadge} accessibilityLabel="Country code — DESIGN ONLY, not stored">
-              <Text style={styles.countryBadgeText}>DESIGN ONLY</Text>
-            </View>
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { value, onChange, onBlur } }) => (
-                <FormField
-                  value={typeof value === 'string' ? value : ''}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  keyboardType="phone-pad"
-                  error={errors.phone?.message}
-                  testID="field-phone"
-                  style={styles.phoneInput}
-                  label=""
-                />
-              )}
-            />
-          </View>
-        </View>
+        <Field
+          name="phone"
+          label="Phone"
+          control={control}
+          errors={errors}
+          keyboardType="phone-pad"
+        />
         <Field
           name="email"
           label="Email Address"
@@ -315,21 +278,6 @@ const styles = StyleSheet.create({
   },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-
-  fieldGroup: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.text },
-
-  phoneRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  countryBadge: {
-    height: 44,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countryBadgeText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
-  phoneInput: { flex: 1 },
 
   sectionHint: { fontSize: 12, color: colors.textMuted, marginTop: -6 },
 

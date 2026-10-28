@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { OptionPicker } from '@/components/business/OptionPicker';
 import { FormField } from '@/components/businessCard/FormField';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { customerToFormDefaults, formValuesToCustomerInput } from '@/domain/customer/formMapping';
@@ -27,17 +26,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EditCustomer'>;
 
 type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
 
-/** Mirrors Create Customer's fixed country list — kept local rather than importing across screens. */
-const COUNTRY_OPTIONS = [
-  { value: 'United Kingdom', label: 'United Kingdom' },
-  { value: 'United States', label: 'United States' },
-  { value: 'Ireland', label: 'Ireland' },
-  { value: 'Canada', label: 'Canada' },
-  { value: 'Australia', label: 'Australia' },
-  { value: 'Germany', label: 'Germany' },
-  { value: 'France', label: 'France' },
-];
-
 /**
  * Edit Customer, restyled to match the Stitch "Edit Customer" design: a
  * profile sub-header with a real "last updated" timestamp, a financial
@@ -46,25 +34,13 @@ const COUNTRY_OPTIONS = [
  *
  * `Customer` (`domain/customer/types.ts`) only has one freeform `address`
  * string — there is no structured street/city/postcode/country storage.
- * Unlike Create Customer (which starts blank and can safely compose four
- * inputs into that one field), Edit loads a pre-existing, arbitrarily
- * formatted address. Silently re-composing it from four fields on every save
- * risked corrupting data the user never touched (e.g. appending a default
- * country to an address that already had one). So here only "Street Address"
- * is wired to the real `address` field (loaded as-is, saved as-is); City,
- * Postcode and Country are local UI state only, interactive but never
- * submitted, and marked DESIGN ONLY.
+ * Edit loads a pre-existing, arbitrarily formatted address, so only
+ * "Street Address" is shown, wired straight to the real `address` field
+ * (loaded as-is, saved as-is).
  *
- * DESIGN ONLY elements (no backing field/behavior on `Customer` or its
- * repository):
- * - "CUST-0042 • Active" and "Verified VAT Reg" (no customer code, active
- *   status, or VAT-verification field).
- * - The Micro Health Sparkbar ("Paid on time" / "Draft/Pending" split) — no
- *   on-time/draft tracking exists on invoices.
- * - City / Postcode / Country billing-address fields (see above).
- * - The "PDF memo" tag and "Appears in footer notes of issued bills" caption
- *   on Notes — `customer.notes` is not actually rendered into invoice PDFs
- *   anywhere in `domain/pdf`, so that claim is replaced with accurate copy.
+ * The Stitch "PDF memo" tag and "Appears in footer notes of issued bills"
+ * caption on Notes are replaced with accurate copy — `customer.notes` is not
+ * actually rendered into invoice PDFs anywhere in `domain/pdf`.
  *
  * Real, backend-connected elements:
  * - Name / Phone / Billing Email / Street Address / Notes load from and save
@@ -91,10 +67,6 @@ export function EditCustomerScreen({ navigation, route }: Props) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
-
-  const [city, setCity] = useState('');
-  const [postcode, setPostcode] = useState('');
-  const [country, setCountry] = useState('United Kingdom');
 
   const {
     control,
@@ -237,16 +209,6 @@ export function EditCustomerScreen({ navigation, route }: Props) {
 
       {/* Customer Overview Hero Capsule */}
       <View style={styles.heroCard}>
-        <View style={styles.heroBadgeRow}>
-          <View style={styles.heroBadge} accessibilityLabel="Customer code and status — DESIGN ONLY, no such field exists">
-            <View style={styles.heroBadgeDot} />
-            <Text style={styles.heroBadgeText}>DESIGN ONLY</Text>
-          </View>
-          <View style={styles.heroVerifiedRow} accessibilityLabel="Verified VAT registration — DESIGN ONLY, no VAT field exists">
-            <Feather name="shield" size={13} color={colors.textMuted} />
-            <Text style={styles.heroVerifiedText}>Verified VAT Reg · DESIGN ONLY</Text>
-          </View>
-        </View>
         <View style={styles.heroStatsRow}>
           <View>
             <Text style={styles.heroStatLabel}>Lifetime Revenue</Text>
@@ -261,12 +223,6 @@ export function EditCustomerScreen({ navigation, route }: Props) {
             </Text>
           </View>
         </View>
-        {/* DESIGN ONLY: no "paid on time" / "draft" tracking exists on invoices. */}
-        <View style={styles.sparkbar} accessibilityLabel="Health sparkbar — DESIGN ONLY, not derived from real data">
-          <View style={styles.sparkbarPaid} />
-          <View style={styles.sparkbarPending} />
-        </View>
-        <Text style={styles.sparkbarCaption}>Paid on time / Draft &amp; pending · DESIGN ONLY</Text>
       </View>
 
       {/* 1. Basic Information Card */}
@@ -379,36 +335,6 @@ export function EditCustomerScreen({ navigation, route }: Props) {
           )}
         />
 
-        {/* DESIGN ONLY: no separate city/postcode/country columns exist — see the class doc comment above. */}
-        <View style={styles.rowTwoCol}>
-          <View style={styles.colHalf}>
-            <FormField
-              label="City · DESIGN ONLY"
-              value={city}
-              onChangeText={setCity}
-              placeholder="London"
-              testID="field-address-city"
-            />
-          </View>
-          <View style={styles.colHalf}>
-            <FormField
-              label="Postcode · DESIGN ONLY"
-              value={postcode}
-              onChangeText={setPostcode}
-              placeholder="W1S 1JD"
-              autoCapitalize="characters"
-              testID="field-address-postcode"
-            />
-          </View>
-        </View>
-
-        <OptionPicker
-          label="Country · DESIGN ONLY"
-          options={COUNTRY_OPTIONS}
-          value={country}
-          onChange={setCountry}
-          testID="field-address-country"
-        />
       </View>
 
       {/* 3. Invoice Notes & Terms Card */}
@@ -591,31 +517,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  heroBadgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: colors.background,
-  },
-  heroBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
-  heroBadgeText: { fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.3 },
-  heroVerifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  heroVerifiedText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
-
   heroStatsRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   heroStatRight: { alignItems: 'flex-end' },
   heroStatLabel: { fontSize: 11, color: colors.textMuted },
   heroStatValue: { fontSize: 22, fontWeight: '700', color: colors.text, marginTop: 2, letterSpacing: -0.3 },
   heroStatValueSmall: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2 },
-
-  sparkbar: { flexDirection: 'row', width: '100%', height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.background },
-  sparkbarPaid: { width: '85%', backgroundColor: '#1E7B41' },
-  sparkbarPending: { width: '15%', backgroundColor: colors.border },
-  sparkbarCaption: { fontSize: 10, color: colors.textMuted },
 
   card: {
     backgroundColor: colors.surface,
@@ -647,9 +553,6 @@ const styles = StyleSheet.create({
 
   mapPinButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
   mapPinButtonText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-
-  rowTwoCol: { flexDirection: 'row', gap: 10 },
-  colHalf: { flex: 1, minWidth: 0 },
 
   notesFooterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   notesCount: { fontSize: 11, color: colors.textMuted, fontVariant: ['tabular-nums'] },

@@ -61,11 +61,6 @@ function customerFromInvoiceSnapshot(invoice: Invoice): Customer {
  * Per the earlier investigation, every action on this screen was already
  * real and backend-wired before this restyle (payments, PDF/sharing, edit,
  * delete, duplicate, contact actions) — nothing here needed new wiring.
- * Two Stitch elements have no backing field anywhere in this app and are
- * DESIGN ONLY, both left inert-but-visible in the overflow menu:
- * - "Export CSV" — no CSV export exists.
- * - "Void Invoice" — invoices have no void/cancelled status; only Delete is
- *   real (a hard delete, already wired).
  * The Invoice Details grid's "Payment Terms" reuses the real
  * `invoice.terms` and "Currency" shows the business's own currency
  * (`BusinessProfile.currency`, set on Business/Invoice Settings) — `Invoice`
@@ -223,16 +218,6 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
               label: 'Download PDF',
               onPress: () => navigation.navigate('InvoicePdfPreview', { invoiceId }),
               testID: 'action-download-pdf',
-            },
-            {
-              label: 'Export CSV · DESIGN ONLY',
-              onPress: () => Alert.alert('Not available', 'CSV export is not implemented yet.'),
-              testID: 'action-export-csv-design-only',
-            },
-            {
-              label: 'Void invoice · DESIGN ONLY',
-              onPress: () => Alert.alert('Not available', 'Invoices have no "void" status — only Delete is real.'),
-              testID: 'action-void-invoice-design-only',
             },
             { label: 'Delete invoice', onPress: handleDelete, destructive: true, testID: 'action-delete-invoice' },
           ]}

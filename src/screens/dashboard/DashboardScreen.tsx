@@ -30,10 +30,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
  * The app's home screen, restyled to match the Stitch "Dashboard" design:
  * a greeting header, a 3-tile quick-actions row, a 2x2 key-metrics grid, a
  * status-breakdown strip, and a recent-invoices list, plus a screen-local
- * bottom nav mirroring the Stitch mock's tab bar. See the doc comments on
- * `DashboardGreetingHeader` and `DashboardSummaryCard` for exactly which
- * Stitch elements have no backend support and are marked DESIGN ONLY instead
- * of showing invented numbers.
+ * bottom nav mirroring the Stitch mock's tab bar.
  *
  * Total Sales / Paid / Outstanding / Overdue / invoice counts
  * (`DashboardSummaryCard`, `DashboardStatusBreakdown`) and the recent-

@@ -85,9 +85,8 @@ function formatShortDate(iso: string): string {
  * changes. None of that is backed by real per-event data (there is no
  * receipt artifact, no email-tracking, and no audit log on `Customer` — see
  * `domain/customer/types.ts`), so rather than inventing plausible-looking
- * values, the "Edits" filter chip is shown disabled and marked DESIGN ONLY,
- * and each entry's only actions are the real ones: a "Details" link to that
- * invoice/payment's own screen.
+ * values, each entry's only actions are the real ones: a "Details" link to
+ * that invoice/payment's own screen.
  */
 export function CustomerHistoryScreen({ navigation, route }: Props) {
   const { customerId } = route.params;
@@ -240,13 +239,6 @@ function OverviewBanner({ customer, summary }: { customer: Customer; summary: Cu
             {customer.name}
           </Text>
         </View>
-        {/* Stitch shows a "ID: CUST-884" client-code badge here; `Customer` has no display code field (see domain/customer/types.ts) — same DESIGN ONLY treatment Customer Detail already uses for this. */}
-        <View
-          style={styles.designOnlyChip}
-          accessibilityLabel="Customer ID badge — DESIGN ONLY, no customer code field exists"
-        >
-          <Text style={styles.designOnlyChipText}>ID: DESIGN ONLY</Text>
-        </View>
       </View>
       <View style={styles.bannerSubtitleRow}>
         <View style={styles.bannerDot} />
@@ -267,16 +259,6 @@ function OverviewBanner({ customer, summary }: { customer: Customer; summary: Cu
           >
             {currencySymbol}{summary.outstanding.toFixed(2)}
           </Text>
-        </View>
-        {/* Stitch shows a "Health: Prime" verified badge here; there is no customer health/tier concept anywhere in the data model. */}
-        <View style={styles.metricCol}>
-          <Text style={styles.metricLabel}>Health</Text>
-          <View
-            style={styles.designOnlyChip}
-            accessibilityLabel="Customer health badge — DESIGN ONLY, no health/tier field exists"
-          >
-            <Text style={styles.designOnlyChipText}>DESIGN ONLY</Text>
-          </View>
         </View>
       </View>
     </View>
@@ -312,18 +294,6 @@ function FilterChipsRow({ filter, onChange }: { filter: ChipFilter; onChange: (v
           </Pressable>
         );
       })}
-      {/* Stitch's chip bar also has an "Edits" filter for customer-profile audit
-          events (address changed, customer created, etc). No such audit log
-          exists on `Customer` (domain/customer/types.ts) or anywhere in this
-          app's data model, so it's shown per DESIGN.md but disabled rather
-          than wired to a filter value that would just always be empty. */}
-      <View style={styles.filterChipDisabled} testID="history-type-filter-edit-design-only">
-        <Feather name="edit-2" size={14} color={colors.placeholder} />
-        <Text style={styles.filterChipDisabledText}>Edits</Text>
-        <View style={styles.designOnlyChipSmall}>
-          <Text style={styles.designOnlyChipSmallText}>DESIGN ONLY</Text>
-        </View>
-      </View>
     </ScrollView>
   );
 }
@@ -425,15 +395,6 @@ const styles = StyleSheet.create({
 
   listContent: { padding: 16, paddingBottom: 28, gap: 0 },
 
-  designOnlyChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: colors.background,
-    alignSelf: 'flex-start',
-  },
-  designOnlyChipText: { fontSize: 9, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.2 },
-
   banner: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -479,22 +440,6 @@ const styles = StyleSheet.create({
   filterChipSelected: { backgroundColor: colors.primary },
   filterChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
   filterChipTextSelected: { color: colors.primaryText },
-  filterChipDisabled: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    opacity: 0.7,
-  },
-  filterChipDisabledText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
-  designOnlyChipSmall: { paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.background },
-  designOnlyChipSmallText: { fontSize: 8, fontWeight: '700', color: colors.textMuted },
 
   sectionHeader: {
     flexDirection: 'row',

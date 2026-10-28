@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -39,9 +39,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceSettings'>;
  * `BusinessRepository.reserveNextInvoiceNumber()` at invoice-creation time,
  * so it stays the existing read-only display, not a new editable field
  * (unchanged behavior, just restyled to look like the rest of the card).
- * "Default Late Fee Policy" and "Default Notes & Terms" have no backing
- * field anywhere on `InvoiceSettings` and are DESIGN ONLY (local state,
- * never submitted). The Invoice Template card reuses `TemplatePreview` —
+ * The Invoice Template card reuses `TemplatePreview` —
  * the same real per-template swatch the dedicated Invoice Templates screen
  * uses — instead of a generic chip row. Per this app's existing "two entry
  * points, one source of truth" design (documented in-code and in
@@ -52,10 +50,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceSettings'>;
  */
 export function InvoiceSettingsScreen({ navigation }: Props) {
   const { settings, status, save } = useInvoiceSettingsStore();
-
-  // DESIGN ONLY: neither field exists on `InvoiceSettings`.
-  const [lateFeePolicy, setLateFeePolicy] = useState('none');
-  const [defaultNotes, setDefaultNotes] = useState('');
 
   const {
     control,
@@ -230,47 +224,6 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
             />
           )}
         />
-        {/* DESIGN ONLY: no late-fee field exists anywhere in this app. */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Default Late Fee Policy · DESIGN ONLY</Text>
-          <View style={styles.chipRow}>
-            {[
-              { value: 'none', label: 'No surcharge' },
-              { value: '1.5', label: '1.5% / mo' },
-              { value: 'fixed', label: 'Fixed fee' },
-            ].map((option) => {
-              const selected = lateFeePolicy === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  accessibilityRole="button"
-                  onPress={() => setLateFeePolicy(option.value)}
-                  style={[styles.chip, selected && styles.chipActive]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>{option.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </View>
-
-      {/* Default Notes & Terms — DESIGN ONLY */}
-      <View style={styles.card}>
-        <View style={styles.cardHeaderRow}>
-          <Feather name="file-text" size={16} color={colors.primary} />
-          <Text style={styles.cardTitle}>Default Notes &amp; Terms · DESIGN ONLY</Text>
-        </View>
-        <FormField
-          label=""
-          value={defaultNotes}
-          onChangeText={setDefaultNotes}
-          multiline
-          numberOfLines={3}
-          placeholder="Thank you for your business. Please remit payment within 14 days of invoice issue date."
-          testID="field-defaultNotes-design-only"
-        />
-        <Text style={styles.cardCaption}>Not stored — no default-notes field exists yet.</Text>
       </View>
 
       {/* Invoice Template */}
@@ -354,13 +307,6 @@ const styles = StyleSheet.create({
   previewValue: { fontSize: 13, fontWeight: '700', color: colors.primary, marginTop: 2 },
 
   hint: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic' },
-
-  fieldGroup: { gap: 6 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.background },
-  chipActive: { backgroundColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  chipTextActive: { color: colors.primaryText },
 
   templateGrid: { flexDirection: 'row', gap: 8 },
   templateCard: { flex: 1, backgroundColor: colors.background, borderRadius: 14, padding: 8, gap: 6 },

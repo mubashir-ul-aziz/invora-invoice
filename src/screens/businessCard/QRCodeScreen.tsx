@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
-import { Alert, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import type { RootStackParamList } from '@/navigation/types';
@@ -17,12 +17,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'QRCode'>;
  *
  * Restyled to match the Stitch "QR Code" design's card + action-hierarchy
  * layout. "Share QR Link" is real — the same native `Share.share` sheet
- * `ShareCardScreen` uses, sharing the real encoded link. "Save Image", "Add
- * to Wallet", and "Print Desk Standee (PDF)" are DESIGN ONLY: this app has
- * no photo-library/wallet-pass integration, and PDF generation exists only
- * for invoices, not a card standee. Stitch's "Live vCard 2.1 Sync" badge is
- * dropped — the QR code here encodes the app's `metriqo://card/{slug}` deep
- * link (asserted by this screen's tests), not vCard-formatted data, so that
+ * `ShareCardScreen` uses, sharing the real encoded link. Stitch's "Live
+ * vCard 2.1 Sync" badge is dropped — the QR code here encodes the app's
+ * `metriqo://card/{slug}` deep link (asserted by this screen's tests), not
+ * vCard-formatted data, so that
  * claim would be inaccurate; its "Verified" badge is dropped too (no
  * verification concept exists for a business card).
  */
@@ -45,8 +43,6 @@ export function QRCodeScreen({}: Props) {
       // The user cancelling the share sheet also lands here on some platforms — no-op.
     }
   };
-
-  const notAvailable = (what: string) => Alert.alert('Not available', `${what} is not implemented yet.`);
 
   return (
     <View style={styles.screen} testID="qr-screen">
@@ -79,32 +75,6 @@ export function QRCodeScreen({}: Props) {
 
       <View style={styles.actions}>
         <ActionRow label="Share QR Link" icon="share-2" primary onPress={onShare} testID="qr-action-share" />
-        <View style={styles.actionsGrid}>
-          <ActionRow
-            label="Save Image · DESIGN ONLY"
-            icon="download"
-            onPress={() => notAvailable('Saving the QR code image')}
-            testID="qr-action-save-image-design-only"
-            compact
-          />
-          <ActionRow
-            label="Add to Wallet · DESIGN ONLY"
-            icon="credit-card"
-            onPress={() => notAvailable('Adding a Wallet pass')}
-            testID="qr-action-wallet-design-only"
-            compact
-          />
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Print desk standee — DESIGN ONLY, not implemented"
-          testID="qr-action-print-design-only"
-          onPress={() => notAvailable('Printing a desk standee PDF')}
-          style={({ pressed }) => [styles.printRow, pressed && styles.pressed]}
-        >
-          <Feather name="printer" size={16} color={colors.textMuted} />
-          <Text style={styles.printText}>Print Desk Standee (PDF) · DESIGN ONLY</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -116,14 +86,12 @@ function ActionRow({
   onPress,
   testID,
   primary,
-  compact,
 }: {
   label: string;
   icon: keyof typeof Feather.glyphMap;
   onPress: () => void;
   testID?: string;
   primary?: boolean;
-  compact?: boolean;
 }) {
   return (
     <Pressable
@@ -134,7 +102,6 @@ function ActionRow({
       style={({ pressed }) => [
         styles.actionButton,
         primary && styles.actionButtonPrimary,
-        compact && styles.actionButtonCompact,
         pressed && styles.pressed,
       ]}
     >
@@ -172,7 +139,6 @@ const styles = StyleSheet.create({
   hint: { fontSize: 12, color: colors.textMuted, flexShrink: 1, textAlign: 'left' },
 
   actions: { width: '100%', maxWidth: 340, gap: 10, marginTop: 8 },
-  actionsGrid: { flexDirection: 'row', gap: 10 },
   actionButton: {
     height: 48,
     borderRadius: 12,
@@ -183,10 +149,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButtonPrimary: { backgroundColor: colors.primary },
-  actionButtonCompact: { flex: 1 },
   actionButtonText: { fontSize: 13, fontWeight: '600', color: colors.text },
   actionButtonTextPrimary: { color: colors.primaryText },
-
-  printRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
-  printText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
 });

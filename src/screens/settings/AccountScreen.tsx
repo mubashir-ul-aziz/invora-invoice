@@ -28,9 +28,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Account'>;
  * storage plan (`cloudBackupStore`, `UpgradeStorage`) is an unrelated,
  * still-placeholder add-on and keeps its own promo card. The identity header
  * uses the real business profile rather than Stitch's invented personal
- * user; the Account Credentials rows (email / member-since / billing
- * reference) have no real analog — there is no account system — and remain
- * marked DESIGN ONLY with honest "not applicable" values, never invented ones.
+ * user.
  */
 export function AccountScreen({ navigation }: Props) {
   const { profile, load: loadProfile } = useBusinessProfileStore();
@@ -122,12 +120,7 @@ export function AccountScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* Credentials rows are DESIGN ONLY: there is no account/login system, so values are honest placeholders, never invented facts. Restore Purchases below is real (RevenueCat + Google Play). */}
       <View style={styles.card}>
-        <Text style={styles.title}>Account Credentials · DESIGN ONLY</Text>
-        <CredentialRow icon="at-sign" label="Account Email" value="Not applicable — no sign-in required" />
-        <CredentialRow icon="calendar" label="Member Since" value="Not tracked" />
-        <CredentialRow icon="hash" label="Billing Reference" value="Not applicable" />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Restore purchases"
@@ -157,26 +150,6 @@ export function AccountScreen({ navigation }: Props) {
         testID="action-logout"
       />
     </ScrollView>
-  );
-}
-
-function CredentialRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Feather.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.credentialRow}>
-      <View style={styles.credentialLabelRow}>
-        <Feather name={icon} size={15} color={colors.textMuted} />
-        <Text style={styles.credentialLabel}>{label}</Text>
-      </View>
-      <Text style={styles.credentialValue}>{value}</Text>
-    </View>
   );
 }
 
@@ -252,18 +225,7 @@ const styles = StyleSheet.create({
   promoPrice: { fontSize: 13, fontWeight: '600', color: colors.placeholder },
   promoBody: { fontSize: 12, color: colors.placeholder, marginBottom: 8 },
 
-  credentialRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    gap: 10,
-  },
-  credentialLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  credentialLabel: { fontSize: 12, color: colors.textMuted },
-  credentialValue: { fontSize: 12, color: colors.text, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
-
-  restoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, marginTop: 4, borderTopWidth: 1, borderTopColor: colors.background },
+  restoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   restoreIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
   restoreLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
   restoreCaption: { fontSize: 11, color: colors.textMuted, marginTop: 1 },

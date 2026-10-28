@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Controller, useController, useWatch, type Control } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -65,12 +65,7 @@ const TAX_RATE_PRESETS = [
  * `getFieldLabel`, instead of a single generic "Default price" that doesn't
  * say what it's a price *of*.
  *
- * The barcode-scan button next to SKU has no backing field on `Item`/the
- * `item` table and is DESIGN ONLY (rendered, interactive where harmless,
- * never submitted) — no camera/barcode-scanning integration exists. The SKU
- * text field itself is real and submitted.
- *
- * The Tax/VAT preset chips are NOT design-only — they're a convenience that
+ * The Tax/VAT preset chips are a convenience that
  * writes straight into the real `taxRate` field (same one the freeform input
  * below it edits), matching Stitch's fixed-tier dropdown without faking a
  * separate concept.
@@ -79,7 +74,6 @@ export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) 
   const invoiceTypeId = useWatch({ control, name: 'invoiceTypeId' });
   const priceMode = useWatch({ control, name: 'priceMode' });
   const { selection, load: loadInvoiceType } = useInvoiceTypeStore();
-  const [scannedSku, setScannedSku] = useState(false);
 
   useEffect(() => {
     loadInvoiceType();
@@ -127,36 +121,21 @@ export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) 
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>SKU / Barcode</Text>
-          <View style={styles.skuRow}>
-            <View style={styles.skuInputWrapper}>
-              <Controller
-                control={control}
-                name="sku"
-                render={({ field: { value, onChange, onBlur } }) => (
-                  <FormField
-                    value={typeof value === 'string' ? value : ''}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="e.g. WOD-8821"
-                    error={errors.sku?.message}
-                    testID="field-sku"
-                    label=""
-                  />
-                )}
+          <Controller
+            control={control}
+            name="sku"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <FormField
+                value={typeof value === 'string' ? value : ''}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="e.g. WOD-8821"
+                error={errors.sku?.message}
+                testID="field-sku"
+                label=""
               />
-            </View>
-            {/* DESIGN ONLY: no camera/barcode-scanning integration exists — this button is decorative, the SKU field itself is real and submitted. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Scan barcode — DESIGN ONLY, camera scanning not supported"
-              testID="field-sku-scan-design-only"
-              onPress={() => setScannedSku(true)}
-              style={({ pressed }) => [styles.scanButton, pressed && styles.pressed]}
-            >
-              <Feather name="camera" size={17} color={colors.textMuted} />
-            </Pressable>
-          </View>
-          {scannedSku && <Text style={styles.designOnlyInline}>DESIGN ONLY — scanning is not connected to a camera</Text>}
+            )}
+          />
         </View>
       </View>
 
@@ -477,18 +456,6 @@ const styles = StyleSheet.create({
   fieldGroup: { gap: 6 },
   label: { fontSize: 13, fontWeight: '600', color: colors.text },
   pressed: { opacity: 0.75 },
-
-  skuRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  skuInputWrapper: { flex: 1 },
-  scanButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  designOnlyInline: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
 
   priceRow: { flexDirection: 'row', alignItems: 'center' },
   priceCurrency: { position: 'absolute', left: 12, zIndex: 1, fontSize: 18, fontWeight: '700', color: colors.primary },

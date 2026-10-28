@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
@@ -32,28 +32,11 @@ const SUCCESS_FG = '#006243';
  * verification-timestamp data exists anywhere in this app, so that claim
  * is dropped rather than shown). The App Lock and Biometric Unlock rows
  * stay real, wired to `securityStore`/`expo-local-authentication` exactly
- * as before.
- *
- * Everything else Stitch shows — Lock Timeout, Sensitive Action
- * Confirmation, Change 6-Digit Passcode, Active Device Sessions, and
- * Two-Factor Authentication — has no backing feature anywhere in this app
- * (no timeout setting, no in-app passcode distinct from the OS one, no
- * session tracking, no 2FA). Per this app's "never fake a backend
- * feature" rule, each is rendered as designed but is DESIGN ONLY:
- * interactive only where harmless (in-memory only, never persisted) and
- * clearly labeled. Stitch's fabricated specifics within those rows (the
- * "45 days ago" passcode-change date, the "iPhone 15 Pro • London, UK"
- * session, the "SMS & Authenticator App (Enabled)" 2FA badge) are dropped
- * rather than shown, since they're false claims about data that doesn't
- * exist — same precedent as Business Settings and Invoice Review. The
- * footer's "256-bit hardware-backed... Secure Enclave" encryption claim is
- * dropped entirely for the same reason.
+ * as before. The footer's "256-bit hardware-backed... Secure Enclave"
+ * encryption claim is dropped entirely for the same reason.
  */
 export function SecurityScreen(_props: Props) {
   const { status, settings, biometricSupported, error, load, save } = useSecurityStore();
-
-  const [lockTimeout, setLockTimeout] = useState('Immediately');
-  const [sensitiveConfirm, setSensitiveConfirm] = useState(true);
 
   useEffect(() => {
     load();
@@ -91,21 +74,6 @@ export function SecurityScreen(_props: Props) {
     }
   };
 
-  const notAvailable = (what: string) => Alert.alert('Not available', `${what} is not implemented yet.`);
-
-  const showTimeoutPicker = () => {
-    Alert.alert(
-      'Lock Timeout — DESIGN ONLY',
-      'This setting is not implemented yet. Choose an option to preview the design.',
-      [
-        { text: 'Immediately', onPress: () => setLockTimeout('Immediately') },
-        { text: 'After 1 minute', onPress: () => setLockTimeout('After 1 minute') },
-        { text: 'After 5 minutes', onPress: () => setLockTimeout('After 5 minutes') },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    );
-  };
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="security-screen">
       {/* Real status banner — computed from actual App Lock / Biometric state */}
@@ -140,15 +108,6 @@ export function SecurityScreen(_props: Props) {
           onToggle={() => persist({ ...current, appLockEnabled: !current.appLockEnabled })}
           testID="toggle-app-lock"
         />
-        {current.appLockEnabled && (
-          <ValueRow
-            icon="clock"
-            label="Lock Timeout · DESIGN ONLY"
-            value={lockTimeout}
-            onPress={showTimeoutPicker}
-            testID="action-lock-timeout-design-only"
-          />
-        )}
         <FieldToggleRow
           icon="smartphone"
           label="Biometric Unlock (Face ID)"
@@ -160,43 +119,6 @@ export function SecurityScreen(_props: Props) {
             persist({ ...current, biometricUnlockEnabled: !current.biometricUnlockEnabled })
           }
           testID="toggle-biometric-unlock"
-        />
-      </Section>
-
-      {/* DESIGN ONLY: no separate "sensitive action confirmation" or in-app passcode feature exists. */}
-      <Section title="Transaction Security · DESIGN ONLY">
-        <FieldToggleRow
-          icon="save"
-          label="Sensitive Action Confirmation"
-          description="Confirm before deleting customers or voiding invoices"
-          checked={sensitiveConfirm}
-          onToggle={() => setSensitiveConfirm((v) => !v)}
-          testID="toggle-sensitive-confirm-design-only"
-        />
-        <ValueRow
-          icon="hash"
-          label="Change 6-Digit Passcode"
-          value="Change"
-          onPress={() => notAvailable('A separate in-app passcode')}
-          testID="action-change-passcode-design-only"
-        />
-      </Section>
-
-      {/* DESIGN ONLY: no session tracking or 2FA exists anywhere in this app. */}
-      <Section title="Audit & Recovery · DESIGN ONLY">
-        <ValueRow
-          icon="smartphone"
-          label="Active Device Sessions"
-          value=""
-          onPress={() => notAvailable('Device session tracking')}
-          testID="action-device-sessions-design-only"
-        />
-        <ValueRow
-          icon="shield"
-          label="Two-Factor Authentication"
-          value=""
-          onPress={() => notAvailable('Two-factor authentication')}
-          testID="action-two-factor-design-only"
         />
       </Section>
 
@@ -214,46 +136,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function ValueRow({
-  icon,
-  label,
-  value,
-  onPress,
-  testID,
-}: {
-  icon: keyof typeof Feather.glyphMap;
-  label: string;
-  value: string;
-  onPress: () => void;
-  testID?: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label} — DESIGN ONLY, not implemented`}
-      testID={testID}
-      onPress={onPress}
-      style={({ pressed }) => [styles.valueRow, pressed && styles.pressed]}
-    >
-      <View style={styles.valueIcon}>
-        <Feather name={icon} size={17} color={colors.primary} />
-      </View>
-      <Text style={styles.valueLabel}>{label}</Text>
-      <View style={styles.valueRight}>
-        {!!value && <Text style={styles.valueText}>{value}</Text>}
-        <Feather name="chevron-right" size={16} color={colors.textMuted} />
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
-  pressed: { opacity: 0.75 },
   flexShrink: { flexShrink: 1, minWidth: 0 },
 
   banner: {
@@ -310,10 +198,4 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-
-  valueRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10 },
-  valueIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-  valueLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
-  valueRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  valueText: { fontSize: 12, color: colors.textMuted },
 });

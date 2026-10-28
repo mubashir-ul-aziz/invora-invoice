@@ -18,9 +18,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem'>;
 /**
  * Create Item screen, restyled to match the Stitch "Create Item" design: a
  * Catalog Management context header, Item Identification / Pricing & Units /
- * Pricing Method / Item Description cards (all in `ItemFormFields`, see its
- * doc comment for the DESIGN ONLY elements within), and a sticky
- * Cancel/Save Item bottom dock.
+ * Pricing Method / Item Description cards (all in `ItemFormFields`), and a
+ * sticky Cancel/Save Item bottom dock.
  *
  * When opened with `route.params.onCreated` (the "add item while creating an
  * invoice" flow — see `navigation/types.ts`), the newly created item is

@@ -28,7 +28,7 @@ type Filter = 'all' | BackupTrigger;
  *
  * Restyled to match the Stitch "Backup History" design's summary card +
  * filter chips + grouped rows. Unlike most restyles, every element here
- * maps onto real store data, so nothing needed a DESIGN ONLY badge:
+ * maps onto real store data:
  * - The summary card's snapshot count and total size are computed from the
  *   real `remoteBackups` list, replacing Stitch's fabricated account
  *   email/"Active Sync" badge/fixed "/Metriqo_Backups/" path (no Drive

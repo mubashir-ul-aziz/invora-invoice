@@ -21,23 +21,9 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
 
 /**
  * Edit Item screen, restyled to match the Stitch "Edit Item" design: a top
- * action row with the item's real id + a Save shortcut, a Usage Statistics
- * card, the same `ItemFormFields` cards Create Item uses, a visual mockup
- * row, a Danger Zone with a real delete action, and a sticky Save Changes
- * button.
- *
- * DESIGN ONLY elements (no backing field/behavior on `Item` or its
- * repository):
- * - The "In Stock" status pill next to the id badge — `Item` has no
- *   stock/quantity-on-hand field (same reasoning as `ItemListRow`'s stock
- *   caption, see its doc comment).
- * - The Usage Statistics card ("Lifetime Activity" invoice count, "Total
- *   Invoiced", "Last billed"/invoice reference) — `Item` deliberately never
- *   carries invoice history (see `domain/item/types.ts`'s doc comment on
- *   `Item`: no `invoiceId`, no "last invoiced" field, no snapshot data), so
- *   these numbers can't be connected to anything real.
- * - The visual item mockup image + "Change Image" action — `Item` has no
- *   image/photo field or storage for one.
+ * action row with the item's real id + a Save shortcut, the same
+ * `ItemFormFields` cards Create Item uses, a Danger Zone with a real delete
+ * action, and a sticky Save Changes button.
  *
  * Real, backend-connected elements:
  * - Every field in `ItemFormFields` loads from and saves to the existing
@@ -151,11 +137,6 @@ export function EditItemScreen({ navigation, route }: Props) {
           <View style={styles.idBadge}>
             <Text style={styles.idBadgeText}>ID: {item.id.slice(0, 8).toUpperCase()}</Text>
           </View>
-          {/* DESIGN ONLY: `Item` has no stock/quantity-on-hand field — see this file's doc comment. */}
-          <View style={styles.stockBadge} accessibilityLabel="Stock status — DESIGN ONLY, no such field exists">
-            <View style={styles.stockDot} />
-            <Text style={styles.stockBadgeText}>DESIGN ONLY</Text>
-          </View>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -169,40 +150,7 @@ export function EditItemScreen({ navigation, route }: Props) {
         </Pressable>
       </View>
 
-      {/* DESIGN ONLY: `Item` never carries invoice history — see this file's doc comment. */}
-      <View style={styles.statsCard} accessibilityLabel="Usage statistics — DESIGN ONLY, items don't track invoice history">
-        <View style={styles.statsRow}>
-          <View style={styles.statsLeft}>
-            <View style={styles.statsIcon}>
-              <Feather name="bar-chart-2" size={18} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={styles.statsLabel}>Lifetime Activity</Text>
-              <Text style={styles.statsValue}>DESIGN ONLY</Text>
-            </View>
-          </View>
-          <View style={styles.statsRight}>
-            <Text style={styles.statsLabel}>Total Invoiced</Text>
-            <Text style={styles.statsValue}>DESIGN ONLY</Text>
-          </View>
-        </View>
-        <Text style={styles.statsCaption}>
-          Items are a reusable catalog definition and don&apos;t track which invoices they&apos;ve appeared on.
-        </Text>
-      </View>
-
       <ItemFormFields control={control} errors={errors} />
-
-      {/* DESIGN ONLY: no image/photo field exists on `Item`. */}
-      <View style={styles.imageRow} accessibilityLabel="Item image — DESIGN ONLY, no such field exists">
-        <View style={styles.imagePreview}>
-          <Feather name="image" size={20} color={colors.textMuted} />
-        </View>
-        <View style={styles.imageTextCol}>
-          <Text style={styles.imageTitle}>Item Photo</Text>
-          <Text style={styles.imageCaption}>DESIGN ONLY — not stored</Text>
-        </View>
-      </View>
 
       {/* Danger Zone */}
       <View style={styles.dangerCard}>
@@ -299,65 +247,8 @@ const styles = StyleSheet.create({
   topBadges: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, flexWrap: 'wrap' },
   idBadge: { backgroundColor: colors.surface, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   idBadgeText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
-  stockBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  stockDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
-  stockBadgeText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
   savePill: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: colors.surface },
   savePillText: { fontSize: 14, fontWeight: '700', color: colors.primary },
-
-  statsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statsLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statsIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statsRight: { alignItems: 'flex-end' },
-  statsLabel: { fontSize: 11, color: colors.textMuted },
-  statsValue: { fontSize: 13, fontWeight: '700', color: colors.textMuted, marginTop: 2 },
-  statsCaption: { fontSize: 11, color: colors.textMuted, lineHeight: 15 },
-
-  imageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-  },
-  imagePreview: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageTextCol: { gap: 2 },
-  imageTitle: { fontSize: 13, fontWeight: '600', color: colors.text },
-  imageCaption: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
 
   dangerCard: { backgroundColor: '#FBE4E2', borderRadius: 16, padding: 16, gap: 12 },
   dangerHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },

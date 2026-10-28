@@ -36,13 +36,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CreateInvoiceItems'>;
  * navigating here) — hence "Step 2 of 3" only renders in `create` mode; an
  * in-progress edit/duplicate isn't a fresh 3-step wizard.
  *
- * "Add Discount" / "Add Shipping / Fee" as invoice-level extras have no
- * backing capability and are DESIGN ONLY: discount and tax are real, but
- * per-*line* (`InvoiceItemSnapshot.discountPercent`/`taxPercent`, edited via
- * Edit Invoice Line), and there's no invoice-level shipping/fee line anywhere
- * in the domain model. Both buttons are interactive-but-inert, explaining the
- * real per-line equivalent instead of pretending to add an invoice-wide extra.
- * The Stitch mock's "Standard VAT (20%) applied automatically" toggle implies
+ * Discount and tax are per-*line* (`InvoiceItemSnapshot.discountPercent`/
+ * `taxPercent`, edited via Edit Invoice Line). The Stitch mock's "Standard VAT (20%) applied automatically" toggle implies
  * one invoice-wide tax switch; this app's real tax is per-line (and often
  * per-method-default from the catalog item), so it isn't reproduced as a
  * single toggle — the real per-line tax is what `InvoiceTotalsSummary`'s VAT
@@ -280,31 +275,6 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
             <Feather name="edit-3" size={15} color={colors.textMuted} />
             <Text style={styles.addManualButtonText}>Add custom line</Text>
           </Pressable>
-
-          <View style={styles.designOnlyRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add discount — DESIGN ONLY, no invoice-level discount exists"
-              testID="action-add-discount-design-only"
-              onPress={() =>
-                Alert.alert('Not available', 'Discount is set per line item (in Edit Invoice Line), not for the whole invoice.')
-              }
-              style={styles.designOnlyChip}
-            >
-              <Feather name="percent" size={14} color={colors.textMuted} />
-              <Text style={styles.designOnlyChipText}>Add Discount · DESIGN ONLY</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add shipping or fee — DESIGN ONLY, no such field exists"
-              testID="action-add-shipping-design-only"
-              onPress={() => Alert.alert('Not available', 'There is no invoice-level shipping/fee line in this app yet.')}
-              style={styles.designOnlyChip}
-            >
-              <Feather name="truck" size={14} color={colors.textMuted} />
-              <Text style={styles.designOnlyChipText}>Add Shipping · DESIGN ONLY</Text>
-            </Pressable>
-          </View>
         </View>
       </ScrollView>
 
@@ -414,18 +384,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addManualButtonText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-
-  designOnlyRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  designOnlyChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    height: 36,
-    borderRadius: 8,
-  },
-  designOnlyChipText: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
 
   dock: {
     gap: 10,

@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import React, { useEffect } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SettingsRow } from '@/components/business/SettingsRow';
 import { INVOICE_TEMPLATE_OPTIONS } from '@/domain/business/types';
@@ -48,8 +48,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
  * and "Help & Support" rows (no such routes/features exist), and the
  * footer's "UK HMRC & EU VAT Compliant" claim aren't reproduced — dropped
  * rather than badged, same reasoning as Invoice Review's compliance-claim
- * copy. "Export Tax & Audit Bundle" is DESIGN ONLY (no export capability
- * exists anywhere in this app, same as Payment History's Export ledger).
+ * copy.
  */
 export function SettingsScreen({ navigation }: Props) {
   const { profile, load: loadProfile } = useBusinessProfileStore();
@@ -199,18 +198,6 @@ export function SettingsScreen({ navigation }: Props) {
         />
       </Section>
 
-      {/* DESIGN ONLY: no export capability exists anywhere in this app. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Export tax and audit bundle — DESIGN ONLY, not implemented"
-        testID="action-export-audit-design-only"
-        onPress={() => Alert.alert('Not available', 'CSV/PDF export is not implemented yet.')}
-        style={({ pressed }) => [styles.exportButton, pressed && styles.pressed]}
-      >
-        <Feather name="download" size={18} color={colors.primary} />
-        <Text style={styles.exportButtonText}>Export Tax &amp; Audit Bundle · DESIGN ONLY</Text>
-      </Pressable>
-
       <Text style={styles.versionText} testID="settings-app-version">
         Version {Constants.expoConfig?.version ?? '1.0.0'}
       </Text>
@@ -269,18 +256,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   sectionCard: { gap: 8 },
-
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    marginTop: 4,
-  },
-  exportButtonText: { fontSize: 13, fontWeight: '700', color: colors.primary },
 
   versionText: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 8 },
 });
