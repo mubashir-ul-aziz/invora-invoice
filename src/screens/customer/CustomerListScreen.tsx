@@ -6,6 +6,8 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextIn
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
 import { CustomerListRow } from '@/components/customer/CustomerListRow';
+import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
+import { FAB_LIST_BOTTOM_PADDING, FloatingActionButton } from '@/components/shared/FloatingActionButton';
 import { classifyBalanceStatus } from '@/domain/customer/activity';
 import type { Customer, CustomerBalanceSummary } from '@/domain/customer/types';
 import type { RootStackParamList } from '@/navigation/types';
@@ -101,6 +103,16 @@ export function CustomerListScreen({ navigation, route }: Props) {
     }
     return sorted;
   }, [customers, balances, statusFilter, sortMode]);
+
+  // `customers` is already search-filtered by the store, so an empty result
+  // only means "no customers exist" while no search text is applied.
+  const hasNoCustomers = status === 'ready' && customers.length === 0 && !filter.searchText;
+  const hasNoMatches = status === 'ready' && !hasNoCustomers && visibleCustomers.length === 0;
+
+  const clearSearchAndFilters = () => {
+    setStatusFilter('all');
+    setFilter({ searchText: '' });
+  };
 
   const handlePressCustomer = (customer: Customer) => {
     if (onSelectCustomer) {
@@ -325,149 +337,151 @@ export function CustomerListScreen({ navigation, route }: Props) {
         </View>
       )}
 
-      <View style={styles.controlBar}>
-        <View style={styles.searchRow}>
-          <View style={styles.searchPill}>
-            <Feather name="search" size={18} color={colors.textMuted} />
-            <TextInput
-              value={filter.searchText}
-              onChangeText={(text) => setFilter({ searchText: text })}
-              placeholder="Search by name, email or phone..."
-              placeholderTextColor={colors.placeholder}
-              style={styles.searchInput}
-              testID="customer-search"
-            />
-            {!!filter.searchText && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-                testID="customer-search-clear"
-                hitSlop={8}
-                onPress={() => setFilter({ searchText: '' })}
-              >
-                <Feather name="x-circle" size={16} color={colors.textMuted} />
-              </Pressable>
-            )}
+      {/* Search, sort and filters are pointless with nothing to search, so the empty state stands alone. */}
+      {!hasNoCustomers && (
+        <View style={styles.controlBar}>
+          <View style={styles.searchRow}>
+            <View style={styles.searchPill}>
+              <Feather name="search" size={18} color={colors.textMuted} />
+              <TextInput
+                value={filter.searchText}
+                onChangeText={(text) => setFilter({ searchText: text })}
+                placeholder="Search by name, email or phone..."
+                placeholderTextColor={colors.placeholder}
+                style={styles.searchInput}
+                testID="customer-search"
+              />
+              {!!filter.searchText && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  testID="customer-search-clear"
+                  hitSlop={8}
+                  onPress={() => setFilter({ searchText: '' })}
+                >
+                  <Feather name="x-circle" size={16} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Toggle sort order"
+              testID="customer-sort-toggle"
+              onPress={() => setSortMode((m) => (m === 'name' ? 'balance' : 'name'))}
+              style={styles.sortButton}
+            >
+              <Feather name="repeat" size={16} color={colors.primary} />
+              <Text style={styles.sortButtonText}>{sortMode === 'name' ? 'A-Z' : 'Balance'}</Text>
+            </Pressable>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Toggle sort order"
-            testID="customer-sort-toggle"
-            onPress={() => setSortMode((m) => (m === 'name' ? 'balance' : 'name'))}
-            style={styles.sortButton}
-          >
-            <Feather name="repeat" size={16} color={colors.primary} />
-            <Text style={styles.sortButtonText}>{sortMode === 'name' ? 'A-Z' : 'Balance'}</Text>
-          </Pressable>
-        </View>
 
-        <View style={styles.filterRow}>
-          <View style={styles.pillsRow}>
-            <FilterPill
-              label="All"
-              count={customers.length}
-              active={statusFilter === 'all'}
-              onPress={() => setStatusFilter('all')}
-              testID="customer-filter-all"
-            />
-            <FilterPill
-              label="Due"
-              count={dueCount}
-              active={statusFilter === 'due'}
-              onPress={() => setStatusFilter('due')}
-              testID="customer-filter-due"
-              danger
-            />
-            <FilterPill
-              label="Settled"
-              count={settledCount}
-              active={statusFilter === 'settled'}
-              onPress={() => setStatusFilter('settled')}
-              testID="customer-filter-settled"
-            />
-          </View>
-        </View>
-      </View>
-
-      {(status === 'loading' || status === 'idle') && (
-        <View style={styles.centered} testID="customer-list-loading">
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      )}
-
-      {status === 'error' && (
-        <View style={styles.centered} testID="customer-list-error">
-          <Text style={styles.errorText}>Couldn't load customers.</Text>
-          <Text style={styles.errorDetail}>{error}</Text>
-          <ActionButton label="Try again" onPress={load} />
-        </View>
-      )}
-
-      {status === 'ready' && customers.length === 0 && (
-        <View style={styles.centered} testID="customer-list-empty">
-          {filter.searchText ? (
-            <Text style={styles.emptyText}>No customers match your search.</Text>
-          ) : (
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIconCircle}>
-                <Feather name="user-plus" size={26} color={colors.primary} />
-              </View>
-              <Text style={styles.emptyTitle}>No customers yet?</Text>
-              <Text style={styles.emptySubtitle}>
-                Add your first customer to track billings, send invoices, and log incoming payments with one tap.
-              </Text>
-              <ActionButton
-                label="Add First Customer"
-                icon="user-plus"
-                onPress={handleCreate}
-                testID="customer-empty-add"
+          <View style={styles.filterRow}>
+            <View style={styles.pillsRow}>
+              <FilterPill
+                label="All"
+                count={customers.length}
+                active={statusFilter === 'all'}
+                onPress={() => setStatusFilter('all')}
+                testID="customer-filter-all"
+              />
+              <FilterPill
+                label="Due"
+                count={dueCount}
+                active={statusFilter === 'due'}
+                onPress={() => setStatusFilter('due')}
+                testID="customer-filter-due"
+                danger
+              />
+              <FilterPill
+                label="Settled"
+                count={settledCount}
+                active={statusFilter === 'settled'}
+                onPress={() => setStatusFilter('settled')}
+                testID="customer-filter-settled"
               />
             </View>
-          )}
+          </View>
         </View>
       )}
 
-      {status === 'ready' && customers.length > 0 && visibleCustomers.length === 0 && (
-        <View style={styles.centered} testID="customer-list-no-filter-matches">
-          <Text style={styles.emptyText}>No customers match this filter.</Text>
-        </View>
-      )}
+      {/* Wraps everything between the control bar and the bottom nav, so the floating button sits just above the nav. */}
+      <View style={styles.body}>
+        {(status === 'loading' || status === 'idle') && (
+          <View style={styles.centered} testID="customer-list-loading">
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        )}
 
-      {status === 'ready' && visibleCustomers.length > 0 && (
-        <FlatList
-          testID="customer-list"
-          data={visibleCustomers}
-          keyExtractor={(customer) => customer.id}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          renderItem={({ item: customer }) => (
-            <CustomerListRow
-              customer={customer}
-              balance={balances[customer.id]}
-              balanceStatus={balances[customer.id] ? classifyBalanceStatus(balances[customer.id]) : undefined}
-              onPress={() => handlePressCustomer(customer)}
-              onEdit={() => handleEditCustomer(customer)}
-              onDelete={() => handleDeleteCustomer(customer)}
-              testID={`customer-row-${customer.id}`}
-            />
-          )}
-        />
-      )}
+        {status === 'error' && (
+          <View style={styles.centered} testID="customer-list-error">
+            <Text style={styles.errorText}>Couldn't load customers.</Text>
+            <Text style={styles.errorDetail}>{error}</Text>
+            <ActionButton label="Try again" onPress={load} />
+          </View>
+        )}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Add new customer"
-        testID="action-create-customer"
-        onPress={handleCreate}
-        style={({ pressed }) => [
-          styles.fab,
-          onSelectCustomer && styles.fabNoNav,
-          pressed && styles.fabPressed,
-        ]}
-      >
-        <Feather name="user-plus" size={18} color={colors.primaryText} />
-        <Text style={styles.fabText}>Add Customer</Text>
-      </Pressable>
+        {hasNoCustomers && (
+          <EmptyStateCard
+            testID="customer-list-empty"
+            icon="users"
+            title="No customers yet"
+            message="Add your first customer to start sending invoices and tracking payments."
+            actionLabel="Add customer"
+            actionIcon="user-plus"
+            onAction={handleCreate}
+            actionTestID="action-create-customer"
+          />
+        )}
+
+        {hasNoMatches && (
+          <EmptyStateCard
+            testID="customer-list-no-filter-matches"
+            icon="search"
+            title="No matching customers"
+            message={
+              statusFilter !== 'all'
+                ? 'No customers match your current search and filters.'
+                : 'No customers match your search. Try a different name, email or phone.'
+            }
+            actionLabel={statusFilter !== 'all' ? 'Clear filters' : 'Clear search'}
+            actionVariant="secondary"
+            onAction={clearSearchAndFilters}
+            actionTestID="customer-list-clear-filters"
+          />
+        )}
+
+        {status === 'ready' && visibleCustomers.length > 0 && (
+          <FlatList
+            testID="customer-list"
+            data={visibleCustomers}
+            keyExtractor={(customer) => customer.id}
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            renderItem={({ item: customer }) => (
+              <CustomerListRow
+                customer={customer}
+                balance={balances[customer.id]}
+                balanceStatus={balances[customer.id] ? classifyBalanceStatus(balances[customer.id]) : undefined}
+                onPress={() => handlePressCustomer(customer)}
+                onEdit={() => handleEditCustomer(customer)}
+                onDelete={() => handleDeleteCustomer(customer)}
+                testID={`customer-row-${customer.id}`}
+              />
+            )}
+          />
+        )}
+
+        {/* With no customers yet, the button lives inside the empty-state card instead. */}
+        {status === 'ready' && !hasNoCustomers && (
+          <FloatingActionButton
+            label="Add customer"
+            icon="user-plus"
+            accessibilityLabel="Add new customer"
+            onPress={handleCreate}
+            testID="action-create-customer"
+          />
+        )}
+      </View>
 
       {!onSelectCustomer && (
         <DashboardBottomNav
@@ -575,26 +589,9 @@ const styles = StyleSheet.create({
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   emptyText: { color: colors.textMuted, textAlign: 'center' },
-  emptyCard: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  emptySubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 270, marginBottom: 8 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 96 },
+  body: { flex: 1 },
+  // Extra bottom padding keeps the last row scrollable out from under the floating button.
+  listContent: { paddingHorizontal: 16, paddingBottom: FAB_LIST_BOTTOM_PADDING },
   separator: { height: 8 },
   summaryBarWrap: { paddingHorizontal: 16, paddingTop: 16 },
   summaryBar: {
@@ -612,26 +609,6 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 16, fontWeight: '700', color: colors.text },
   summaryValueDanger: { fontSize: 16, fontWeight: '700', color: colors.danger },
   summaryRatioRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 84,
-    height: 48,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  fabNoNav: { bottom: 24 },
-  fabPressed: { opacity: 0.85 },
-  fabText: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
 
   // --- Select Customer (picker mode / invoice-creation Step 1) ---
   pressedCard: { opacity: 0.85 },

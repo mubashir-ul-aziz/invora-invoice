@@ -7,6 +7,8 @@ import { ActionButton } from '@/components/businessCard/ActionButton';
 import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
 import { InvoiceListRow } from '@/components/invoice/InvoiceListRow';
 import { DateSectionHeader } from '@/components/shared/DateSectionHeader';
+import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
+import { FAB_LIST_BOTTOM_PADDING, FloatingActionButton } from '@/components/shared/FloatingActionButton';
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
 import { INVOICE_STATUS_LABELS } from '@/domain/invoice/status';
@@ -124,6 +126,16 @@ export function InvoiceListScreen({ navigation, route }: Props) {
     [visibleEntries],
   );
 
+  // `entries` is already search-filtered by the store, so an empty result
+  // only means "no invoices exist" while no search text is applied.
+  const hasNoInvoices = status === 'ready' && entries.length === 0 && !filter.searchText;
+  const hasNoMatches = status === 'ready' && !hasNoInvoices && visibleEntries.length === 0;
+
+  const clearSearchAndFilters = () => {
+    setStatusFilter('all');
+    setFilter({ searchText: '' });
+  };
+
   const handleOpenInvoice = (entry: InvoiceWithStatus) => {
     if (onSelectInvoice) {
       // Pop this picker off the stack *before* invoking the callback: the
@@ -159,77 +171,80 @@ export function InvoiceListScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen} testID="invoice-list-screen">
-      <View style={styles.controlBar}>
-        <View style={styles.searchRow}>
-          <View style={styles.searchPill}>
-            <Feather name="search" size={18} color={colors.textMuted} />
-            <TextInput
-              value={filter.searchText}
-              onChangeText={(text) => setFilter({ searchText: text })}
-              placeholder="Search invoices, clients, INV#..."
-              placeholderTextColor={colors.placeholder}
-              style={styles.searchInput}
-              testID="invoice-search"
-            />
+      {/* Search, sort and filters are pointless with nothing to search, so the empty state stands alone. */}
+      {!hasNoInvoices && (
+        <View style={styles.controlBar}>
+          <View style={styles.searchRow}>
+            <View style={styles.searchPill}>
+              <Feather name="search" size={18} color={colors.textMuted} />
+              <TextInput
+                value={filter.searchText}
+                onChangeText={(text) => setFilter({ searchText: text })}
+                placeholder="Search invoices, clients, INV#..."
+                placeholderTextColor={colors.placeholder}
+                style={styles.searchInput}
+                testID="invoice-search"
+              />
+            </View>
+            {!onSelectInvoice && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Toggle sort order"
+                testID="invoice-sort-toggle"
+                onPress={() => setSortMode((m) => (m === 'newest' ? 'oldest' : 'newest'))}
+                style={styles.sortButton}
+              >
+                <Feather name="repeat" size={16} color={colors.primary} />
+                <Text style={styles.sortButtonText}>{sortMode === 'newest' ? 'Newest' : 'Oldest'}</Text>
+              </Pressable>
+            )}
           </View>
+
           {!onSelectInvoice && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Toggle sort order"
-              testID="invoice-sort-toggle"
-              onPress={() => setSortMode((m) => (m === 'newest' ? 'oldest' : 'newest'))}
-              style={styles.sortButton}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipScroll}
+              contentContainerStyle={styles.chipRow}
+              testID="invoice-status-filter"
             >
-              <Feather name="repeat" size={16} color={colors.primary} />
-              <Text style={styles.sortButtonText}>{sortMode === 'newest' ? 'Newest' : 'Oldest'}</Text>
-            </Pressable>
+              {STATUS_FILTERS.map((option) => {
+                const active = statusFilter === option.value;
+                const count = option.value === 'all' ? entries.length : statusCounts[option.value] ?? 0;
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Filter: ${option.label}`}
+                    accessibilityState={{ selected: active }}
+                    testID={`invoice-status-filter-${option.value}`}
+                    onPress={() => setStatusFilter(option.value)}
+                    style={[styles.chip, active && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
+                    <Text style={[styles.chipCount, active && styles.chipCountActive]}>({count})</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {!onSelectInvoice && status === 'ready' && entries.length > 0 && (
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryLeft}>
+                <View style={styles.summaryEyebrow}>
+                  <View style={styles.summaryDot} />
+                  <Text style={styles.summaryEyebrowText}>Total Outstanding</Text>
+                </View>
+                <Text style={styles.summaryValue}>{currencySymbol}{totalOutstanding.toFixed(2)}</Text>
+                <Text style={styles.summaryCaption}>
+                  {outstandingEntries.length} pending or overdue invoice{outstandingEntries.length === 1 ? '' : 's'}
+                </Text>
+              </View>
+            </View>
           )}
         </View>
-
-        {!onSelectInvoice && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipScroll}
-            contentContainerStyle={styles.chipRow}
-            testID="invoice-status-filter"
-          >
-            {STATUS_FILTERS.map((option) => {
-              const active = statusFilter === option.value;
-              const count = option.value === 'all' ? entries.length : statusCounts[option.value] ?? 0;
-              return (
-                <Pressable
-                  key={option.value}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Filter: ${option.label}`}
-                  accessibilityState={{ selected: active }}
-                  testID={`invoice-status-filter-${option.value}`}
-                  onPress={() => setStatusFilter(option.value)}
-                  style={[styles.chip, active && styles.chipActive]}
-                >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
-                  <Text style={[styles.chipCount, active && styles.chipCountActive]}>({count})</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        {!onSelectInvoice && status === 'ready' && entries.length > 0 && (
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryLeft}>
-              <View style={styles.summaryEyebrow}>
-                <View style={styles.summaryDot} />
-                <Text style={styles.summaryEyebrowText}>Total Outstanding</Text>
-              </View>
-              <Text style={styles.summaryValue}>{currencySymbol}{totalOutstanding.toFixed(2)}</Text>
-              <Text style={styles.summaryCaption}>
-                {outstandingEntries.length} pending or overdue invoice{outstandingEntries.length === 1 ? '' : 's'}
-              </Text>
-            </View>
-          </View>
-        )}
-      </View>
+      )}
 
       {/* Wraps everything between the control bar and the bottom nav, so the floating button sits just above the nav. */}
       <View style={styles.body}>
@@ -247,42 +262,38 @@ export function InvoiceListScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {status === 'ready' && entries.length === 0 && (
-          <View style={styles.centered} testID="invoice-list-empty">
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIconCircle}>
-                <Feather name="zap" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.emptyTitle}>Need to bill a client?</Text>
-              <Text style={styles.emptySubtitle}>
-                Tap "+ New invoice" below to draft a quick quote or send an instant invoice.
-              </Text>
-              {!onSelectInvoice && (
-                <View style={styles.emptyAction}>
-                  <ActionButton
-                    label="+ New invoice"
-                    variant="primary"
-                    onPress={handleCreate}
-                    testID="action-create-invoice"
-                  />
-                </View>
-              )}
-            </View>
-          </View>
+        {hasNoInvoices && (
+          <EmptyStateCard
+            testID="invoice-list-empty"
+            icon="file-text"
+            title="No invoices yet"
+            message={
+              onSelectInvoice
+                ? 'There are no invoices to choose from yet.'
+                : 'Create your first invoice to start billing your clients.'
+            }
+            actionLabel={onSelectInvoice ? undefined : 'Create invoice'}
+            actionIcon="plus"
+            onAction={handleCreate}
+            actionTestID="action-create-invoice"
+          />
         )}
 
-        {status === 'ready' && entries.length > 0 && visibleEntries.length === 0 && (
-          <View style={styles.centered} testID="invoice-list-no-filter-matches">
-            <Feather name="file-text" size={26} color={colors.textMuted} />
-            <Text style={styles.emptyText}>No invoices match your search or filter.</Text>
-            <ActionButton
-              label="Show all invoices"
-              onPress={() => {
-                setStatusFilter('all');
-                setFilter({ searchText: '' });
-              }}
-            />
-          </View>
+        {hasNoMatches && (
+          <EmptyStateCard
+            testID="invoice-list-no-filter-matches"
+            icon="search"
+            title="No matching invoices"
+            message={
+              statusFilter !== 'all'
+                ? 'No invoices match your current search and filters.'
+                : 'No invoices match your search. Try a different name or number.'
+            }
+            actionLabel={statusFilter !== 'all' ? 'Clear filters' : 'Clear search'}
+            actionVariant="secondary"
+            onAction={clearSearchAndFilters}
+            actionTestID="invoice-list-clear-filters"
+          />
         )}
 
         {status === 'ready' && visibleEntries.length > 0 && (
@@ -306,17 +317,14 @@ export function InvoiceListScreen({ navigation, route }: Props) {
         )}
 
         {/* With no invoices yet, the button lives inside the empty-state card instead. */}
-        {!onSelectInvoice && status === 'ready' && entries.length > 0 && (
-          <Pressable
-            accessibilityRole="button"
+        {!onSelectInvoice && status === 'ready' && !hasNoInvoices && (
+          <FloatingActionButton
+            label="Create invoice"
+            icon="plus"
             accessibilityLabel="Create new invoice"
-            testID="action-create-invoice"
             onPress={handleCreate}
-            style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          >
-            <Feather name="plus" size={18} color={colors.primaryText} />
-            <Text style={styles.fabText}>New Invoice</Text>
-          </Pressable>
+            testID="action-create-invoice"
+          />
         )}
       </View>
 
@@ -401,48 +409,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
   errorDetail: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
-  emptyText: { color: colors.textMuted, textAlign: 'center' },
-  emptyCard: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  emptySubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 270 },
-  emptyAction: { alignSelf: 'stretch', marginTop: 10 },
   body: { flex: 1 },
   // Extra bottom padding keeps the last card scrollable out from under the floating button.
-  listContent: { paddingHorizontal: 16, paddingBottom: 96 },
+  listContent: { paddingHorizontal: 16, paddingBottom: FAB_LIST_BOTTOM_PADDING },
   separator: { height: 8 },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 24,
-    height: 48,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  fabPressed: { opacity: 0.85 },
-  fabText: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
 });

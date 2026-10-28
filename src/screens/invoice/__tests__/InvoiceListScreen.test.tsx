@@ -80,6 +80,12 @@ describe('InvoiceListScreen', () => {
     const view = await renderScreen();
 
     await waitFor(() => expect(view.getByTestId('invoice-list-empty')).toBeTruthy());
+    // Nothing to search or filter yet, and the card's button is the only create action.
+    expect(view.queryByTestId('invoice-search')).toBeNull();
+    expect(view.queryByTestId('invoice-sort-toggle')).toBeNull();
+    expect(view.queryByTestId('invoice-status-filter')).toBeNull();
+    expect(view.getAllByTestId('action-create-invoice')).toHaveLength(1);
+    expect(view.getByText('Create invoice')).toBeTruthy();
   });
 
   it('lists saved invoices with their number and customer', async () => {
@@ -165,5 +171,36 @@ describe('InvoiceListScreen', () => {
       view.unmount();
     });
     await waitFor(() => expect(mockInvoiceStore.getState().filter.customerId).toBeUndefined());
+  });
+
+  it('offers "Clear search" when a search matches no invoices', async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    await invoices.create('INV-1', makeInput());
+    mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+    const view = await renderScreen();
+
+    await waitFor(() => expect(view.getByText('INV-1')).toBeTruthy());
+    fireEvent.changeText(view.getByTestId('invoice-search'), 'zzz');
+
+    await waitFor(() => expect(view.getByTestId('invoice-list-no-filter-matches')).toBeTruthy());
+    // Records still exist, so the search bar and floating button stay put.
+    expect(view.getByTestId('invoice-search')).toBeTruthy();
+    expect(view.getByTestId('action-create-invoice')).toBeTruthy();
+    fireEvent.press(view.getByText('Clear search'));
+    await waitFor(() => expect(view.getByText('INV-1')).toBeTruthy());
+  });
+
+  it('offers "Clear filters" when a status filter matches no invoices', async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    await invoices.create('INV-1', makeInput());
+    mockInvoiceStore = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());
+    const view = await renderScreen();
+
+    await waitFor(() => expect(view.getByText('INV-1')).toBeTruthy());
+    fireEvent.press(view.getByTestId('invoice-status-filter-paid'));
+
+    await waitFor(() => expect(view.getByTestId('invoice-list-no-filter-matches')).toBeTruthy());
+    fireEvent.press(view.getByText('Clear filters'));
+    await waitFor(() => expect(view.getByText('INV-1')).toBeTruthy());
   });
 });

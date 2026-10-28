@@ -57,6 +57,12 @@ describe('CustomerListScreen', () => {
     const view = await renderScreen();
 
     await waitFor(() => expect(view.getByTestId('customer-list-empty')).toBeTruthy());
+    // Nothing to search or filter yet, and the card's button is the only create action.
+    expect(view.queryByTestId('customer-search')).toBeNull();
+    expect(view.queryByTestId('customer-sort-toggle')).toBeNull();
+    expect(view.queryByTestId('customer-filter-all')).toBeNull();
+    expect(view.getAllByTestId('action-create-customer')).toHaveLength(1);
+    expect(view.getByText('Add customer')).toBeTruthy();
   });
 
   it('lists saved customers', async () => {
@@ -193,5 +199,36 @@ describe('CustomerListScreen', () => {
     fireEvent.press(view.getByTestId('customer-filter-due'));
     await waitFor(() => expect(view.queryByText('Acme Co')).toBeNull());
     expect(view.getByText('Zeta Ltd')).toBeTruthy();
+  });
+
+  it('offers "Clear search" when a search matches no customers', async () => {
+    const repo = new InMemoryCustomerRepository();
+    await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
+    mockStore = createCustomerStore(repo);
+    const view = await renderScreen();
+
+    await waitFor(() => expect(view.getByText('Acme Co')).toBeTruthy());
+    fireEvent.changeText(view.getByTestId('customer-search'), 'zzz');
+
+    await waitFor(() => expect(view.getByTestId('customer-list-no-filter-matches')).toBeTruthy());
+    // Records still exist, so the search bar and floating button stay put.
+    expect(view.getByTestId('customer-search')).toBeTruthy();
+    expect(view.getByTestId('action-create-customer')).toBeTruthy();
+    fireEvent.press(view.getByText('Clear search'));
+    await waitFor(() => expect(view.getByText('Acme Co')).toBeTruthy());
+  });
+
+  it('offers "Clear filters" when a status filter matches no customers', async () => {
+    const repo = new InMemoryCustomerRepository();
+    await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
+    mockStore = createCustomerStore(repo);
+    const view = await renderScreen();
+
+    await waitFor(() => expect(view.getByText('Acme Co')).toBeTruthy());
+    fireEvent.press(view.getByTestId('customer-filter-due'));
+
+    await waitFor(() => expect(view.getByTestId('customer-list-no-filter-matches')).toBeTruthy());
+    fireEvent.press(view.getByText('Clear filters'));
+    await waitFor(() => expect(view.getByText('Acme Co')).toBeTruthy());
   });
 });
