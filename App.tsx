@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AutoBackupRunner } from '@/components/backup/AutoBackupRunner';
 import { SubscriptionRunner } from '@/components/subscription/SubscriptionRunner';
 import { AppLockGate } from '@/components/security/AppLockGate';
+import { ToastHost } from '@/components/shared/ToastHost';
 import { getDatabase } from '@/data/db/client';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { CurrencyProvider } from '@/state/currencyContext';
@@ -44,6 +45,8 @@ export default function App() {
               </CurrencyProvider>
             </SubscriptionRunner>
           </AutoBackupRunner>
+          {/* After the navigator so it draws above every screen; inside the lock gate so nothing shows over the lock screen. */}
+          <ToastHost />
         </AppLockGate>
       </NavigationContainer>
       <StatusBar style="auto" />

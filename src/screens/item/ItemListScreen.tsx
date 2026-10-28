@@ -14,6 +14,7 @@ import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { Item } from '@/domain/item/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useItemStore } from '@/state/itemStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemList'>;
@@ -103,10 +104,10 @@ export function ItemListScreen({ navigation, route }: Props) {
       if (requiredPricingMethodId && item.invoiceTypeId !== requiredPricingMethodId) {
         const itemMethodLabel = getInvoiceTypeDefinition(item.invoiceTypeId).label;
         const invoiceMethodLabel = getInvoiceTypeDefinition(requiredPricingMethodId).label;
-        Alert.alert(
-          'Incompatible pricing method',
-          `This item uses ${itemMethodLabel} pricing and cannot be added to this ${invoiceMethodLabel} invoice.`,
-        );
+        toast.error({
+          title: 'Incompatible pricing method',
+          message: `This item uses ${itemMethodLabel} pricing and cannot be added to this ${invoiceMethodLabel} invoice.`,
+        });
         return;
       }
       onSelectItem(item);
@@ -129,8 +130,9 @@ export function ItemListScreen({ navigation, route }: Props) {
         onPress: async () => {
           try {
             await remove(item.id);
+            toast.success(`Item "${item.name}" deleted`);
           } catch {
-            Alert.alert("Couldn't delete", 'This item could not be deleted. Please try again.');
+            toast.error({ title: "Couldn't delete", message: 'This item could not be deleted. Please try again.' });
           }
         },
       },

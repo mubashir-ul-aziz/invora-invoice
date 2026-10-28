@@ -1,6 +1,7 @@
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 
 import { normalizePhoneDigits, normalizeUrl } from '@/domain/businessCard/validation';
+import { toast } from '@/state/toastStore';
 
 /**
  * Thin wrapper around `react-native`'s `Linking` so screens never call the
@@ -23,13 +24,13 @@ async function open(
   try {
     const canOpen = await client.canOpenURL(url);
     if (!canOpen) {
-      Alert.alert('Unable to open', failureMessage);
+      toast.error({ title: 'Unable to open', message: failureMessage });
       return false;
     }
     await client.openURL(url);
     return true;
   } catch {
-    Alert.alert('Unable to open', failureMessage);
+    toast.error({ title: 'Unable to open', message: failureMessage });
     return false;
   }
 }
@@ -100,7 +101,7 @@ export function openGoogleMaps(
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(args.address.trim())}`
       : null);
   if (!target) {
-    Alert.alert('No address set', 'Add an address or a Google Maps link to this card first.');
+    toast.error({ title: 'No address set', message: 'Add an address or a Google Maps link to this card first.' });
     return Promise.resolve(false);
   }
   return open(target, 'Google Maps could not be opened.', client);

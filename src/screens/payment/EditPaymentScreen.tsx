@@ -21,6 +21,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useCurrencySymbol } from '@/state/currencyContext';
 import { useInvoiceStore } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditPayment'>;
@@ -110,10 +111,11 @@ export function EditPaymentScreen({ navigation, route }: Props) {
           try {
             const invoiceId = payment.invoiceId;
             await remove(payment.id);
+            toast.success('Payment deleted');
             navigation.popToTop();
             navigation.navigate('InvoiceDetail', { invoiceId });
           } catch {
-            Alert.alert("Couldn't delete", 'This payment could not be deleted. Please try again.');
+            toast.error({ title: "Couldn't delete", message: 'This payment could not be deleted. Please try again.' });
           }
         },
       },
@@ -193,10 +195,11 @@ function EditPaymentForm({
   const onSubmit = handleSubmit(async (values) => {
     try {
       await update(payment.id, formValuesToPaymentUpdateInput(values));
+      toast.success('Payment changes saved');
       navigation.popToTop();
       navigation.navigate('InvoiceDetail', { invoiceId: payment.invoiceId });
     } catch {
-      Alert.alert("Couldn't save", 'Your changes could not be saved. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'Your changes could not be saved. Please try again.' });
     }
   });
 

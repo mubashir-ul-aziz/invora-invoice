@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
@@ -20,6 +20,7 @@ import type { InvoiceStatus } from '@/domain/invoice/types';
 import { getPdfItemColumns } from '@/domain/pdf/itemColumns';
 import type { RootStackParamList } from '@/navigation/types';
 import { usePdfStore } from '@/state/pdfStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoicePdfPreview'>;
@@ -83,7 +84,7 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
     try {
       await action();
     } catch {
-      Alert.alert("Couldn't complete this action", failureMessage);
+      toast.error({ title: "Couldn't complete this action", message: failureMessage });
     } finally {
       setBusyAction(null);
     }

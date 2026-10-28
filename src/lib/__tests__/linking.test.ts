@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { toast } from '@/state/toastStore';
 
 import {
   openEmail,
@@ -25,7 +25,7 @@ function fakeClient(canOpen: boolean): LinkingClient & { opened: string[] } {
 
 describe('linking helpers', () => {
   beforeEach(() => {
-    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    jest.spyOn(toast, 'show');
   });
 
   afterEach(() => {
@@ -71,12 +71,12 @@ describe('linking helpers', () => {
     expect(client.opened).toEqual(['https://maps.app/xyz']);
   });
 
-  it('alerts and does nothing when there is no address or maps link', async () => {
+  it('shows an error toast and does nothing when there is no address or maps link', async () => {
     const client = fakeClient(true);
     const ok = await openGoogleMaps({}, client);
     expect(ok).toBe(false);
     expect(client.opened).toEqual([]);
-    expect(Alert.alert).toHaveBeenCalled();
+    expect(toast.show).toHaveBeenCalledWith('error', expect.anything());
   });
 
   it('builds a recipient-less wa.me link to share via WhatsApp', async () => {
@@ -91,11 +91,11 @@ describe('linking helpers', () => {
     expect(client.opened).toEqual(['sms:?&body=Check%20this%20out']);
   });
 
-  it('alerts instead of throwing when the target app cannot be opened', async () => {
+  it('shows an error toast instead of throwing when the target app cannot be opened', async () => {
     const client = fakeClient(false);
     const ok = await openPhone('+15551234567', client);
     expect(ok).toBe(false);
     expect(client.opened).toEqual([]);
-    expect(Alert.alert).toHaveBeenCalled();
+    expect(toast.show).toHaveBeenCalledWith('error', expect.anything());
   });
 });

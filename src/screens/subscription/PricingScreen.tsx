@@ -28,6 +28,7 @@ import { describeUpgradeReason } from '@/domain/subscription/upgradeReason';
 import type { RootStackParamList } from '@/navigation/types';
 import type { OfferingsIssue } from '@/state/subscriptionStore';
 import { useSubscription } from '@/state/useSubscription';
+import { toast } from '@/state/toastStore';
 import { colors, radius, spacing, typography } from '@/theme/colors';
 
 import { customerCenterOutcomeMessage, paywallOutcomeMessage, purchaseOutcomeMessage, restoreOutcomeMessage } from './outcomeMessages';
@@ -134,7 +135,7 @@ export function PricingScreen({ route }: Props) {
   const handleManageSubscription = async () => {
     const opened = await sub.openManageSubscription();
     if (!opened && !sub.managementUrl) {
-      Alert.alert('Nothing to manage in Google Play', 'There is no active Google Play subscription for this app.');
+      toast.info({ title: 'Nothing to manage in Google Play', message: 'There is no active Google Play subscription for this app.' });
     }
   };
 
@@ -144,7 +145,7 @@ export function PricingScreen({ route }: Props) {
       const outcome = await sub.purchase(plan, period);
       const message = purchaseOutcomeMessage(outcome, PLAN_CONFIG[plan].label);
       if (message) {
-        Alert.alert(message.title, message.message);
+        toast.show(message.type, message);
       }
     } finally {
       setBusyPlan(null);
@@ -175,14 +176,14 @@ export function PricingScreen({ route }: Props) {
   const handleRestore = async () => {
     const outcome = await sub.restore();
     const message = restoreOutcomeMessage(outcome);
-    Alert.alert(message.title, message.message);
+    toast.show(message.type, message);
   };
 
   const handlePresentPaywall = async () => {
     const outcome = await sub.presentPaywall();
     const message = paywallOutcomeMessage(outcome);
     if (message) {
-      Alert.alert(message.title, message.message);
+      toast.show(message.type, message);
     }
   };
 
@@ -190,7 +191,7 @@ export function PricingScreen({ route }: Props) {
     const outcome = await sub.presentCustomerCenter();
     const message = customerCenterOutcomeMessage(outcome);
     if (message) {
-      Alert.alert(message.title, message.message);
+      toast.show(message.type, message);
     }
   };
 

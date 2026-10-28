@@ -8,6 +8,7 @@ import { EMPTY_INVOICE_ITEM_INPUT, type Invoice } from '@/domain/invoice/types';
 import type { Item } from '@/domain/item/types';
 import { createInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
+import { toast } from '@/state/toastStore';
 
 let mockInvoiceTypeStore: ReturnType<typeof createInvoiceTypeStore>;
 
@@ -160,7 +161,7 @@ describe('CreateInvoiceItemsScreen', () => {
   });
 
   it('blocks continuing with zero items', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const toastSpy = jest.spyOn(toast, 'show');
     useInvoiceDraftStore.getState().startCreate({ invoiceTypeId: 'general' });
     useInvoiceDraftStore.getState().setCustomer(CUSTOMER);
     const view = await renderScreen();
@@ -168,9 +169,9 @@ describe('CreateInvoiceItemsScreen', () => {
     await waitFor(() => expect(view.getByTestId('action-continue-to-review')).toBeTruthy());
     fireEvent.press(view.getByTestId('action-continue-to-review'));
 
-    expect(alertSpy).toHaveBeenCalled();
+    expect(toastSpy).toHaveBeenCalledWith('error', expect.objectContaining({ title: 'Add at least one item' }));
     expect(navigation.navigate).not.toHaveBeenCalledWith('InvoiceReview');
-    alertSpy.mockRestore();
+    toastSpy.mockRestore();
   });
 
   it('continues to review once at least one item is added', async () => {

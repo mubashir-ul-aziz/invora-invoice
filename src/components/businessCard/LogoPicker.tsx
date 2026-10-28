@@ -1,8 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -15,10 +16,7 @@ export function LogoPicker({ logoUri, onChange }: Props) {
   const pickLogo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(
-        'Permission needed',
-        'Allow photo library access to set a business logo.',
-      );
+      toast.error({ title: 'Permission needed', message: 'Allow photo library access to set a business logo.' });
       return;
     }
 

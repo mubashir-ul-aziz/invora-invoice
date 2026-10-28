@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { getCloudStoragePlan } from '@/domain/cloudBackup/types';
@@ -10,6 +10,7 @@ import { useBusinessProfileStore } from '@/state/businessProfileStore';
 import { useCloudBackupStore } from '@/state/cloudBackupStore';
 import { useSubscription } from '@/state/useSubscription';
 import { restoreOutcomeMessage } from '@/screens/subscription/outcomeMessages';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Account'>;
@@ -44,7 +45,7 @@ export function AccountScreen({ navigation }: Props) {
   const plusPlan = getCloudStoragePlan('plus');
   const handleRestore = async () => {
     const message = restoreOutcomeMessage(await subscription.restore());
-    Alert.alert(message.title, message.message);
+    toast.show(message.type, message);
   };
 
   return (
@@ -142,10 +143,10 @@ export function AccountScreen({ navigation }: Props) {
       <ActionButton
         label="Log out"
         onPress={() =>
-          Alert.alert(
-            "You're not signed in",
-            'There is no account to log out of yet — all your data stays on this device either way.',
-          )
+          toast.info({
+            title: "You're not signed in",
+            message: 'There is no account to log out of yet — all your data stays on this device either way.',
+          })
         }
         testID="action-logout"
       />

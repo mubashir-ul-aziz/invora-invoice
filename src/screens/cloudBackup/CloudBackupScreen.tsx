@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
@@ -9,6 +9,7 @@ import { formatBackupTimestamp, formatStorageUsage, storageUsageRatio } from '@/
 import { getCloudStoragePlan } from '@/domain/cloudBackup/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCloudBackupStore } from '@/state/cloudBackupStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CloudBackup'>;
@@ -60,9 +61,9 @@ export function CloudBackupScreen({ navigation }: Props) {
   const handleBackupNow = async () => {
     const entry = await backupNow();
     if (entry.status === 'success') {
-      Alert.alert('Backup complete', 'Your data was backed up to cloud storage.');
+      toast.success({ title: 'Backup complete', message: 'Your data was backed up to cloud storage.' });
     } else {
-      Alert.alert('Backup failed', entry.errorMessage ?? 'Something went wrong.');
+      toast.error({ title: 'Backup failed', message: entry.errorMessage ?? 'Something went wrong.' });
     }
   };
 

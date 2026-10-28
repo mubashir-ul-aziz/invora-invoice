@@ -4,6 +4,7 @@ import React from 'react';
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
 import { createInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
+import { toast } from '@/state/toastStore';
 
 let mockInvoiceTypeStore: ReturnType<typeof createInvoiceTypeStore>;
 
@@ -23,6 +24,7 @@ const navigation = { navigate: jest.fn(), goBack: jest.fn() };
 /** One submitting test per file — see the codebase-wide note on react-hook-form's async resolver. */
 describe('EditInvoiceLineScreen save (add)', () => {
   it('adding a new manual line appends it to the draft and goes back', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     mockInvoiceTypeStore = createInvoiceTypeStore(new InMemoryBusinessRepository());
     useInvoiceDraftStore.getState().reset();
     useInvoiceDraftStore.getState().startCreate({ invoiceTypeId: 'general' });
@@ -37,9 +39,11 @@ describe('EditInvoiceLineScreen save (add)', () => {
     fireEvent.press(view.getByTestId('save-invoice-line'));
 
     await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+    expect(toastSpy).toHaveBeenCalledWith('success', 'Line item added');
     expect(useInvoiceDraftStore.getState().items).toHaveLength(1);
     expect(useInvoiceDraftStore.getState().items[0].itemName).toBe('Custom Service');
     expect(useInvoiceDraftStore.getState().items[0].unitPrice).toBe(150);
     expect(useInvoiceDraftStore.getState().items[0].itemId).toBeNull();
+    toastSpy.mockRestore();
   });
 });

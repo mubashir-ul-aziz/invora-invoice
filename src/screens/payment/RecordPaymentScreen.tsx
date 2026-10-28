@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceStatusBadge } from '@/components/invoice/InvoiceStatusBadge';
@@ -19,6 +19,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useCurrencySymbol } from '@/state/currencyContext';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RecordPayment'>;
@@ -179,10 +180,11 @@ function RecordPaymentForm({
         reference: values.reference,
         notes: values.notes,
       });
+      toast.success(`Payment recorded for invoice ${detail.invoice.invoiceNumber}`);
       navigation.popToTop();
       navigation.navigate('InvoiceDetail', { invoiceId });
     } catch {
-      Alert.alert("Couldn't save", 'This payment could not be recorded. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'This payment could not be recorded. Please try again.' });
     }
   });
 

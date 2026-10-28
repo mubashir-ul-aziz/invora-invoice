@@ -5,6 +5,7 @@ import { createItemStore } from '@/state/itemStore';
 import { createInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { InMemoryItemRepository } from '@/data/item/InMemoryItemRepository';
 import { InMemoryBusinessRepository } from '@/data/business/InMemoryBusinessRepository';
+import { toast } from '@/state/toastStore';
 
 let mockItemStore: ReturnType<typeof createItemStore>;
 let mockInvoiceTypeStore: ReturnType<typeof createInvoiceTypeStore>;
@@ -42,6 +43,7 @@ describe('CreateItemScreen.save', () => {
   });
 
   it('creates the item and navigates back', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     const repo = new InMemoryItemRepository();
     mockItemStore = createItemStore(repo);
 
@@ -55,9 +57,11 @@ describe('CreateItemScreen.save', () => {
     fireEvent.press(view.getByTestId('save-item'));
 
     await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+    expect(toastSpy).toHaveBeenCalledWith('success', 'Item "Steel Pipe" created');
     const items = await repo.list();
     expect(items).toHaveLength(1);
     expect(items[0].name).toBe('Steel Pipe');
     expect(items[0].defaultPrice).toBe(12.5);
+    toastSpy.mockRestore();
   });
 });

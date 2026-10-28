@@ -3,6 +3,7 @@ import React from 'react';
 
 import { createCustomerStore } from '@/state/customerStore';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
+import { toast } from '@/state/toastStore';
 
 let mockStore: ReturnType<typeof createCustomerStore>;
 
@@ -29,6 +30,7 @@ describe('CreateCustomerScreen.save', () => {
   });
 
   it('creates the customer and replaces this screen with Customer Detail', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     const repo = new InMemoryCustomerRepository();
     mockStore = createCustomerStore(repo);
 
@@ -42,11 +44,13 @@ describe('CreateCustomerScreen.save', () => {
     fireEvent.press(view.getByTestId('save-customer'));
 
     await waitFor(() => expect(navigation.replace).toHaveBeenCalled());
+    expect(toastSpy).toHaveBeenCalledWith('success', 'Customer "Acme Co" created');
     const customers = await repo.list();
     expect(customers).toHaveLength(1);
     expect(customers[0].name).toBe('Acme Co');
     expect(customers[0].phone).toBe('+15551234567');
     expect(navigation.replace).toHaveBeenCalledWith('CustomerDetail', { customerId: customers[0].id });
     expect(navigation.goBack).not.toHaveBeenCalled();
+    toastSpy.mockRestore();
   });
 });

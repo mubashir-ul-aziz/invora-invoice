@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
+import { planStatusChangeMessage } from '@/screens/subscription/outcomeMessages';
 import { useSubscriptionStore } from '@/state/subscriptionStore';
+import { toast } from '@/state/toastStore';
 
 interface Props {
   children: React.ReactNode;
@@ -27,7 +29,9 @@ const MAX_TIMER_MS = 24 * 60 * 60 * 1000;
  *    after it, then every minute for a few minutes, so a renewal isn't shown
  *    as "Expired" until the next app restart;
  *  - when connectivity returns and when RevenueCat pushes an update: handled
- *    inside `SubscriptionService.startListening()`, started by `init()`.
+ *    inside `SubscriptionService.startListening()`, started by `init()`;
+ *  - when any of those syncs reports that the plan was cancelled (or the
+ *    cancellation undone): shows a toast, since that happens outside the app.
  *
  * Every step is best-effort and fail-safe: if RevenueCat, Google Play or the
  * network is unavailable, the app keeps running on the cached plan.
@@ -38,6 +42,8 @@ export function SubscriptionRunner({ children }: Props) {
   const refreshUsage = useSubscriptionStore((state) => state.refreshUsage);
   const expiresAt = useSubscriptionStore((state) => state.snapshot.subscription.expiresAt);
   const isActive = useSubscriptionStore((state) => state.snapshot.subscription.isActive);
+  const currentSubscription = useSubscriptionStore((state) => state.snapshot.subscription);
+  const previousSubscription = useRef(currentSubscription);
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const [expiryTick, setExpiryTick] = useState(0);
 
@@ -78,6 +84,14 @@ export function SubscriptionRunner({ children }: Props) {
     }, delay);
     return () => clearTimeout(timer);
   }, [expiresAt, isActive, expiryTick, refresh]);
+
+  useEffect(() => {
+    const message = planStatusChangeMessage(previousSubscription.current, currentSubscription);
+    previousSubscription.current = currentSubscription;
+    if (message) {
+      toast.show(message.type, message);
+    }
+  }, [currentSubscription]);
 
   return <>{children}</>;
 }

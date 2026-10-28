@@ -10,6 +10,7 @@ import { activeInfo, DAY, makeHarness, START, type Harness } from '@/data/subscr
 import type { Invoice } from '@/domain/invoice/types';
 import { OFFLINE_GRACE_MS } from '@/domain/subscription/offlinePolicy';
 import { createSubscriptionStore } from '@/state/subscriptionStore';
+import { toast } from '@/state/toastStore';
 
 let mockStore: ReturnType<typeof createSubscriptionStore>;
 
@@ -77,6 +78,7 @@ async function boot(
 describe('PricingScreen', () => {
   beforeEach(() => {
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    jest.spyOn(toast, 'show');
     navigation.navigate.mockClear();
   });
   afterEach(() => {
@@ -155,7 +157,7 @@ describe('PricingScreen', () => {
 
     await fireEvent.press(view.getByTestId('plan-business-cta'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Business is active', expect.stringContaining('confirmed')));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith('success', expect.objectContaining({ title: 'Business is active', message: expect.stringContaining('confirmed') })));
     expect(h.adapter.calls.purchase[0].packageId).toBe('business_monthly');
     await waitFor(() => expect(view.getByTestId('pricing-current-plan').props.children).toBe('Business'));
   });
@@ -178,8 +180,8 @@ describe('PricingScreen', () => {
 
     await fireEvent.press(view.getByTestId('plan-pro-cta'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Waiting for Google Play', expect.stringContaining('not unlocked')));
-    const titles = (Alert.alert as jest.Mock).mock.calls.map((call) => call[0]);
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith('info', expect.objectContaining({ title: 'Waiting for Google Play', message: expect.stringContaining('not unlocked') })));
+    const titles = (toast.show as jest.Mock).mock.calls.map((call) => call[1].title);
     expect(titles.some((title: string) => /active|success/i.test(title))).toBe(false);
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Free');
     expect(view.getByText('Payment pending')).toBeTruthy();
@@ -193,7 +195,7 @@ describe('PricingScreen', () => {
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
     await waitFor(() => expect(h.adapter.calls.purchase).toHaveLength(1));
-    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(toast.show).not.toHaveBeenCalled();
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Free');
   });
 
@@ -203,11 +205,11 @@ describe('PricingScreen', () => {
 
     h.adapter.failNextPurchase('store_unavailable');
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Google Play unavailable', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith('error', expect.objectContaining({ title: 'Google Play unavailable', message: expect.any(String) })));
 
     h.connectivity.setOnline(false);
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('No connection', expect.stringContaining('not been charged')));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith('error', expect.objectContaining({ title: 'No connection', message: expect.stringContaining('not been charged') })));
   });
 
   it('marks the current paid plan and disables its button', async () => {
@@ -237,9 +239,9 @@ describe('PricingScreen', () => {
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
     await waitFor(() =>
-      expect(Alert.alert).toHaveBeenCalledWith('Plan change scheduled', expect.stringContaining('You keep Pro until your current billing period ends')),
+      expect(toast.show).toHaveBeenCalledWith('info', expect.objectContaining({ title: 'Plan change scheduled', message: expect.stringContaining('You keep Pro until your current billing period ends') })),
     );
-    expect(Alert.alert).toHaveBeenCalledWith('Plan change scheduled', expect.stringContaining('Starter starts on'));
+    expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Plan change scheduled', message: expect.stringContaining('Starter starts on') }));
     expect(h.adapter.calls.purchase[0].change).toEqual({ oldProductIdentifier: 'metriqo_pro_monthly', replacementMode: 'DEFERRED' });
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Pro');
   });
@@ -378,7 +380,7 @@ describe('PricingScreen', () => {
 
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('No connection', expect.stringContaining('Connect to the internet to upgrade')));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'No connection', message: expect.stringContaining('Connect to the internet to upgrade') })));
     expect(h.adapter.calls.purchase).toHaveLength(0);
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Free');
   });
@@ -393,10 +395,10 @@ describe('PricingScreen', () => {
     expect(view.getByTestId('plan-business-price').props.children).toBe('$10');
 
     await fireEvent.press(view.getByTestId('plan-business-cta'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Purchases unavailable', expect.stringContaining('No RevenueCat key')));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Purchases unavailable', message: expect.stringContaining('No RevenueCat key') })));
 
     await fireEvent.press(view.getByTestId('action-restore-purchases'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Restore unavailable', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Restore unavailable', message: expect.any(String) })));
     expect(openUrl).not.toHaveBeenCalled();
   });
 
@@ -408,7 +410,7 @@ describe('PricingScreen', () => {
 
     await fireEvent.press(view.getByTestId('plan-starter-cta'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Starter is active', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Starter is active', message: expect.any(String) })));
     expect(h.adapter.calls.purchase[0].packageId).toBe('starter_monthly');
     await waitFor(() => expect(view.getByText('5 of 15 invoices used this month')).toBeTruthy());
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Starter');
@@ -448,11 +450,11 @@ describe('PricingScreen', () => {
     const view = await renderScreen();
 
     await fireEvent.press(view.getByTestId('action-restore-purchases'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Purchases restored', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Purchases restored', message: expect.any(String) })));
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Business');
 
     await fireEvent.press(view.getByTestId('action-restore-purchases'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Already active', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Already active', message: expect.any(String) })));
   });
 
   it('says so when there is nothing to restore', async () => {
@@ -461,7 +463,7 @@ describe('PricingScreen', () => {
 
     await fireEvent.press(view.getByTestId('action-restore-purchases'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Nothing to restore', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Nothing to restore', message: expect.any(String) })));
   });
 
   it('offers no Google Play link to a Free user (no empty Play Subscriptions page)', async () => {
@@ -491,7 +493,7 @@ describe('PricingScreen', () => {
     h.adapter.restoreResult = activeInfo('starter', h.clock.now, { store: 'TEST_STORE' });
     const view = await renderScreen();
     await fireEvent.press(view.getByTestId('action-restore-purchases'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Purchases restored', expect.stringContaining('Starter')));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: 'Purchases restored', message: expect.stringContaining('Starter') })));
     h.adapter.onPurchase = () => activeInfo('pro', h.clock.now, { store: 'TEST_STORE' });
     await fireEvent.press(view.getByTestId('plan-pro-cta'));
     await waitFor(() => expect(h.adapter.calls.purchase).toHaveLength(1));
@@ -511,7 +513,7 @@ describe('PricingScreen', () => {
 
     await waitFor(() => expect(h.adapter.calls.presentCustomerCenter).toBe(1));
     await waitFor(() => expect(view.getByTestId('pricing-current-plan').props.children).toBe('Starter'));
-    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(toast.show).not.toHaveBeenCalled();
   });
 
   it('says so when Customer Center cannot be opened', async () => {
@@ -521,7 +523,7 @@ describe('PricingScreen', () => {
 
     await fireEvent.press(view.getByTestId('action-customer-center'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Not available', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith('error', expect.objectContaining({ title: 'Not available', message: expect.any(String) })));
   });
 
   it('offers an "Upgrade now" paywall shortcut on the reason banner and unlocks on purchase', async () => {
@@ -532,7 +534,7 @@ describe('PricingScreen', () => {
 
     await fireEvent.press(view.getByTestId('pricing-reason-upgrade'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Pro is active', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith('success', expect.objectContaining({ title: 'Pro is active', message: expect.any(String) })));
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Pro');
   });
 
@@ -544,7 +546,7 @@ describe('PricingScreen', () => {
     await fireEvent.press(view.getByTestId('pricing-reason-upgrade'));
 
     await waitFor(() => expect(h.adapter.calls.presentPaywall).toBe(1));
-    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(toast.show).not.toHaveBeenCalled();
   });
 
   it('explains why the user was sent here', async () => {

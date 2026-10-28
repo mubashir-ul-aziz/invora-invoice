@@ -5,6 +5,7 @@ import React from 'react';
 import { createItemStore } from '@/state/itemStore';
 import { InMemoryItemRepository } from '@/data/item/InMemoryItemRepository';
 import { EMPTY_ITEM_INPUT } from '@/domain/item/types';
+import { toast } from '@/state/toastStore';
 
 let mockStore: ReturnType<typeof createItemStore>;
 
@@ -168,7 +169,7 @@ describe('ItemListScreen', () => {
       const areaItem = await repo.create({ ...EMPTY_ITEM_INPUT, name: 'Flooring', invoiceTypeId: 'area' });
       mockStore = createItemStore(repo);
       const onSelectItem = jest.fn();
-      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const toastSpy = jest.spyOn(toast, 'show');
       // Bypass the list's own filter to simulate a stale/legacy row still being reachable.
       mockStore.getState().load = async () => {
         mockStore.setState({ items: [areaItem], status: 'ready' });
@@ -180,11 +181,14 @@ describe('ItemListScreen', () => {
 
       expect(onSelectItem).not.toHaveBeenCalled();
       expect(navigation.goBack).not.toHaveBeenCalled();
-      expect(alertSpy).toHaveBeenCalledWith(
-        'Incompatible pricing method',
-        expect.stringContaining('Area pricing and cannot be added to this Weight invoice'),
+      expect(toastSpy).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({
+          title: 'Incompatible pricing method',
+          message: expect.stringContaining('Area pricing and cannot be added to this Weight invoice'),
+        }),
       );
-      alertSpy.mockRestore();
+      toastSpy.mockRestore();
     });
   });
 });

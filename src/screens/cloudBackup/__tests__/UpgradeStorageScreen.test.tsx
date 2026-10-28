@@ -1,6 +1,5 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import React from 'react';
-import { Alert } from 'react-native';
 
 import { InMemoryBackupLogRepository } from '@/data/backup/InMemoryBackupLogRepository';
 import { InMemoryBackupRepository } from '@/data/backup/InMemoryBackupRepository';
@@ -11,6 +10,7 @@ import { FakeBackupEncryptionService } from '@/data/cloudBackup/encryption/FakeB
 import { PlaceholderCloudUpgradeService } from '@/data/subscription/PlaceholderCloudUpgradeService';
 import { CLOUD_STORAGE_PLANS } from '@/domain/cloudBackup/types';
 import { createCloudBackupStore } from '@/state/cloudBackupStore';
+import { toast } from '@/state/toastStore';
 
 let mockStore: ReturnType<typeof createCloudBackupStore>;
 
@@ -53,7 +53,7 @@ function makeStore() {
 
 describe('UpgradeStorageScreen', () => {
   beforeEach(() => {
-    jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    jest.spyOn(toast, 'show');
   });
   afterEach(() => {
     jest.restoreAllMocks();
@@ -82,7 +82,7 @@ describe('UpgradeStorageScreen', () => {
     fireEvent.press(view.getByTestId(`upgrade-${upgradeTarget.id}`));
 
     await waitFor(() =>
-      expect(Alert.alert).toHaveBeenCalledWith('Not available yet', expect.stringContaining("isn't available yet")),
+      expect(toast.show).toHaveBeenCalledWith('error', expect.objectContaining({ title: 'Not available yet', message: expect.stringContaining("isn't available yet") })),
     );
   });
 });

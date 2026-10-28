@@ -9,6 +9,7 @@ import { formatBackupSize, formatBackupTimestamp } from '@/domain/cloudBackup/fo
 import type { BackupLogEntry, BackupTrigger } from '@/domain/backup/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCloudBackupStore } from '@/state/cloudBackupStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CloudBackupHistory'>;
@@ -81,9 +82,9 @@ export function CloudBackupHistoryScreen({}: Props) {
           onPress: async () => {
             const entry = await restore(fileId);
             if (entry.status === 'success') {
-              Alert.alert('Restore complete', 'Your data has been restored from cloud backup.');
+              toast.success({ title: 'Restore complete', message: 'Your data has been restored from cloud backup.' });
             } else {
-              Alert.alert('Restore failed', entry.errorMessage ?? 'Your existing data was not changed.');
+              toast.error({ title: 'Restore failed', message: entry.errorMessage ?? 'Your existing data was not changed.' });
             }
             refreshHistory();
           },
@@ -95,9 +96,9 @@ export function CloudBackupHistoryScreen({}: Props) {
   const handleBackupNow = async () => {
     const entry = await backupNow();
     if (entry.status === 'success') {
-      Alert.alert('Backup complete', 'Your data was backed up to cloud storage.');
+      toast.success({ title: 'Backup complete', message: 'Your data was backed up to cloud storage.' });
     } else {
-      Alert.alert('Backup failed', entry.errorMessage ?? 'Something went wrong.');
+      toast.error({ title: 'Backup failed', message: entry.errorMessage ?? 'Something went wrong.' });
     }
     refreshRemoteBackups();
   };

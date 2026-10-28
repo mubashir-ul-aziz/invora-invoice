@@ -8,6 +8,7 @@ import { ZeroPaymentTotalsRepository } from '@/data/paymentTotals/ZeroPaymentTot
 import { EMPTY_INVOICE_ITEM_INPUT, type InvoiceInput } from '@/domain/invoice/types';
 import { createInvoiceStore } from '@/state/invoiceStore';
 import { createPaymentStore } from '@/state/paymentStore';
+import { toast } from '@/state/toastStore';
 
 let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 let mockPaymentStore: ReturnType<typeof createPaymentStore>;
@@ -51,6 +52,7 @@ function makeInput(overrides: Partial<InvoiceInput> = {}): InvoiceInput {
 /** One resolver-triggered submission per file — see the note in `InvoiceReviewScreen`'s Phase 6 tests. */
 describe('RecordPaymentScreen save', () => {
   it('records a partial payment, matching the brief\'s worked example', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     const invoices = new InMemoryInvoiceRepository();
     const created = await invoices.create('INV-1', makeInput()); // grand total 1000
     const payments = new InMemoryPaymentRepository();
@@ -67,6 +69,7 @@ describe('RecordPaymentScreen save', () => {
     fireEvent.press(view.getByTestId('save-payment'));
 
     await waitFor(() => expect(navigation.popToTop).toHaveBeenCalled());
+    expect(toastSpy).toHaveBeenCalledWith('success', 'Payment recorded for invoice INV-1');
     expect(navigation.navigate).toHaveBeenCalledWith('InvoiceDetail', { invoiceId: created.id });
 
     const firstPayment = (await payments.listByInvoice(created.id))[0];
@@ -90,5 +93,6 @@ describe('RecordPaymentScreen save', () => {
     });
     const all = await payments.listByInvoice(created.id);
     expect(all.reduce((sum, p) => sum + p.amount, 0)).toBe(500);
+    toastSpy.mockRestore();
   });
 });

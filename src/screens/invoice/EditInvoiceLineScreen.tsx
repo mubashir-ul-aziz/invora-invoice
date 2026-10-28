@@ -21,6 +21,7 @@ import { resolveInvoiceFieldConfig } from '@/domain/invoiceType/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditInvoiceLine'>;
@@ -109,8 +110,10 @@ function InvoiceLineFormInner({
     }
     if (lineIndex != null) {
       draft.updateLine(lineIndex, input);
+      toast.success('Line item updated');
     } else {
       draft.addLine(input);
+      toast.success('Line item added');
     }
     navigation.goBack();
   });
@@ -126,6 +129,7 @@ function InvoiceLineFormInner({
         style: 'destructive',
         onPress: () => {
           draft.removeLine(lineIndex);
+          toast.success('Line item removed');
           navigation.goBack();
         },
       },

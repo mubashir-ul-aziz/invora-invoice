@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { FormField } from '@/components/businessCard/FormField';
 import { BottomActionBar } from '@/components/shared/BottomActionBar';
@@ -17,6 +17,7 @@ import {
 } from '@/domain/customer/validation';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerStore } from '@/state/customerStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateCustomer'>;
@@ -83,6 +84,7 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
   const onSubmit = handleSubmit(async (values) => {
     try {
       const created = await create(formValuesToCustomerInput(values));
+      toast.success(`Customer "${created.name}" created`);
       // Clear the form and keep the button disabled immediately so nothing
       // stale (filled fields, a re-enabled button) flashes while the screen
       // transition below is still in flight.
@@ -100,7 +102,7 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
       // user later backs out of Detail.
       navigation.replace('CustomerDetail', { customerId: created.id });
     } catch {
-      Alert.alert("Couldn't save", 'This customer could not be created. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'This customer could not be created. Please try again.' });
     }
   });
 

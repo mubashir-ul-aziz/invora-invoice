@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { formatBackupSize, formatStorageUsage, storageUsageRatio } from '@/domain/cloudBackup/formatting';
@@ -9,6 +9,7 @@ import type { CloudStoragePlanId } from '@/domain/cloudBackup/types';
 import { useCloudBackupStore } from '@/state/cloudBackupStore';
 import { colors } from '@/theme/colors';
 import type { RootStackParamList } from '@/navigation/types';
+import { toast } from '@/state/toastStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UpgradeStorage'>;
 
@@ -53,7 +54,10 @@ export function UpgradeStorageScreen(_props: Props) {
     setPendingPlanId(planId);
     try {
       const result = await requestUpgrade(planId);
-      Alert.alert(result.status === 'success' ? 'Upgraded' : 'Not available yet', result.message);
+      toast.show(result.status === 'success' ? 'success' : 'error', {
+        title: result.status === 'success' ? 'Upgraded' : 'Not available yet',
+        message: result.message,
+      });
     } finally {
       setPendingPlanId(null);
     }

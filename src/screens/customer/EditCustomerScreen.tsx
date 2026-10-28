@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FormField } from '@/components/businessCard/FormField';
 import { BottomActionBar } from '@/components/shared/BottomActionBar';
@@ -21,6 +21,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerActivityStore } from '@/state/customerActivityStore';
 import { useCustomerStore } from '@/state/customerStore';
 import { useCurrencySymbol } from '@/state/currencyContext';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditCustomer'>;
@@ -116,9 +117,10 @@ export function EditCustomerScreen({ navigation, route }: Props) {
   const onSubmit = handleSubmit(async (values) => {
     try {
       await update(customerId, formValuesToCustomerInput(values));
+      toast.success('Customer changes saved');
       navigation.goBack();
     } catch {
-      Alert.alert("Couldn't save", 'Your changes could not be saved. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'Your changes could not be saved. Please try again.' });
     }
   });
 
@@ -127,10 +129,11 @@ export function EditCustomerScreen({ navigation, route }: Props) {
     setDeleting(true);
     try {
       await remove(customerId);
+      toast.success('Customer deleted');
       navigation.navigate('CustomerList');
     } catch {
       setDeleting(false);
-      Alert.alert("Couldn't delete", 'This customer could not be deleted. Please try again.');
+      toast.error({ title: "Couldn't delete", message: 'This customer could not be deleted. Please try again.' });
     }
   };
 

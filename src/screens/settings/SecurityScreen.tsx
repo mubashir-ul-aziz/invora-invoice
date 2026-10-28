@@ -1,13 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
 import { EMPTY_SECURITY_SETTINGS_INPUT } from '@/domain/security/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useSecurityStore } from '@/state/securityStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Security'>;
@@ -66,11 +67,9 @@ export function SecurityScreen(_props: Props) {
   const persist = async (next: typeof current) => {
     try {
       await save(next);
+      toast.success('Security settings saved');
     } catch {
-      Alert.alert(
-        "Couldn't save",
-        'Your security settings could not be saved. Please try again.',
-      );
+      toast.error({ title: "Couldn't save", message: 'Your security settings could not be saved. Please try again.' });
     }
   };
 

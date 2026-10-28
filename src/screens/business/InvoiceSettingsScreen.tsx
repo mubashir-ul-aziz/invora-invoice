@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { ActionButton } from '@/components/businessCard/ActionButton';
@@ -26,6 +26,7 @@ import {
 } from '@/domain/business/validation';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceSettings'>;
@@ -74,12 +75,10 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
   const onSubmit = handleSubmit(async (values) => {
     try {
       await save(formValuesToSettingsInput(values));
+      toast.success('Invoice settings saved');
       navigation.goBack();
     } catch {
-      Alert.alert(
-        "Couldn't save",
-        'Your invoice settings could not be saved. Please try again.',
-      );
+      toast.error({ title: "Couldn't save", message: 'Your invoice settings could not be saved. Please try again.' });
     }
   });
 

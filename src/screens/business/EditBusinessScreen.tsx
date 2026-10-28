@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { FormField } from '@/components/businessCard/FormField';
 import { LogoPicker } from '@/components/businessCard/LogoPicker';
@@ -21,6 +21,7 @@ import { formatNextInvoiceNumber } from '@/domain/business/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessCardStore } from '@/state/businessCardStore';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 // Reached from both routes `RootNavigator` points at this component — see
@@ -82,9 +83,10 @@ export function EditBusinessScreen({ navigation }: Props) {
       // business — a concurrent insert from the second save would race it.
       await profileStore.save(businessFormToProfileInput(values));
       await cardStore.save(businessFormToCardInput(values));
+      toast.success('Business details saved');
       navigation.goBack();
     } catch {
-      Alert.alert("Couldn't save", 'Your changes could not be saved. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'Your changes could not be saved. Please try again.' });
     }
   });
 

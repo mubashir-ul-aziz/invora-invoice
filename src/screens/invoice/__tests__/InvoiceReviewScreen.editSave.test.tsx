@@ -9,6 +9,7 @@ import { EMPTY_INVOICE_ITEM_INPUT, type InvoiceInput } from '@/domain/invoice/ty
 import { createBusinessProfileStore } from '@/state/businessProfileStore';
 import { createInvoiceStore } from '@/state/invoiceStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
+import { toast } from '@/state/toastStore';
 
 let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 let mockBusinessProfileStore: ReturnType<typeof createBusinessProfileStore>;
@@ -64,6 +65,7 @@ function makeInput(overrides: Partial<InvoiceInput> = {}): InvoiceInput {
 /** One submitting test per file — see the codebase-wide note on react-hook-form's async resolver. */
 describe('InvoiceReviewScreen save (edit)', () => {
   it('updates the existing invoice in place, keeping its number', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     const businessRepo = new InMemoryBusinessRepository();
     mockBusinessProfileStore = createBusinessProfileStore(businessRepo);
     const invoiceRepo = new InMemoryInvoiceRepository();
@@ -81,11 +83,13 @@ describe('InvoiceReviewScreen save (edit)', () => {
     fireEvent.press(view.getByTestId('save-invoice'));
 
     await waitFor(() => expect(navigation.popToTop).toHaveBeenCalled());
+    expect(toastSpy).toHaveBeenCalledWith('success', 'Invoice INV-1 updated');
     expect(navigation.navigate).toHaveBeenCalledWith('InvoiceDetail', { invoiceId: existing.id });
 
     const updated = await invoiceRepo.getById(existing.id);
     expect(updated?.invoiceNumber).toBe('INV-1');
     expect(updated?.items[0].quantity).toBe(3);
     expect(updated?.items[0].lineTotal).toBe(300);
+    toastSpy.mockRestore();
   });
 });

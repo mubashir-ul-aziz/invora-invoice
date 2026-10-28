@@ -21,6 +21,7 @@ import { resolveInvoiceFieldConfig } from '@/domain/invoiceType/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateInvoiceItems'>;
@@ -112,7 +113,10 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
         {
           text: 'Continue',
           style: safe ? 'default' : 'destructive',
-          onPress: () => applyInvoiceTypeChange(invoiceTypeId),
+          onPress: () => {
+            applyInvoiceTypeChange(invoiceTypeId);
+            toast.success(safe ? `Pricing method changed to ${newLabel}` : `Pricing method changed to ${newLabel} — items cleared`);
+          },
         },
       ],
     );
@@ -123,6 +127,7 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
       requiredPricingMethodId: draft.invoiceTypeId,
       onSelectItem: (item) => {
         draft.addLine(invoiceLineFromItem(item, fieldConfig));
+        toast.success(`"${item.name}" added to invoice`);
       },
     });
   };
@@ -135,13 +140,20 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
     const line = draft.items[index];
     Alert.alert('Remove line', `Remove "${line.itemName || 'this line'}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => draft.removeLine(index) },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          draft.removeLine(index);
+          toast.success('Line item removed');
+        },
+      },
     ]);
   };
 
   const handleContinue = () => {
     if (draft.items.length === 0) {
-      Alert.alert('Add at least one item', 'An invoice needs at least one line item before you continue.');
+      toast.error({ title: 'Add at least one item', message: 'An invoice needs at least one line item before you continue.' });
       return;
     }
     navigation.navigate('InvoiceReview');

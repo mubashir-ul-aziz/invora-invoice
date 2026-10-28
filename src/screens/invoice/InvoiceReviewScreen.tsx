@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceDetailsFormFields } from '@/components/invoice/InvoiceDetailsFormFields';
@@ -29,6 +29,7 @@ import { useBusinessProfileStore } from '@/state/businessProfileStore';
 import { useCurrencySymbol } from '@/state/currencyContext';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceStore } from '@/state/invoiceStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceReview'>;
@@ -83,7 +84,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   const onSubmit = handleSubmit(async (values) => {
     const details = formValuesToInvoiceDetails(values);
     if (!draft.customer) {
-      Alert.alert("Couldn't save", 'No customer is selected for this invoice.');
+      toast.error({ title: "Couldn't save", message: 'No customer is selected for this invoice.' });
       return;
     }
     try {
@@ -97,6 +98,9 @@ export function InvoiceReviewScreen({ navigation }: Props) {
               ...details,
               items: draft.items,
             });
+      toast.success(
+        draft.mode === 'edit' ? `Invoice ${saved.invoiceNumber} updated` : `Invoice ${saved.invoiceNumber} created`,
+      );
       draft.reset();
       navigation.popToTop();
       navigation.navigate('InvoiceDetail', { invoiceId: saved.id });
@@ -107,7 +111,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
         setLimitError(error);
         return;
       }
-      Alert.alert("Couldn't save", 'This invoice could not be saved. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'This invoice could not be saved. Please try again.' });
     }
   });
 

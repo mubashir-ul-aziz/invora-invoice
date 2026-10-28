@@ -1,6 +1,7 @@
 import { render, fireEvent } from '@testing-library/react-native';
 import React from 'react';
-import { Alert } from 'react-native';
+
+import { toast } from '@/state/toastStore';
 
 import { AccountScreen } from '../AccountScreen';
 
@@ -12,7 +13,7 @@ function renderScreen() {
 
 describe('AccountScreen', () => {
   beforeEach(() => {
-    jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    jest.spyOn(toast, 'show');
   });
 
   afterEach(() => {
@@ -32,9 +33,6 @@ describe('AccountScreen', () => {
 
     fireEvent.press(view.getByTestId('action-logout'));
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      "You're not signed in",
-      expect.stringContaining('no account to log out of'),
-    );
+    expect(toast.show).toHaveBeenCalledWith('info', expect.objectContaining({ title: "You're not signed in", message: expect.stringContaining('no account to log out of') }));
   });
 });

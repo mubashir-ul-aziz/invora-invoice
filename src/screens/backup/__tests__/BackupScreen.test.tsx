@@ -1,6 +1,5 @@
 import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import React from 'react';
-import { Alert } from 'react-native';
 
 import { BackupService } from '@/data/backup/BackupService';
 import { InMemoryBackupLogRepository } from '@/data/backup/InMemoryBackupLogRepository';
@@ -8,6 +7,7 @@ import { InMemoryBackupRepository } from '@/data/backup/InMemoryBackupRepository
 import { InMemoryBackupSettingsRepository } from '@/data/backup/InMemoryBackupSettingsRepository';
 import { FakeGoogleDriveBackupService } from '@/data/backup/googleDrive/FakeGoogleDriveBackupService';
 import { createBackupStore } from '@/state/backupStore';
+import { toast } from '@/state/toastStore';
 
 let mockStore: ReturnType<typeof createBackupStore>;
 
@@ -47,7 +47,7 @@ function makeStore() {
 
 describe('BackupScreen', () => {
   beforeEach(() => {
-    jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    jest.spyOn(toast, 'show');
   });
   afterEach(() => {
     jest.restoreAllMocks();
@@ -95,7 +95,7 @@ describe('BackupScreen', () => {
     await waitFor(() => expect(view.getByTestId('backup-now')).toBeTruthy());
     fireEvent.press(view.getByTestId('backup-now'));
 
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Backup complete', expect.any(String)));
+    await waitFor(() => expect(toast.show).toHaveBeenCalledWith('success', expect.objectContaining({ title: 'Backup complete', message: expect.any(String) })));
     expect(mockStore.getState().settings.lastBackupStatus).toBe('success');
   });
 

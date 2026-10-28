@@ -9,6 +9,7 @@ import { EMPTY_INVOICE_ITEM_INPUT } from '@/domain/invoice/types';
 import { createBusinessProfileStore } from '@/state/businessProfileStore';
 import { createInvoiceStore } from '@/state/invoiceStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
+import { toast } from '@/state/toastStore';
 
 let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 let mockBusinessProfileStore: ReturnType<typeof createBusinessProfileStore>;
@@ -50,6 +51,7 @@ const CUSTOMER: Customer = {
 /** One submitting test per file — see the codebase-wide note on react-hook-form's async resolver. */
 describe('InvoiceReviewScreen save (create)', () => {
   it('creates the invoice, reserving a number, then navigates to Invoice Detail', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     const businessRepo = new InMemoryBusinessRepository();
     mockBusinessProfileStore = createBusinessProfileStore(businessRepo);
     const invoiceRepo = new InMemoryInvoiceRepository();
@@ -68,6 +70,7 @@ describe('InvoiceReviewScreen save (create)', () => {
     fireEvent.press(view.getByTestId('save-invoice'));
 
     await waitFor(() => expect(navigation.popToTop).toHaveBeenCalled());
+    expect(toastSpy).toHaveBeenCalledWith('success', expect.stringMatching(/^Invoice INV-\d{6}-1 created$/));
     expect(navigation.navigate).toHaveBeenCalledWith('InvoiceDetail', { invoiceId: expect.any(String) });
 
     const created = await invoiceRepo.list();
@@ -76,5 +79,6 @@ describe('InvoiceReviewScreen save (create)', () => {
     // (prefix + 6-digit business id + sequence) rather than a literal value.
     expect(created[0].invoiceNumber).toMatch(/^INV-\d{6}-1$/);
     expect(created[0].items[0].lineTotal).toBe(50);
+    toastSpy.mockRestore();
   });
 });

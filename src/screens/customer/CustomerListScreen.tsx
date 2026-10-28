@@ -14,6 +14,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerBalancesStore } from '@/state/customerBalancesStore';
 import { useCustomerStore } from '@/state/customerStore';
 import { useCurrencySymbol } from '@/state/currencyContext';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerList'>;
@@ -140,8 +141,9 @@ export function CustomerListScreen({ navigation, route }: Props) {
         onPress: async () => {
           try {
             await remove(customer.id);
+            toast.success(`Customer "${customer.name}" deleted`);
           } catch {
-            Alert.alert("Couldn't delete", 'This customer could not be deleted. Please try again.');
+            toast.error({ title: "Couldn't delete", message: 'This customer could not be deleted. Please try again.' });
           }
         },
       },

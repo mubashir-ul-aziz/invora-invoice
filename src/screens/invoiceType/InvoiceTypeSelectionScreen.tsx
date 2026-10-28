@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceTypeCard } from '@/components/invoiceType/InvoiceTypeCard';
@@ -8,6 +8,7 @@ import { describeFixedTypeFields, describeSelectionFields } from '@/domain/invoi
 import { INVOICE_TYPE_REGISTRY } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceTypeSelection'>;
@@ -60,9 +61,11 @@ export function InvoiceTypeSelectionScreen({ navigation }: Props) {
   const selectFixedType = async (id: (typeof INVOICE_TYPE_REGISTRY)[number]['id']) => {
     try {
       await save({ invoiceTypeId: id, customFieldKeys: [] });
+      const label = INVOICE_TYPE_REGISTRY.find((definition) => definition.id === id)?.label;
+      toast.success(label ? `Pricing method set to ${label}` : 'Pricing method saved');
       navigation.goBack();
     } catch {
-      Alert.alert("Couldn't save", 'Your pricing method could not be saved. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'Your pricing method could not be saved. Please try again.' });
     }
   };
 

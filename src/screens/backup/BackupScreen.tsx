@@ -8,6 +8,7 @@ import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
 import { formatBackupSize, formatBackupTimestamp } from '@/domain/backup/formatting';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBackupStore } from '@/state/backupStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Backup'>;
@@ -50,9 +51,9 @@ export function BackupScreen({ navigation }: Props) {
   const handleBackupNow = async () => {
     const entry = await backupNow();
     if (entry.status === 'success') {
-      Alert.alert('Backup complete', 'Your data was backed up to Google Drive.');
+      toast.success({ title: 'Backup complete', message: 'Your data was backed up to Google Drive.' });
     } else {
-      Alert.alert('Backup failed', entry.errorMessage ?? 'Something went wrong.');
+      toast.error({ title: 'Backup failed', message: entry.errorMessage ?? 'Something went wrong.' });
     }
   };
 

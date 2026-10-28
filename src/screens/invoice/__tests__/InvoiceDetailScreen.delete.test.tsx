@@ -11,6 +11,7 @@ import { EMPTY_INVOICE_ITEM_INPUT, type InvoiceInput } from '@/domain/invoice/ty
 import { createCustomerStore } from '@/state/customerStore';
 import { createInvoiceStore } from '@/state/invoiceStore';
 import { createPaymentStore } from '@/state/paymentStore';
+import { toast } from '@/state/toastStore';
 
 let mockInvoiceStore: ReturnType<typeof createInvoiceStore>;
 let mockCustomerStore: ReturnType<typeof createCustomerStore>;
@@ -63,6 +64,7 @@ function makeInput(overrides: Partial<InvoiceInput> = {}): InvoiceInput {
 
 describe('InvoiceDetailScreen delete', () => {
   it('deletes the invoice after confirming and goes back', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
       buttons?.find((b) => b.style === 'destructive')?.onPress?.();
     });
@@ -82,7 +84,9 @@ describe('InvoiceDetailScreen delete', () => {
     fireEvent.press(view.getByTestId('action-delete-invoice'));
 
     await waitFor(async () => expect(await invoices.getById(created.id)).toBeNull());
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith('success', `Invoice ${created.invoiceNumber} deleted`));
     expect(navigation.goBack).toHaveBeenCalled();
     alertSpy.mockRestore();
+    toastSpy.mockRestore();
   });
 });

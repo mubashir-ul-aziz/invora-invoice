@@ -27,6 +27,7 @@ import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
 import { useInvoiceLimitGuard } from '@/components/subscription/useInvoiceLimitGuard';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceDetail'>;
@@ -153,9 +154,10 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
           onPress: async () => {
             try {
               await remove(detail.invoice.id);
+              toast.success(`Invoice ${detail.invoice.invoiceNumber} deleted`);
               navigation.goBack();
             } catch {
-              Alert.alert("Couldn't delete", 'This invoice could not be deleted. Please try again.');
+              toast.error({ title: "Couldn't delete", message: 'This invoice could not be deleted. Please try again.' });
             }
           },
         },

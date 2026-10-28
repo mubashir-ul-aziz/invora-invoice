@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { TemplateCard } from '@/components/settings/TemplateCard';
@@ -9,6 +9,7 @@ import { settingsWithTemplate } from '@/domain/business/formMapping';
 import { INVOICE_TEMPLATE_OPTIONS, type InvoiceTemplate } from '@/domain/business/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceTemplates'>;
@@ -60,8 +61,10 @@ export function InvoiceTemplatesScreen({ navigation }: Props) {
   const selectTemplate = async (template: InvoiceTemplate) => {
     try {
       await save(settingsWithTemplate(settings, template));
+      const label = INVOICE_TEMPLATE_OPTIONS.find((option) => option.value === template)?.label;
+      toast.success(label ? `${label} template selected` : 'Invoice template saved');
     } catch {
-      Alert.alert("Couldn't save", 'Your invoice template could not be saved. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'Your invoice template could not be saved. Please try again.' });
     }
   };
 

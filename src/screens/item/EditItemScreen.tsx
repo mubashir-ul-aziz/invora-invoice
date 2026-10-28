@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { ItemFormFields } from '@/components/item/ItemFormFields';
@@ -14,6 +14,7 @@ import { formValuesToItemInput, itemToFormDefaults } from '@/domain/item/formMap
 import { itemFormSchema, type ItemFormOutput, type ItemFormValues } from '@/domain/item/validation';
 import type { RootStackParamList } from '@/navigation/types';
 import { useItemStore } from '@/state/itemStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditItem'>;
@@ -82,9 +83,10 @@ export function EditItemScreen({ navigation, route }: Props) {
   const onSubmit = handleSubmit(async (values) => {
     try {
       await update(itemId, formValuesToItemInput(values));
+      toast.success('Item changes saved');
       navigation.goBack();
     } catch {
-      Alert.alert("Couldn't save", 'Your changes could not be saved. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'Your changes could not be saved. Please try again.' });
     }
   });
 
@@ -93,10 +95,11 @@ export function EditItemScreen({ navigation, route }: Props) {
     setDeleting(true);
     try {
       await remove(itemId);
+      toast.success('Item deleted');
       navigation.navigate('ItemList');
     } catch {
       setDeleting(false);
-      Alert.alert("Couldn't delete", 'This item could not be deleted. Please try again.');
+      toast.error({ title: "Couldn't delete", message: 'This item could not be deleted. Please try again.' });
     }
   };
 

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
@@ -18,6 +18,7 @@ import {
 } from '@/domain/invoiceType/validation';
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomInvoiceType'>;
@@ -115,12 +116,10 @@ export function CustomInvoiceTypeScreen({ navigation }: Props) {
   const onSubmit = handleSubmit(async (fieldKeys) => {
     try {
       await save({ invoiceTypeId: 'custom', customFieldKeys: fieldKeys });
+      toast.success('Custom invoice fields saved');
       navigation.goBack();
     } catch {
-      Alert.alert(
-        "Couldn't save",
-        'Your custom invoice fields could not be saved. Please try again.',
-      );
+      toast.error({ title: "Couldn't save", message: 'Your custom invoice fields could not be saved. Please try again.' });
     }
   });
 

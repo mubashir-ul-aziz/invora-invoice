@@ -6,6 +6,7 @@ import { createCustomerActivityStore } from '@/state/customerActivityStore';
 import { InMemoryCustomerRepository } from '@/data/customer/InMemoryCustomerRepository';
 import { InMemoryCustomerActivityRepository } from '@/data/customerActivity/InMemoryCustomerActivityRepository';
 import { EMPTY_CUSTOMER_INPUT } from '@/domain/customer/types';
+import { toast } from '@/state/toastStore';
 
 let mockStore: ReturnType<typeof createCustomerStore>;
 let mockActivityStore: ReturnType<typeof createCustomerActivityStore>;
@@ -42,6 +43,7 @@ describe('EditCustomerScreen.save', () => {
   });
 
   it('saves the edited customer and navigates back, keeping the same id', async () => {
+    const toastSpy = jest.spyOn(toast, 'show');
     const repo = new InMemoryCustomerRepository();
     const created = await repo.create({ ...EMPTY_CUSTOMER_INPUT, name: 'Acme Co' });
     mockStore = createCustomerStore(repo);
@@ -58,8 +60,10 @@ describe('EditCustomerScreen.save', () => {
     fireEvent.press(view.getByTestId('save-customer'));
 
     await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+    expect(toastSpy).toHaveBeenCalledWith('success', 'Customer changes saved');
     const updated = await repo.getById(created.id);
     expect(updated?.name).toBe('Acme Corporation');
     expect(updated?.id).toBe(created.id);
+    toastSpy.mockRestore();
   });
 });

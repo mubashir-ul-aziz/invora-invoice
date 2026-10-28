@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { ItemFormFields } from '@/components/item/ItemFormFields';
 import { BottomActionBar } from '@/components/shared/BottomActionBar';
@@ -12,6 +12,7 @@ import { formValuesToItemInput, itemToFormDefaults } from '@/domain/item/formMap
 import { itemFormSchema, type ItemFormOutput, type ItemFormValues } from '@/domain/item/validation';
 import type { RootStackParamList } from '@/navigation/types';
 import { useItemStore } from '@/state/itemStore';
+import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem'>;
@@ -46,10 +47,11 @@ export function CreateItemScreen({ navigation, route }: Props) {
   const onSubmit = handleSubmit(async (values) => {
     try {
       const created = await create(formValuesToItemInput(values));
+      toast.success(`Item "${created.name}" created`);
       onCreated?.(created);
       navigation.goBack();
     } catch {
-      Alert.alert("Couldn't save", 'This item could not be created. Please try again.');
+      toast.error({ title: "Couldn't save", message: 'This item could not be created. Please try again.' });
     }
   });
 
