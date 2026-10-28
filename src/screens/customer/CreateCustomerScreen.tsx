@@ -3,10 +3,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { OptionPicker } from '@/components/business/OptionPicker';
 import { FormField } from '@/components/businessCard/FormField';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { customerToFormDefaults, formValuesToCustomerInput } from '@/domain/customer/formMapping';
 import {
@@ -21,26 +21,15 @@ import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateCustomer'>;
 
-/** Matches the Stitch "Billing Address" country dropdown's fixed option list. */
-const COUNTRY_OPTIONS = [
-  { value: 'United Kingdom', label: 'United Kingdom' },
-  { value: 'United States', label: 'United States' },
-  { value: 'Ireland', label: 'Ireland' },
-  { value: 'Canada', label: 'Canada' },
-  { value: 'Australia', label: 'Australia' },
-  { value: 'Germany', label: 'Germany' },
-  { value: 'France', label: 'France' },
-];
-
 /**
  * Create Customer screen, restyled to match the Stitch "Create Customer"
  * design: a Basic Information card, a structured Billing Address card, and a
- * Customer Notes card, ending in a sticky Cancel/Save Customer dock.
+ * Customer Notes card, with a fixed Cancel/Save Customer bottom action bar.
  *
  * `Customer` (`domain/customer/types.ts`) only has one freeform `address`
- * string — there are no separate street/city/postcode/state/country columns.
- * Rather than fake structured storage, the four address text inputs plus the
- * country picker are combined into that single existing `address` field on
+ * string — there are no separate street/city/postcode/state columns.
+ * Rather than fake structured storage, the four address text inputs are
+ * combined into that single existing `address` field on
  * submit (see `composeAddress` below), so the data still saves for real, just
  * through a friendlier entry form.
  *
@@ -66,7 +55,6 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
   const [city, setCity] = useState('');
   const [postcode, setPostcode] = useState('');
   const [stateCounty, setStateCounty] = useState('');
-  const [country, setCountry] = useState('United Kingdom');
 
   const {
     control,
@@ -80,17 +68,16 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
   });
 
   useEffect(() => {
-    setValue('address', composeAddress({ street, city, postcode, stateCounty, country }), {
+    setValue('address', composeAddress({ street, city, postcode, stateCounty }), {
       shouldDirty: true,
     });
-  }, [street, city, postcode, stateCounty, country, setValue]);
+  }, [street, city, postcode, stateCounty, setValue]);
 
   const resetAddressParts = () => {
     setStreet('');
     setCity('');
     setPostcode('');
     setStateCounty('');
-    setCountry('United Kingdom');
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -122,6 +109,19 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="create-customer-screen"
+      footer={
+        <BottomActionBar
+          secondary={{ label: 'Cancel', onPress: () => navigation.goBack(), testID: 'action-cancel-bottom' }}
+          primary={{
+            label: isSubmitting ? 'Saving…' : 'Save Customer',
+            accessibilityLabel: 'Save Customer',
+            icon: 'check-circle',
+            onPress: onSubmit,
+            disabled: isSubmitting || justCreated,
+            testID: 'save-customer',
+          }}
+        />
+      }
     >
       {/* Top action sub-bar */}
       <View style={styles.subBar}>
@@ -255,14 +255,6 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
           placeholder="Greater London"
           testID="field-address-state"
         />
-
-        <OptionPicker
-          label="Country"
-          options={COUNTRY_OPTIONS}
-          value={country}
-          onChange={setCountry}
-          testID="field-address-country"
-        />
       </View>
 
       {/* Card 3: Customer Notes */}
@@ -315,34 +307,6 @@ export function CreateCustomerScreen({ navigation, route }: Props) {
           <Text style={styles.infoCaption}>Once saved, tap to issue invoices in under 15 seconds.</Text>
         </View>
       </View>
-
-      {/* Sticky bottom dock */}
-      <View style={styles.dock}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          testID="action-cancel-bottom"
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.dockCancel, pressed && styles.pressed]}
-        >
-          <Text style={styles.dockCancelText}>Cancel</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Save Customer"
-          testID="save-customer"
-          onPress={onSubmit}
-          disabled={isSubmitting || justCreated}
-          style={({ pressed }) => [
-            styles.dockSave,
-            (isSubmitting || justCreated) && styles.dockSaveDisabled,
-            pressed && !(isSubmitting || justCreated) && styles.pressed,
-          ]}
-        >
-          <Feather name="check-circle" size={18} color={colors.primaryText} />
-          <Text style={styles.dockSaveText}>{isSubmitting ? 'Saving…' : 'Save Customer'}</Text>
-        </Pressable>
-      </View>
     </KeyboardAvoidingScreen>
   );
 }
@@ -352,9 +316,8 @@ function composeAddress(parts: {
   city: string;
   postcode: string;
   stateCounty: string;
-  country: string;
 }): string {
-  return [parts.street, parts.city, parts.postcode, parts.stateCounty, parts.country]
+  return [parts.street, parts.city, parts.postcode, parts.stateCounty]
     .map((part) => part.trim())
     .filter(Boolean)
     .join(', ');
@@ -363,7 +326,6 @@ function composeAddress(parts: {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
-  pressed: { opacity: 0.75 },
 
   subBar: { gap: 8 },
   subBarTitle: { fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
@@ -428,26 +390,4 @@ const styles = StyleSheet.create({
   infoTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
   infoCaption: { fontSize: 11, color: colors.textMuted },
 
-  dock: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  dockCancel: {
-    width: '33%',
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dockCancelText: { fontSize: 14, fontWeight: '700', color: colors.text },
-  dockSave: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  dockSaveDisabled: { opacity: 0.6 },
-  dockSaveText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
 });

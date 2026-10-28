@@ -8,6 +8,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { OptionPicker } from '@/components/business/OptionPicker';
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { TemplatePreview } from '@/components/settings/TemplateCard';
 import { formValuesToSettingsInput, settingsToFormDefaults } from '@/domain/business/formMapping';
@@ -87,6 +88,17 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="invoice-settings-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSubmitting || status === 'saving' ? 'Saving…' : 'Save Invoice Settings',
+            icon: 'save',
+            onPress: onSubmit,
+            disabled: isSubmitting || status === 'saving',
+            testID: 'save-invoice-settings',
+          }}
+        />
+      }
     >
       {/* Numbering & Identifiers */}
       <View style={styles.card}>
@@ -263,15 +275,6 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
           )}
         />
       </View>
-
-      <ActionButton
-        label={isSubmitting || status === 'saving' ? 'Saving…' : 'Save Invoice Settings'}
-        variant="primary"
-        icon="save"
-        onPress={onSubmit}
-        disabled={isSubmitting || status === 'saving'}
-        testID="save-invoice-settings"
-      />
     </KeyboardAvoidingScreen>
   );
 }

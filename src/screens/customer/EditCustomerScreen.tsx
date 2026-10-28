@@ -6,6 +6,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FormField } from '@/components/businessCard/FormField';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { customerToFormDefaults, formValuesToCustomerInput } from '@/domain/customer/formMapping';
 import type { Customer } from '@/domain/customer/types';
@@ -179,6 +180,18 @@ export function EditCustomerScreen({ navigation, route }: Props) {
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="edit-customer-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSubmitting ? 'Saving…' : 'Save Changes',
+            accessibilityLabel: 'Save Changes',
+            icon: 'check',
+            onPress: onSubmit,
+            disabled: isSubmitting || deleting,
+            testID: 'save-customer',
+          }}
+        />
+      }
     >
       {/* Header sub-bar */}
       <View style={styles.subBar}>
@@ -404,23 +417,6 @@ export function EditCustomerScreen({ navigation, route }: Props) {
         </Pressable>
       </View>
 
-      {/* Bottom Save action */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Save Changes"
-        testID="save-customer"
-        onPress={onSubmit}
-        disabled={isSubmitting || deleting}
-        style={({ pressed }) => [
-          styles.dockSave,
-          (isSubmitting || deleting) && styles.dockSaveDisabled,
-          pressed && !(isSubmitting || deleting) && styles.pressed,
-        ]}
-      >
-        <Feather name="check" size={18} color={colors.primaryText} />
-        <Text style={styles.dockSaveText}>{isSubmitting ? 'Saving…' : 'Save Changes'}</Text>
-      </Pressable>
-
       {/* Deletion Confirmation Modal */}
       <Modal
         visible={deleteModalVisible}
@@ -580,18 +576,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   deleteButtonText: { fontSize: 14, fontWeight: '700', color: colors.danger },
-
-  dockSave: {
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  dockSaveDisabled: { opacity: 0.6 },
-  dockSaveText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(11,28,48,0.4)', justifyContent: 'flex-end' },
   modalCard: {

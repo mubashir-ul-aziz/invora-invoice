@@ -6,8 +6,10 @@ import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { colors } from '@/theme/colors';
+
 import { MainTabBar } from '../MainTabBar';
-import { isTabBarHiddenFor, MAIN_TABS, navigateToTab, type MainTabParamList } from '../tabs';
+import { hasBottomActionBar, isTabBarHiddenFor, MAIN_TABS, navigateToTab, type MainTabParamList } from '../tabs';
 import type { RootStackParamList } from '../types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -113,6 +115,8 @@ describe('MainTabBar', () => {
     await waitFor(() => expect(screen.getByTestId('main-tab-bar-hidden')).toBeTruthy());
     expect(screen.queryByTestId('main-tab-bar')).toBeNull();
     expect(screen.getByTestId('main-tab-bar-hidden')).toHaveStyle({ height: 34 });
+    // Matches the form's bottom action bar, so the home-indicator area reads as part of it.
+    expect(screen.getByTestId('main-tab-bar-hidden')).toHaveStyle({ backgroundColor: colors.surface });
   });
 
   it('hides while a list screen is used as a picker', async () => {
@@ -121,6 +125,7 @@ describe('MainTabBar', () => {
     fireEvent.press(screen.getByText('open-customer-picker'));
 
     await waitFor(() => expect(screen.queryByTestId('main-tab-bar')).toBeNull());
+    expect(screen.getByTestId('main-tab-bar-hidden')).toHaveStyle({ backgroundColor: colors.background });
   });
 
   it('navigateToTab switches tabs without pushing a duplicate list', async () => {
@@ -148,5 +153,16 @@ describe('isTabBarHiddenFor', () => {
     expect(isTabBarHiddenFor({ name: 'InvoiceList', params: { onSelectInvoice: () => {} } })).toBe(true);
     expect(isTabBarHiddenFor({ name: 'ItemList', params: { onSelectItem: () => {} } })).toBe(true);
     expect(isTabBarHiddenFor({ name: 'ItemList' })).toBe(false);
+  });
+});
+
+describe('hasBottomActionBar', () => {
+  it('is true for create/edit forms only', () => {
+    for (const name of ['CreateItem', 'EditCustomer', 'CreateInvoiceItems', 'InvoiceReview', 'RecordPayment', 'EditBusinessCard']) {
+      expect(hasBottomActionBar({ name })).toBe(true);
+    }
+    for (const name of ['Pricing', 'UpgradeStorage', 'EditInvoice', 'CustomerList', 'InvoiceDetail']) {
+      expect(hasBottomActionBar({ name })).toBe(false);
+    }
   });
 });

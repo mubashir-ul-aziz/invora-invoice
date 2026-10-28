@@ -9,6 +9,7 @@ import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceStatusBadge } from '@/components/invoice/InvoiceStatusBadge';
 import { PaymentFormFields } from '@/components/payment/PaymentFormFields';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
 import { formValuesToPaymentUpdateInput, paymentToFormDefaults } from '@/domain/payment/formMapping';
@@ -200,7 +201,22 @@ function EditPaymentForm({
   });
 
   return (
-    <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="edit-payment-screen">
+    <KeyboardAvoidingScreen
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      testID="edit-payment-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSubmitting ? 'Saving…' : 'Save changes',
+            icon: 'check',
+            onPress: onSubmit,
+            disabled: isSubmitting,
+            testID: 'save-payment',
+          }}
+        />
+      }
+    >
       {/* Payment Metadata card */}
       <View style={styles.headerCard}>
         <View style={styles.headerTopRow}>
@@ -313,15 +329,6 @@ function EditPaymentForm({
           <Text style={styles.deleteButtonText}>Void &amp; Delete Payment</Text>
         </Pressable>
       </View>
-
-      <ActionButton
-        label={isSubmitting ? 'Saving…' : 'Save changes'}
-        variant="primary"
-        icon="check"
-        onPress={onSubmit}
-        disabled={isSubmitting}
-        testID="save-payment"
-      />
     </KeyboardAvoidingScreen>
   );
 }

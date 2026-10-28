@@ -1,12 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { DropdownPicker } from '@/components/business/DropdownPicker';
 import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { calculateInvoiceTotals, calculateLineTotal, toLineCalcInput } from '@/domain/invoice/calculations';
 import {
   canSafelyConvertPricingMethod,
@@ -26,8 +28,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CreateInvoiceItems'>;
 /**
  * "Create Invoice – Items", restyled to match the Stitch "Line Items"
  * design: a real Step 2 of 3 progress tracker, a "Bill to" client chip, the
- * Pricing Method card, line-item cards with running totals, and a sticky
- * Subtotal/VAT/Total summary ending in "Continue to Review".
+ * Pricing Method card, line-item cards with running totals, and a fixed
+ * bottom action bar with the Subtotal/VAT/Total summary and "Continue to Review".
  *
  * Fields on each line dynamically follow the invoice's selected Pricing
  * Method (`resolveInvoiceFieldConfig`) — this screen never hard-codes which
@@ -175,10 +177,21 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
         </View>
       )}
 
-      <ScrollView
-        style={styles.scroll}
+      <KeyboardAvoidingScreen
         contentContainerStyle={styles.content}
         testID="create-invoice-items-screen"
+        footer={
+          <BottomActionBar
+            primary={{
+              label: 'Continue to review',
+              icon: 'arrow-right',
+              onPress: handleContinue,
+              testID: 'action-continue-to-review',
+            }}
+          >
+            {draft.items.length > 0 && <InvoiceTotalsSummary totals={totals} testID="invoice-items-totals" />}
+          </BottomActionBar>
+        }
       >
         <View style={styles.customerRow}>
           <View style={styles.customerIcon}>
@@ -276,25 +289,13 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
             <Text style={styles.addManualButtonText}>Add custom line</Text>
           </Pressable>
         </View>
-      </ScrollView>
-
-      <View style={styles.dock}>
-        {draft.items.length > 0 && <InvoiceTotalsSummary totals={totals} testID="invoice-items-totals" />}
-        <ActionButton
-          label="Continue to review"
-          variant="primary"
-          icon="arrow-right"
-          onPress={handleContinue}
-          testID="action-continue-to-review"
-        />
-      </View>
+      </KeyboardAvoidingScreen>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 24 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
@@ -384,12 +385,4 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   addManualButtonText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-
-  dock: {
-    gap: 10,
-    padding: 12,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
 });

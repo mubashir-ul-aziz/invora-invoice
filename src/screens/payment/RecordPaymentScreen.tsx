@@ -9,6 +9,7 @@ import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceStatusBadge } from '@/components/invoice/InvoiceStatusBadge';
 import { PaymentFormFields } from '@/components/payment/PaymentFormFields';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { summarizeInvoicePayments, type InvoicePaymentSummary } from '@/domain/payment/calculations';
 import { paymentToFormDefaults, todayIsoDate } from '@/domain/payment/formMapping';
@@ -40,7 +41,7 @@ type LoadStatus = 'loading' | 'ready' | 'error' | 'not-found';
  * Restyled to match the Stitch "Record Payment" design: a Linked Invoice
  * card (real status badge + total/outstanding, from the same `detail`/
  * `summary` already loaded), `PaymentFormFields`'s card sections, and a
- * sticky bottom "Record £X Payment" button.
+ * fixed bottom action bar with the "Record £X Payment" button.
  *
  * The actual form (`RecordPaymentForm`) only mounts once the invoice has
  * loaded, so its validation schema can be built with the invoice's own
@@ -188,67 +189,68 @@ function RecordPaymentForm({
   const amountLabel = typeof liveAmount === 'string' && liveAmount.trim() ? liveAmount.trim() : '0.00';
 
   return (
-    <View style={styles.screen}>
-      <KeyboardAvoidingScreen style={styles.scroll} contentContainerStyle={styles.content} testID="record-payment-screen">
-        {/* Linked Invoice card */}
-        <View style={styles.headerCard}>
-          <View style={styles.headerTopRow}>
-            <Text style={styles.invoiceNumber}>{detail.invoice.invoiceNumber}</Text>
-            <InvoiceStatusBadge status={detail.status} />
+    <KeyboardAvoidingScreen
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      testID="record-payment-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSubmitting ? 'Saving…' : `Record ${currencySymbol}${amountLabel} Payment`,
+            icon: 'check',
+            onPress: onSubmit,
+            disabled: isSubmitting,
+            testID: 'save-payment',
+          }}
+        />
+      }
+    >
+      {/* Linked Invoice card */}
+      <View style={styles.headerCard}>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.invoiceNumber}>{detail.invoice.invoiceNumber}</Text>
+          <InvoiceStatusBadge status={detail.status} />
+        </View>
+        <View style={styles.customerRow}>
+          <View style={styles.customerIcon}>
+            <Feather name="briefcase" size={14} color={colors.primary} />
           </View>
-          <View style={styles.customerRow}>
-            <View style={styles.customerIcon}>
-              <Feather name="briefcase" size={14} color={colors.primary} />
-            </View>
-            <Text style={styles.customerName} numberOfLines={1}>
-              {detail.invoice.customerName}
+          <Text style={styles.customerName} numberOfLines={1}>
+            {detail.invoice.customerName}
+          </Text>
+        </View>
+        <View style={styles.balanceGrid}>
+          <View>
+            <Text style={styles.balanceLabel}>Total Invoiced</Text>
+            <Text style={styles.balanceValue}>{currencySymbol}{summary.grandTotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.balanceRight}>
+            <Text style={[styles.balanceLabel, summary.remaining > 0 && styles.balanceLabelDue]}>
+              {summary.overpaid > 0 ? 'Overpaid' : 'Outstanding Balance'}
+            </Text>
+            <Text style={[styles.balanceValue, summary.remaining > 0 && styles.balanceValueDue]}>
+              {currencySymbol}{(summary.overpaid > 0 ? summary.overpaid : summary.remaining).toFixed(2)}
             </Text>
           </View>
-          <View style={styles.balanceGrid}>
-            <View>
-              <Text style={styles.balanceLabel}>Total Invoiced</Text>
-              <Text style={styles.balanceValue}>{currencySymbol}{summary.grandTotal.toFixed(2)}</Text>
-            </View>
-            <View style={styles.balanceRight}>
-              <Text style={[styles.balanceLabel, summary.remaining > 0 && styles.balanceLabelDue]}>
-                {summary.overpaid > 0 ? 'Overpaid' : 'Outstanding Balance'}
-              </Text>
-              <Text style={[styles.balanceValue, summary.remaining > 0 && styles.balanceValueDue]}>
-                {currencySymbol}{(summary.overpaid > 0 ? summary.overpaid : summary.remaining).toFixed(2)}
-              </Text>
-            </View>
-          </View>
         </View>
-
-        <PaymentSummaryCard summary={summary} testID="record-payment-summary" />
-
-        <PaymentFormFields
-          control={control}
-          errors={errors}
-          minPaymentDate={detail.invoice.issueDate}
-          onFullPay={handleFullPay}
-          onHalfPay={handleHalfPay}
-          maxAmount={summary.remaining}
-        />
-      </KeyboardAvoidingScreen>
-
-      <View style={styles.footer}>
-        <ActionButton
-          label={isSubmitting ? 'Saving…' : `Record ${currencySymbol}${amountLabel} Payment`}
-          variant="primary"
-          icon="check"
-          onPress={onSubmit}
-          disabled={isSubmitting}
-          testID="save-payment"
-        />
       </View>
-    </View>
+
+      <PaymentSummaryCard summary={summary} testID="record-payment-summary" />
+
+      <PaymentFormFields
+        control={control}
+        errors={errors}
+        minPaymentDate={detail.invoice.issueDate}
+        onFullPay={handleFullPay}
+        onHalfPay={handleHalfPay}
+        maxAmount={summary.remaining}
+      />
+    </KeyboardAvoidingScreen>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  scroll: { flex: 1 },
   content: { padding: 16, gap: 14, paddingBottom: 24 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   errorText: { color: colors.danger, fontWeight: '600' },
@@ -281,6 +283,4 @@ const styles = StyleSheet.create({
   balanceLabelDue: { color: colors.danger },
   balanceValue: { fontSize: 14, fontWeight: '600', color: colors.text, marginTop: 2 },
   balanceValueDue: { color: colors.danger, fontWeight: '700' },
-
-  footer: { padding: 12, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
 });

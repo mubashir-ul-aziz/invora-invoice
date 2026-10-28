@@ -3,10 +3,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
+import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { CUSTOM_BUILDER_FIELD_KEYS, FIELD_DEFINITIONS, type FieldKey } from '@/domain/invoiceType/fieldCatalog';
 import { selectionToCustomFormDefaults } from '@/domain/invoiceType/formMapping';
 import {
@@ -123,10 +125,21 @@ export function CustomInvoiceTypeScreen({ navigation }: Props) {
   });
 
   return (
-    <ScrollView
+    <KeyboardAvoidingScreen
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="custom-invoice-type-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSubmitting || status === 'saving' ? 'Saving…' : 'Save Custom Configuration',
+            icon: 'check',
+            onPress: onSubmit,
+            disabled: isSubmitting || status === 'saving',
+            testID: 'save-custom-invoice-type',
+          }}
+        />
+      }
     >
       <Text style={styles.hint}>
         Choose which fields appear on a custom invoice line. Item Name and Unit Price are always
@@ -207,18 +220,10 @@ export function CustomInvoiceTypeScreen({ navigation }: Props) {
         </View>
       ))}
 
-      <ActionButton
-        label={isSubmitting || status === 'saving' ? 'Saving…' : 'Save Custom Configuration'}
-        variant="primary"
-        icon="check"
-        onPress={onSubmit}
-        disabled={isSubmitting || status === 'saving'}
-        testID="save-custom-invoice-type"
-      />
       <Text style={styles.counterText}>
         {activeOptionalCount} of {optionalKeys.length} optional fields active · Syncs across all templates
       </Text>
-    </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 

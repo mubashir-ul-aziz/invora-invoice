@@ -9,6 +9,7 @@ import { ActionButton } from '@/components/businessCard/ActionButton';
 import { InvoiceDetailsFormFields } from '@/components/invoice/InvoiceDetailsFormFields';
 import { InvoiceLineRow } from '@/components/invoice/InvoiceLineRow';
 import { InvoiceTotalsSummary } from '@/components/invoice/InvoiceTotalsSummary';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { InvoiceLimitModal } from '@/components/subscription/InvoiceLimitModal';
 import { formatNextInvoiceNumber } from '@/domain/business/types';
@@ -112,7 +113,22 @@ export function InvoiceReviewScreen({ navigation }: Props) {
 
   return (
     <>
-    <KeyboardAvoidingScreen style={styles.screen} contentContainerStyle={styles.content} testID="invoice-review-screen">
+    <KeyboardAvoidingScreen
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      testID="invoice-review-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSubmitting ? 'Saving…' : `Save & Issue Invoice (${currencySymbol}${totals.grandTotal.toFixed(2)})`,
+            icon: 'send',
+            onPress: onSubmit,
+            disabled: isSubmitting,
+            testID: 'save-invoice',
+          }}
+        />
+      }
+    >
       {/* Step tracker */}
       <View style={styles.stepBar}>
         <View style={styles.stepTopRow}>
@@ -232,18 +248,6 @@ export function InvoiceReviewScreen({ navigation }: Props) {
           </View>
         )}
       </View>
-
-      {/* Sticky footer */}
-      <View style={styles.footer}>
-        <ActionButton
-          label={isSubmitting ? 'Saving…' : `Save & Issue Invoice (${currencySymbol}${totals.grandTotal.toFixed(2)})`}
-          variant="primary"
-          icon="send"
-          onPress={onSubmit}
-          disabled={isSubmitting}
-          testID="save-invoice"
-        />
-      </View>
     </KeyboardAvoidingScreen>
     <InvoiceLimitModal
       visible={!!limitError}
@@ -335,5 +339,4 @@ const styles = StyleSheet.create({
   accordionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   accordionBody: { gap: 12, marginTop: 2 },
 
-  footer: { gap: 8, marginTop: 4 },
 });

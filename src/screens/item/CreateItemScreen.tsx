@@ -3,9 +3,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { ItemFormFields } from '@/components/item/ItemFormFields';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { formValuesToItemInput, itemToFormDefaults } from '@/domain/item/formMapping';
 import { itemFormSchema, type ItemFormOutput, type ItemFormValues } from '@/domain/item/validation';
@@ -19,7 +20,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CreateItem'>;
  * Create Item screen, restyled to match the Stitch "Create Item" design: a
  * Catalog Management context header, Item Identification / Pricing & Units /
  * Pricing Method / Item Description cards (all in `ItemFormFields`), and a
- * sticky Cancel/Save Item bottom dock.
+ * fixed Cancel/Save Item bottom action bar.
  *
  * When opened with `route.params.onCreated` (the "add item while creating an
  * invoice" flow — see `navigation/types.ts`), the newly created item is
@@ -57,6 +58,19 @@ export function CreateItemScreen({ navigation, route }: Props) {
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="create-item-screen"
+      footer={
+        <BottomActionBar
+          secondary={{ label: 'Cancel', onPress: () => navigation.goBack(), testID: 'action-cancel' }}
+          primary={{
+            label: isSubmitting ? 'Saving…' : 'Save Item',
+            accessibilityLabel: 'Save Item',
+            icon: 'check',
+            onPress: onSubmit,
+            disabled: isSubmitting,
+            testID: 'save-item',
+          }}
+        />
+      }
     >
       {/* Context header card */}
       <View style={styles.contextCard}>
@@ -75,34 +89,6 @@ export function CreateItemScreen({ navigation, route }: Props) {
       </View>
 
       <ItemFormFields control={control} errors={errors} lockedInvoiceTypeId={defaultInvoiceTypeId ?? null} />
-
-      {/* Sticky bottom Cancel / Save dock */}
-      <View style={styles.dock}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          testID="action-cancel"
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.dockCancel, pressed && styles.pressed]}
-        >
-          <Text style={styles.dockCancelText}>Cancel</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Save Item"
-          testID="save-item"
-          onPress={onSubmit}
-          disabled={isSubmitting}
-          style={({ pressed }) => [
-            styles.dockSave,
-            isSubmitting && styles.dockSaveDisabled,
-            pressed && !isSubmitting && styles.pressed,
-          ]}
-        >
-          <Feather name="check" size={18} color={colors.primaryText} />
-          <Text style={styles.dockSaveText}>{isSubmitting ? 'Saving…' : 'Save Item'}</Text>
-        </Pressable>
-      </View>
     </KeyboardAvoidingScreen>
   );
 }
@@ -110,7 +96,6 @@ export function CreateItemScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 14, paddingBottom: 40 },
-  pressed: { opacity: 0.75 },
 
   contextCard: {
     backgroundColor: colors.surface,
@@ -138,27 +123,4 @@ const styles = StyleSheet.create({
   contextTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 2 },
   stepBadge: { backgroundColor: colors.background, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   stepBadgeText: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
-
-  dock: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  dockCancel: {
-    width: '33%',
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dockCancelText: { fontSize: 14, fontWeight: '700', color: colors.text },
-  dockSave: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  dockSaveDisabled: { opacity: 0.6 },
-  dockSaveText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
 });

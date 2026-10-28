@@ -36,12 +36,10 @@ export const MAIN_TABS: readonly MainTabSpec[] = [
 ];
 
 /**
- * Focused flows: the tab bar is hidden while one of these is on screen, so a
- * half-filled form or a purchase can't be abandoned by a stray tab tap.
- * Covers every create/edit form (they can hold unsaved changes at any time)
- * and the full-screen upgrade flows.
+ * Create/edit forms. Each ends in a fixed `BottomActionBar` (Save, Cancel, …)
+ * in place of the tab bar.
  */
-const FOCUSED_FLOW_SCREENS = new Set<keyof RootStackParamList>([
+const ACTION_BAR_SCREENS = new Set<keyof RootStackParamList>([
   'CreateItem',
   'EditItem',
   'CreateCustomer',
@@ -53,12 +51,27 @@ const FOCUSED_FLOW_SCREENS = new Set<keyof RootStackParamList>([
   'CreateInvoiceItems',
   'EditInvoiceLine',
   'InvoiceReview',
-  'EditInvoice',
   'RecordPayment',
   'EditPayment',
+]);
+
+/**
+ * Focused flows: the tab bar is hidden while one of these is on screen, so a
+ * half-filled form or a purchase can't be abandoned by a stray tab tap.
+ * Covers every create/edit form (they can hold unsaved changes at any time),
+ * the edit-invoice redirect into that flow, and the full-screen upgrade flows.
+ */
+const FOCUSED_FLOW_SCREENS = new Set<keyof RootStackParamList>([
+  ...ACTION_BAR_SCREENS,
+  'EditInvoice',
   'Pricing',
   'UpgradeStorage',
 ]);
+
+/** Whether the given focused stack route ends in a fixed `BottomActionBar`. */
+export function hasBottomActionBar(route: { name: string }): boolean {
+  return ACTION_BAR_SCREENS.has(route.name as keyof RootStackParamList);
+}
 
 /**
  * Whether the tab bar should be hidden for the given focused stack route.

@@ -5,9 +5,9 @@ import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
 import { LogoPicker } from '@/components/businessCard/LogoPicker';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import {
   businessFormSchema,
@@ -93,6 +93,17 @@ export function EditBusinessScreen({ navigation }: Props) {
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="edit-business-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSaving ? 'Saving…' : 'Save Changes',
+            icon: 'check',
+            onPress: onSubmit,
+            disabled: isSaving,
+            testID: 'save-business',
+          }}
+        />
+      }
     >
       {/* Brand Identity & Logo */}
       <View style={styles.card}>
@@ -216,15 +227,6 @@ export function EditBusinessScreen({ navigation }: Props) {
           placeholder="maps.google.com/..."
         />
       </View>
-
-      <ActionButton
-        label={isSaving ? 'Saving…' : 'Save Changes'}
-        variant="primary"
-        icon="check"
-        onPress={onSubmit}
-        disabled={isSaving}
-        testID="save-business"
-      />
     </KeyboardAvoidingScreen>
   );
 }

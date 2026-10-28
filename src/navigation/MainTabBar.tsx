@@ -6,7 +6,7 @@ import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-nat
 
 import { colors } from '@/theme/colors';
 
-import { isTabBarHiddenFor, MAIN_TABS } from './tabs';
+import { hasBottomActionBar, isTabBarHiddenFor, MAIN_TABS } from './tabs';
 
 /** Android resizes the window for the keyboard, which would lift the bar above it; hide it while typing instead. */
 function useAndroidKeyboardVisible(): boolean {
@@ -33,8 +33,8 @@ function useAndroidKeyboardVisible(): boolean {
  * it without any per-screen padding; it also owns the bottom safe-area inset.
  *
  * Hidden during focused flows (see `isTabBarHiddenFor`); a spacer still keeps
- * those screens' sticky buttons clear of the system navigation bar / home
- * indicator.
+ * those screens' bottom action bars clear of the system navigation bar / home
+ * indicator, coloured to match the action bar so the two read as one.
  */
 export function MainTabBar({ state, navigation, insets }: BottomTabBarProps) {
   const keyboardVisible = useAndroidKeyboardVisible();
@@ -45,7 +45,16 @@ export function MainTabBar({ state, navigation, insets }: BottomTabBarProps) {
   const hidden = keyboardVisible || (!!focusedScreen && isTabBarHiddenFor(focusedScreen));
 
   if (hidden) {
-    return <View style={[styles.spacer, { height: keyboardVisible ? 0 : insets.bottom }]} testID="main-tab-bar-hidden" />;
+    return (
+      <View
+        style={[
+          styles.spacer,
+          !!focusedScreen && hasBottomActionBar(focusedScreen) && styles.spacerUnderActionBar,
+          { height: keyboardVisible ? 0 : insets.bottom },
+        ]}
+        testID="main-tab-bar-hidden"
+      />
+    );
   }
 
   return (
@@ -93,6 +102,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   spacer: { backgroundColor: colors.background },
+  spacerUnderActionBar: { backgroundColor: colors.surface },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   label: { fontSize: 10, color: colors.textMuted, fontWeight: '600' },
   labelActive: { color: colors.primary },

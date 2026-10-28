@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } fr
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { ItemFormFields } from '@/components/item/ItemFormFields';
+import { BottomActionBar } from '@/components/shared/BottomActionBar';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import type { Item } from '@/domain/item/types';
 import { formValuesToItemInput, itemToFormDefaults } from '@/domain/item/formMapping';
@@ -130,6 +131,18 @@ export function EditItemScreen({ navigation, route }: Props) {
       style={styles.screen}
       contentContainerStyle={styles.content}
       testID="edit-item-screen"
+      footer={
+        <BottomActionBar
+          primary={{
+            label: isSubmitting ? 'Saving…' : 'Save Changes',
+            accessibilityLabel: 'Save Changes',
+            icon: 'check',
+            onPress: onSubmit,
+            disabled: isSubmitting || deleting,
+            testID: 'save-item',
+          }}
+        />
+      }
     >
       {/* Top action / context row */}
       <View style={styles.topRow}>
@@ -178,23 +191,6 @@ export function EditItemScreen({ navigation, route }: Props) {
           <Text style={styles.deleteButtonText}>{deleting ? 'Deleting…' : 'Delete Item'}</Text>
         </Pressable>
       </View>
-
-      {/* Sticky primary Save Changes action */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Save Changes"
-        testID="save-item"
-        onPress={onSubmit}
-        disabled={isSubmitting || deleting}
-        style={({ pressed }) => [
-          styles.dockSave,
-          (isSubmitting || deleting) && styles.dockSaveDisabled,
-          pressed && !(isSubmitting || deleting) && styles.pressed,
-        ]}
-      >
-        <Feather name="check" size={18} color={colors.primaryText} />
-        <Text style={styles.dockSaveText}>{isSubmitting ? 'Saving…' : 'Save Changes'}</Text>
-      </Pressable>
 
       {/* Deletion confirmation modal */}
       <Modal
@@ -273,18 +269,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   deleteButtonText: { fontSize: 14, fontWeight: '700', color: colors.danger },
-
-  dockSave: {
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  dockSaveDisabled: { opacity: 0.6 },
-  dockSaveText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(11,28,48,0.4)', justifyContent: 'flex-end' },
   modalCard: {
