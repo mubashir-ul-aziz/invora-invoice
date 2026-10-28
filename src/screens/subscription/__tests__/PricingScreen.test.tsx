@@ -264,18 +264,21 @@ describe('PricingScreen', () => {
     expect(view.getByTestId('pricing-current-plan').props.children).toBe('Business');
   });
 
-  it('paid → Free after cancelling: says when Free starts and offers nothing to buy', async () => {
+  it('paid → Free after cancelling: says when Free starts and does not ask to cancel again', async () => {
     await boot('business', { willRenew: false });
     const view = await renderScreen();
 
-    expect(view.queryByTestId('plan-free-cta')).toBeNull();
     expect(within(view.getByTestId('plan-free')).getByText(/Metriqo moves to Free automatically after that/)).toBeTruthy();
+    await fireEvent.press(view.getByTestId('plan-free-cta'));
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(toast.show).toHaveBeenCalledWith('info', expect.objectContaining({ title: 'Already switching to Free' }));
   });
 
-  it('Free user: the Free card has no action', async () => {
+  it('Free user: the Free card shows a read-only "Current plan" button', async () => {
     await boot();
     const view = await renderScreen();
-    expect(view.queryByTestId('plan-free-cta')).toBeNull();
+    expect(view.getByTestId('plan-free-cta').props.accessibilityState.disabled).toBe(true);
+    expect(within(view.getByTestId('plan-free-cta')).getByText('Current plan')).toBeTruthy();
   });
 
   it('shows cancelled-but-active and billing-issue states', async () => {

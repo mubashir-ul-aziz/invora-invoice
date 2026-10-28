@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { PlanCard } from '@/components/subscription/PlanCard';
 import { UsageMeter } from '@/components/subscription/UsageMeter';
@@ -103,6 +103,7 @@ const TONE_COLORS = {
 export function PricingScreen({ route }: Props) {
   const reason = route.params?.reason ?? 'invoice_limit';
   const sub = useSubscription();
+  const { width: windowWidth } = useWindowDimensions();
   const { refresh, loadOfferings, refreshUsage } = sub;
   const [period, setPeriod] = useState<BillingPeriod>('monthly');
   const [busyPlan, setBusyPlan] = useState<PaidPlanId | null>(null);
@@ -200,6 +201,8 @@ export function PricingScreen({ route }: Props) {
   };
 
   const reasonCopy = describeUpgradeReason(reason, { limit: sub.usage?.limit });
+  // Leave the next card peeking in from the edge so the row reads as scrollable.
+  const cardWidth = { width: Math.min(windowWidth * 0.78, 340) };
 
   return (
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} testID="pricing-screen">
@@ -391,7 +394,15 @@ export function PricingScreen({ route }: Props) {
         </View>
       )}
 
-      <View style={styles.plansList}>
+      {/* One row, horizontally scrollable. The row's default `alignItems: 'stretch'` sizes every card to the
+          tallest one, and PlanCard pins its CTA to the bottom so the buttons line up. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.plansScroller}
+        contentContainerStyle={styles.plansRow}
+        testID="pricing-plans-row"
+      >
         {PLAN_ORDER.map((planId) => {
           const config = PLAN_CONFIG[planId];
           if (planId === 'free') {
@@ -403,14 +414,22 @@ export function PricingScreen({ route }: Props) {
               <PlanCard
                 key={planId}
                 testID="plan-free"
+                style={cardWidth}
                 config={config}
                 period={period}
                 isCurrent={sub.plan === 'free'}
-                cta={
-                  sub.isPaid && !cancelled
-                    ? { label: 'Switch to Free', disabled: working, onPress: handleSwitchToFree }
-                    : null
-                }
+                cta={{
+                  label: 'Switch to Free',
+                  disabled: working,
+                  // Already cancelled → the switch is already on its way; say so rather than asking to cancel again.
+                  onPress: cancelled
+                    ? () =>
+                        toast.info({
+                          title: 'Already switching to Free',
+                          message: `Your ${sub.planConfig.label} plan is cancelled. Metriqo moves to Free automatically when it ends.`,
+                        })
+                    : handleSwitchToFree,
+                }}
                 ctaNote={
                   !sub.isPaid
                     ? null
@@ -438,22 +457,19 @@ export function PricingScreen({ route }: Props) {
             <PlanCard
               key={planId}
               testID={`plan-${planId}`}
+              style={cardWidth}
               config={config}
               period={period}
               pkg={pkg}
               savingsLabel={savingsFor(paidPlan)}
               isCurrent={isCurrent}
-              cta={
-                isCurrent
-                  ? { label: 'Current plan', disabled: true, onPress: () => undefined }
-                  : {
-                      label: busyPlan === paidPlan ? 'Working…' : label,
-                      // Only blocked while something is already in progress. Offline / store problems are
-                      // explained on tap by the purchase outcome — never silently disabled, never faked.
-                      disabled: working,
-                      onPress: () => handlePurchase(paidPlan),
-                    }
-              }
+              cta={{
+                label: busyPlan === paidPlan ? 'Working…' : label,
+                // Only blocked while something is already in progress. Offline / store problems are
+                // explained on tap by the purchase outcome — never silently disabled, never faked.
+                disabled: working,
+                onPress: () => handlePurchase(paidPlan),
+              }}
               ctaNote={
                 kind === 'deferred'
                   ? 'Starts at your next renewal — you keep your current plan until then.'
@@ -464,7 +480,7 @@ export function PricingScreen({ route }: Props) {
             />
           );
         })}
-      </View>
+      </ScrollView>
 
       <Text style={styles.fineprint}>
         Renewal, cancellation, plan changes and your payment method are managed in Google Play. Payments are processed by
@@ -592,7 +608,9 @@ const styles = StyleSheet.create({
   retryText: { fontSize: typography.caption.fontSize, fontWeight: '700', color: colors.warning },
   testStoreNote: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', paddingHorizontal: spacing.sm },
 
-  plansList: { gap: spacing.md },
+  // Bleed past the screen padding so cards scroll edge to edge, but start aligned with the content.
+  plansScroller: { marginHorizontal: -spacing.lg },
+  plansRow: { gap: spacing.md, paddingHorizontal: spacing.lg },
 
   fineprint: { fontSize: typography.caption.fontSize, color: colors.textMuted, lineHeight: 16, textAlign: 'center' },
 });

@@ -1,8 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { ActionButton } from '@/components/businessCard/ActionButton';
 import type { StorePackage } from '@/data/subscription/RevenueCatAdapter';
 import { describeYearlyMonthlyEquivalent } from '@/domain/subscription/formatting';
 import {
@@ -22,10 +21,11 @@ interface Props {
   /** Savings line for the yearly toggle, only ever supplied when computed from real store prices. */
   savingsLabel?: string | null;
   isCurrent: boolean;
-  /** `null` = no action (e.g. the Free plan card). */
+  /** The action for a plan you're not on. Ignored when `isCurrent` — that card shows a read-only "Current plan". */
   cta: { label: string; disabled: boolean; onPress: () => void } | null;
   /** Small explanatory line under the CTA (e.g. "Starts at your next renewal"). */
   ctaNote?: string | null;
+  style?: StyleProp<ViewStyle>;
   testID?: string;
 }
 
@@ -37,7 +37,7 @@ interface Props {
  * configured standard price (`FALLBACK_PRICES_USD`), so plans never lose
  * their price. Display only — a purchase always needs the store package.
  */
-export function PlanCard({ config, period, pkg, savingsLabel, isCurrent, cta, ctaNote, testID }: Props) {
+export function PlanCard({ config, period, pkg, savingsLabel, isCurrent, cta, ctaNote, style, testID }: Props) {
   const isFree = config.id === 'free';
   const suffix = period === 'monthly' ? '/ month' : '/ year';
 
@@ -62,7 +62,7 @@ export function PlanCard({ config, period, pkg, savingsLabel, isCurrent, cta, ct
   }
 
   return (
-    <View style={[styles.card, isCurrent && styles.cardCurrent, !!config.badge && styles.cardBadged]} testID={testID}>
+    <View style={[styles.card, isCurrent && styles.cardCurrent, !!config.badge && styles.cardBadged, style]} testID={testID}>
       <View style={styles.headerRow}>
         <View style={styles.flexShrink}>
           <Text style={styles.name}>{config.label}</Text>
@@ -100,16 +100,36 @@ export function PlanCard({ config, period, pkg, savingsLabel, isCurrent, cta, ct
         ))}
       </View>
 
-      {cta && (
-        <ActionButton
-          label={cta.label}
-          variant={config.badge && !isCurrent ? 'primary' : 'secondary'}
-          disabled={cta.disabled}
-          onPress={cta.onPress}
-          testID={testID ? `${testID}-cta` : undefined}
-        />
-      )}
-      {!!ctaNote && <Text style={styles.ctaNote}>{ctaNote}</Text>}
+      {/* Pinned to the bottom so CTAs line up when the card is stretched to a shared row height. */}
+      <View style={styles.footer}>
+        {isCurrent ? (
+          // Read-only: the plan you're on has nothing to buy, so the button says so and ignores taps.
+          <View
+            accessibilityRole="button"
+            accessibilityLabel="Current plan"
+            accessibilityState={{ disabled: true }}
+            style={styles.cta}
+            testID={testID ? `${testID}-cta` : undefined}
+          >
+            <Text style={styles.ctaCurrentText}>Current plan</Text>
+          </View>
+        ) : (
+          cta && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={cta.label}
+              accessibilityState={{ disabled: cta.disabled }}
+              disabled={cta.disabled}
+              onPress={cta.onPress}
+              style={({ pressed }) => [styles.cta, cta.disabled && styles.ctaDisabled, pressed && styles.ctaPressed]}
+              testID={testID ? `${testID}-cta` : undefined}
+            >
+              <Text style={styles.ctaText}>{cta.label}</Text>
+            </Pressable>
+          )
+        )}
+        {!!ctaNote && <Text style={styles.ctaNote}>{ctaNote}</Text>}
+      </View>
     </View>
   );
 }
@@ -142,5 +162,19 @@ const styles = StyleSheet.create({
   features: { gap: 6, marginVertical: 2 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   featureText: { fontSize: 13, color: colors.text, flexShrink: 1 },
+  footer: { marginTop: 'auto', gap: 10 },
+  cta: {
+    minHeight: 40,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  ctaDisabled: { opacity: 0.5 },
+  ctaPressed: { opacity: 0.75 },
+  ctaText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  ctaCurrentText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
   ctaNote: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
 });
