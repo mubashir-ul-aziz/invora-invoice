@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { useSubscriptionStore } from '@/state/subscriptionStore';
@@ -6,6 +6,14 @@ import { useSubscriptionStore } from '@/state/subscriptionStore';
 interface Props {
   children: React.ReactNode;
 }
+
+/** Re-check this long after the expiry, giving RevenueCat a moment to record the renewal. */
+const EXPIRY_SETTLE_MS = 10 * 1000;
+/** After an expiry, keep re-checking for this long — a store renewal can reach RevenueCat a few minutes late. */
+const LAPSE_WATCH_MS = 10 * 60 * 1000;
+const LAPSE_POLL_MS = 60 * 1000;
+/** Expiries further out than this are left to the foreground/startup syncs (and stay under setTimeout's limit). */
+const MAX_TIMER_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Keeps the subscription fresh without ever gating the app. Wraps the whole
@@ -15,6 +23,9 @@ interface Props {
  *    offline on the last known plan), then syncs with RevenueCat;
  *  - every time the app returns to the foreground: syncs again and refreshes
  *    the invoice-usage meter;
+ *  - when the entitlement's expiry passes while the app is open: syncs right
+ *    after it, then every minute for a few minutes, so a renewal isn't shown
+ *    as "Expired" until the next app restart;
  *  - when connectivity returns and when RevenueCat pushes an update: handled
  *    inside `SubscriptionService.startListening()`, started by `init()`.
  *
@@ -25,7 +36,10 @@ export function SubscriptionRunner({ children }: Props) {
   const init = useSubscriptionStore((state) => state.init);
   const refresh = useSubscriptionStore((state) => state.refresh);
   const refreshUsage = useSubscriptionStore((state) => state.refreshUsage);
+  const expiresAt = useSubscriptionStore((state) => state.snapshot.subscription.expiresAt);
+  const isActive = useSubscriptionStore((state) => state.snapshot.subscription.isActive);
   const appState = useRef<AppStateStatus>(AppState.currentState);
+  const [expiryTick, setExpiryTick] = useState(0);
 
   useEffect(() => {
     init();
@@ -41,6 +55,29 @@ export function SubscriptionRunner({ children }: Props) {
     });
     return () => subscription.remove();
   }, [refresh, refreshUsage]);
+
+  useEffect(() => {
+    if (expiresAt === null) return;
+    const sinceExpiry = Date.now() - expiresAt;
+    let delay: number;
+    if (sinceExpiry < 0) {
+      delay = -sinceExpiry + EXPIRY_SETTLE_MS;
+    } else if (sinceExpiry < LAPSE_WATCH_MS) {
+      delay = LAPSE_POLL_MS;
+    } else {
+      return;
+    }
+    if (delay > MAX_TIMER_MS) return;
+    const timer = setTimeout(() => {
+      // In the background the foreground sync covers it on return.
+      if (AppState.currentState === 'active') {
+        refresh('expiry').finally(() => setExpiryTick((tick) => tick + 1));
+      } else {
+        setExpiryTick((tick) => tick + 1);
+      }
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [expiresAt, isActive, expiryTick, refresh]);
 
   return <>{children}</>;
 }

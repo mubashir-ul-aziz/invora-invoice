@@ -72,6 +72,7 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
 
   readonly calls = {
     getCustomerInfo: 0,
+    freshCustomerInfo: 0,
     getOfferings: 0,
     purchase: [] as { packageId: string; change?: ProductChange }[],
     restore: 0,
@@ -138,8 +139,9 @@ export class FakeRevenueCatAdapter implements RevenueCatAdapter {
     }
   }
 
-  async getCustomerInfo(): Promise<CustomerInfoLike> {
+  async getCustomerInfo(options?: { fresh?: boolean }): Promise<CustomerInfoLike> {
     this.calls.getCustomerInfo += 1;
+    if (options?.fresh) this.calls.freshCustomerInfo += 1;
     this.maybeFail();
     return this.customerInfo;
   }

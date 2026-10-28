@@ -176,6 +176,14 @@ describe('SubscriptionService — refresh and offline behaviour', () => {
     await Promise.all([h.service.refresh(), h.service.refresh(), h.service.refresh()]);
     expect(h.adapter.calls.getCustomerInfo).toBe(1);
   });
+
+  it('bypasses the SDK CustomerInfo cache on refresh, so a renewal is not shown as expired', async () => {
+    const h = makeHarness();
+    h.adapter.setCustomerInfo(activeInfo('pro', h.clock.now));
+    await h.service.refresh('expiry');
+    expect(h.adapter.calls.freshCustomerInfo).toBe(1);
+    expect(h.service.getSnapshot().plan).toBe('pro');
+  });
 });
 
 describe('SubscriptionService — cache integrity', () => {

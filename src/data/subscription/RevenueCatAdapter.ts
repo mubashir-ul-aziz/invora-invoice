@@ -82,7 +82,12 @@ export interface RevenueCatAdapter {
   getStoreKind(): RevenueCatStoreKind | null;
   /** Developer-facing reason `isAvailable()` is false (never contains a full API key); null when available. */
   getUnavailableReason(): string | null;
-  getCustomerInfo(): Promise<CustomerInfoLike>;
+  /**
+   * `fresh` drops the SDK's own CustomerInfo cache first (it otherwise serves
+   * an answer up to ~5 minutes old), so a renewal/expiry RevenueCat already
+   * knows about is seen immediately.
+   */
+  getCustomerInfo(options?: { fresh?: boolean }): Promise<CustomerInfoLike>;
   getOfferings(): Promise<StorePackage[]>;
   /** Starts Google Play's purchase sheet for a package and resolves with RevenueCat's CustomerInfo. Rejects with `RevenueCatError`. */
   purchase(packageId: string, change?: ProductChange): Promise<CustomerInfoLike>;

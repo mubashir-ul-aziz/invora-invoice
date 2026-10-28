@@ -289,9 +289,14 @@ export class ReactNativePurchasesAdapter implements RevenueCatAdapter {
     });
   }
 
-  async getCustomerInfo(): Promise<CustomerInfoLike> {
+  async getCustomerInfo(options?: { fresh?: boolean }): Promise<CustomerInfoLike> {
     try {
-      const info = await (await this.sdk()).getCustomerInfo();
+      const purchases = await this.sdk();
+      if (options?.fresh) {
+        // Best-effort: if invalidation fails, the (possibly cached) answer below is still usable.
+        await purchases.invalidateCustomerInfoCache().catch(() => undefined);
+      }
+      const info = await purchases.getCustomerInfo();
       this.logCustomerInfo('getCustomerInfo', info);
       return toCustomerInfoLike(info);
     } catch (error) {

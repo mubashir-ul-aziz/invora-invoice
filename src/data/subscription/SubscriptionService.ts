@@ -138,7 +138,7 @@ function devLog(message: string): void {
 /** Don't rewrite the clock high-water mark more often than this. */
 const CLOCK_WRITE_INTERVAL_MS = 60 * 1000;
 
-export type SyncTrigger = 'startup' | 'foreground' | 'connectivity' | 'screen' | 'listener';
+export type SyncTrigger = 'startup' | 'foreground' | 'connectivity' | 'screen' | 'listener' | 'expiry';
 
 export type PurchaseOutcome =
   /** Google Play + RevenueCat confirmed an active entitlement for the chosen plan. */
@@ -326,7 +326,9 @@ export class SubscriptionService {
    * Asks RevenueCat for the current CustomerInfo, maps it, updates the cache
    * and publishes. If RevenueCat can't be reached, publishes the cached state
    * under the offline policy instead of downgrading. Concurrent calls share
-   * one in-flight request.
+   * one in-flight request. Always bypasses the SDK's CustomerInfo cache:
+   * every trigger here is a moment the plan may have changed (a renewal or
+   * expiry while the app sat open, a purchase made elsewhere).
    */
   refresh(_trigger: SyncTrigger = 'screen'): Promise<SubscriptionSnapshot> {
     if (!this.inflightRefresh) {
@@ -353,7 +355,7 @@ export class SubscriptionService {
     }
 
     try {
-      return await this.applyCustomerInfo(await this.adapter.getCustomerInfo());
+      return await this.applyCustomerInfo(await this.adapter.getCustomerInfo({ fresh: true }));
     } catch (error) {
       this.verified = false;
       this.isOffline = !(error instanceof RevenueCatError && error.kind === 'not_configured');
