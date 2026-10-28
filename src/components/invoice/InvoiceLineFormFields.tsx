@@ -403,17 +403,19 @@ function PriceField({
           <Text style={styles.label}>{label}</Text>
           <View style={styles.priceRow}>
             <Text style={styles.priceCurrency}>{currencySymbol}</Text>
-            <FormField
-              label=""
-              value={typeof value === 'string' ? value : String(value ?? '')}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="0.00"
-              keyboardType="decimal-pad"
-              error={errors[name]?.message}
-              testID={`field-${name}`}
-              style={styles.priceInput}
-            />
+            <View style={styles.priceInputWrap}>
+              <FormField
+                label=""
+                value={typeof value === 'string' ? value : String(value ?? '')}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                error={errors[name]?.message}
+                testID={`field-${name}`}
+                style={styles.priceInput}
+              />
+            </View>
           </View>
         </View>
       )}
@@ -487,7 +489,8 @@ const styles = StyleSheet.create({
 
   priceRow: { flexDirection: 'row', alignItems: 'center' },
   priceCurrency: { position: 'absolute', left: 12, zIndex: 1, fontSize: 16, fontWeight: '700', color: colors.primary },
-  priceInput: { flex: 1, paddingLeft: 24 },
+  priceInputWrap: { flex: 1 },
+  priceInput: { paddingLeft: 24 },
 
   discountHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   discountCaption: { fontSize: 11, color: colors.textMuted },
