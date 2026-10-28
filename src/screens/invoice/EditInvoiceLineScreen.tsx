@@ -19,6 +19,7 @@ import type { FieldKey } from '@/domain/invoiceType/fieldCatalog';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { resolveInvoiceFieldConfig } from '@/domain/invoiceType/types';
 import type { RootStackParamList } from '@/navigation/types';
+import { InvoiceCurrencyProvider } from '@/state/currencyContext';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { toast } from '@/state/toastStore';
@@ -58,15 +59,17 @@ export function EditInvoiceLineScreen({ navigation, route }: Props) {
   const effectivePricingMethodId = canEditPricingMethod ? pricingMethodId : draft.invoiceTypeId;
 
   return (
-    <InvoiceLineFormInner
-      key={effectivePricingMethodId}
-      navigation={navigation}
-      lineIndex={lineIndex}
-      pricingMethodId={effectivePricingMethodId}
-      canEditPricingMethod={canEditPricingMethod}
-      onChangePricingMethod={setPricingMethodId}
-      customFieldKeys={selection?.customFieldKeys ?? []}
-    />
+    <InvoiceCurrencyProvider currency={draft.currency}>
+      <InvoiceLineFormInner
+        key={effectivePricingMethodId}
+        navigation={navigation}
+        lineIndex={lineIndex}
+        pricingMethodId={effectivePricingMethodId}
+        canEditPricingMethod={canEditPricingMethod}
+        onChangePricingMethod={setPricingMethodId}
+        customFieldKeys={selection?.customFieldKeys ?? []}
+      />
+    </InvoiceCurrencyProvider>
   );
 }
 

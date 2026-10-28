@@ -215,6 +215,13 @@ export const invoice = sqliteTable(
     dueDate: text('due_date'),
     notes: text('notes'),
     terms: text('terms'),
+    /**
+     * Snapshot of the business's currency code at creation — see
+     * `Invoice.currency`. Nullable so rows from before this column existed
+     * can be backfilled (`INVOICE_COLUMN_UPGRADES`) instead of failing a NOT
+     * NULL migration.
+     */
+    currency: text('currency'),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
@@ -569,6 +576,7 @@ export const CREATE_TABLES_SQL = `
     due_date TEXT,
     notes TEXT,
     terms TEXT,
+    currency TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   );
@@ -718,6 +726,17 @@ export const ITEM_COLUMN_UPGRADES: { column: string; definition: string }[] = [
   { column: 'weight_unit', definition: 'TEXT' },
   { column: 'length_unit', definition: 'TEXT' },
   { column: 'price_mode', definition: "TEXT NOT NULL DEFAULT 'unit'" },
+];
+
+/**
+ * Columns added to `invoice` after its first release (the per-invoice
+ * `currency` snapshot). Same additive/idempotent mechanism as
+ * `BUSINESS_COLUMN_UPGRADES` — see `ensureInvoiceColumns()` in
+ * `db/client.ts`, which also backfills existing rows with the business's
+ * currency.
+ */
+export const INVOICE_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'currency', definition: 'TEXT' },
 ];
 
 /**

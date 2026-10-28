@@ -82,10 +82,10 @@ describe('renderInvoiceHtml', () => {
     expect(html).toContain('CW-2'); // sku
     expect(html).toContain('kg'); // unit
     expect(html).toContain('>5<'); // quantity and weight both render "5"
-    expect(html).toContain('USD 20.00'); // unit price
-    expect(html).toContain('-USD 10.00'); // discount
-    expect(html).toContain('USD 7.20'); // tax
-    expect(html).toContain('USD 97.20'); // grand total
+    expect(html).toContain('$20.00'); // unit price
+    expect(html).toContain('-$10.00'); // discount
+    expect(html).toContain('$7.20'); // tax
+    expect(html).toContain('$97.20'); // grand total
     expect(html).toContain('Paid');
     expect(html).toContain('Remaining');
     expect(html).toContain('Line one<br>Line two'); // notes, newline-to-br
@@ -159,7 +159,7 @@ describe('renderInvoiceHtml', () => {
     expect(html).toContain('Payment History');
     expect(html).toContain('Bank transfer');
     expect(html).toContain('TXN-9981');
-    expect(html).toContain('USD 40.00');
+    expect(html).toContain('$40.00');
   });
 
   it('omits the Payment History section entirely when no payments were recorded', () => {

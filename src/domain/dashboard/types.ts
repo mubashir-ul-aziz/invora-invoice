@@ -20,6 +20,8 @@ export interface DashboardInvoiceEntry {
   dueDate: string | null;
   /** ISO timestamp — the tiebreaker `recentInvoices` uses for same-day invoices, mirroring `domain/invoice/filtering.ts`'s `sortInvoices`. */
   createdAt: string;
+  /** The invoice's own currency code (`Invoice.currency`), so its row shows its amounts in that currency. */
+  currency?: string | null;
   /** This invoice's own grand total — already summed once via `domain/invoice/calculations.ts`, never recomputed here. */
   grandTotal: number;
   /** This invoice's own total paid — already summed once via `domain/payment/calculations.ts`, never recomputed here. */
@@ -36,6 +38,7 @@ export interface DashboardRecentInvoice {
   dueDate: string | null;
   /** ISO timestamp — carried through so the Dashboard can show a Free-plan lock on invoices past their 24-hour access window. */
   createdAt: string;
+  currency?: string | null;
   grandTotal: number;
   amountPaid: number;
   status: InvoiceStatus;

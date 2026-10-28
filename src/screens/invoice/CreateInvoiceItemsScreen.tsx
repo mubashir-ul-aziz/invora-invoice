@@ -19,6 +19,7 @@ import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
 import { PRICING_METHOD_OPTIONS, getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { resolveInvoiceFieldConfig } from '@/domain/invoiceType/types';
 import type { RootStackParamList } from '@/navigation/types';
+import { InvoiceCurrencyProvider } from '@/state/currencyContext';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { toast } from '@/state/toastStore';
@@ -169,140 +170,142 @@ export function CreateInvoiceItemsScreen({ navigation }: Props) {
   }
 
   return (
-    <View style={styles.screen}>
-      {draft.mode === 'create' && (
-        <View style={styles.stepBar}>
-          <View style={styles.stepBarTopRow}>
-            <View style={styles.stepBadgeRow}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>2</Text>
+    <InvoiceCurrencyProvider currency={draft.currency}>
+      <View style={styles.screen}>
+        {draft.mode === 'create' && (
+          <View style={styles.stepBar}>
+            <View style={styles.stepBarTopRow}>
+              <View style={styles.stepBadgeRow}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>2</Text>
+                </View>
+                <Text style={styles.stepLabel}>Step 2 of 3</Text>
               </View>
-              <Text style={styles.stepLabel}>Step 2 of 3</Text>
+              <Text style={styles.stepNextLabel}>Next: Payment &amp; Review</Text>
             </View>
-            <Text style={styles.stepNextLabel}>Next: Payment &amp; Review</Text>
-          </View>
-          <View style={styles.stepProgressRow}>
-            <View style={[styles.stepSegment, styles.stepSegmentDone]} />
-            <View style={[styles.stepSegment, styles.stepSegmentDone]} />
-            <View style={styles.stepSegment} />
-          </View>
-        </View>
-      )}
-
-      <KeyboardAvoidingScreen
-        contentContainerStyle={styles.content}
-        testID="create-invoice-items-screen"
-        footer={
-          <BottomActionBar
-            primary={{
-              label: 'Continue to review',
-              icon: 'arrow-right',
-              onPress: handleContinue,
-              testID: 'action-continue-to-review',
-            }}
-          >
-            {draft.items.length > 0 && <InvoiceTotalsSummary totals={totals} testID="invoice-items-totals" />}
-          </BottomActionBar>
-        }
-      >
-        <View style={styles.customerRow}>
-          <View style={styles.customerIcon}>
-            <Feather name="briefcase" size={16} color={colors.primary} />
-          </View>
-          <View style={styles.customerTextCol}>
-            <Text style={styles.customerLabel}>BILL TO</Text>
-            <Text style={styles.customerName} numberOfLines={1}>
-              {draft.customer.name}
-            </Text>
-          </View>
-        </View>
-
-        {draft.mode === 'edit' ? (
-          // The pricing method is fixed once an invoice is saved (`Invoice.invoiceTypeId`'s
-          // doc comment) — `InvoiceUpdateInput` doesn't even accept a new one, so
-          // showing an interactive picker here would let the user "change" a value
-          // that's silently ignored at save time. A read-only summary instead.
-          <View style={styles.readonlyCard} testID="invoice-type-readonly">
-            <Text style={styles.customerLabel}>Pricing Method</Text>
-            <Text style={styles.customerName}>{getInvoiceTypeDefinition(draft.invoiceTypeId).label}</Text>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <DropdownPicker
-              label="Pricing Method"
-              options={PRICING_METHOD_OPTIONS}
-              value={draft.invoiceTypeId}
-              onChange={handleInvoiceTypeChange}
-              testID="invoice-type-picker"
-            />
+            <View style={styles.stepProgressRow}>
+              <View style={[styles.stepSegment, styles.stepSegmentDone]} />
+              <View style={[styles.stepSegment, styles.stepSegmentDone]} />
+              <View style={styles.stepSegment} />
+            </View>
           </View>
         )}
 
-        <View style={styles.itemsSection}>
-          <View style={styles.itemsHeaderRow}>
-            <View style={styles.itemsHeaderLeft}>
-              <Text style={styles.sectionTitle}>Invoice Items</Text>
-              <Text style={styles.itemsCountText}>
-                ({draft.items.length} item{draft.items.length === 1 ? '' : 's'} added)
+        <KeyboardAvoidingScreen
+          contentContainerStyle={styles.content}
+          testID="create-invoice-items-screen"
+          footer={
+            <BottomActionBar
+              primary={{
+                label: 'Continue to review',
+                icon: 'arrow-right',
+                onPress: handleContinue,
+                testID: 'action-continue-to-review',
+              }}
+            >
+              {draft.items.length > 0 && <InvoiceTotalsSummary totals={totals} testID="invoice-items-totals" />}
+            </BottomActionBar>
+          }
+        >
+          <View style={styles.customerRow}>
+            <View style={styles.customerIcon}>
+              <Feather name="briefcase" size={16} color={colors.primary} />
+            </View>
+            <View style={styles.customerTextCol}>
+              <Text style={styles.customerLabel}>BILL TO</Text>
+              <Text style={styles.customerName} numberOfLines={1}>
+                {draft.customer.name}
               </Text>
             </View>
           </View>
 
-          {draft.items.length === 0 && (
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIconCircle}>
-                <Feather name="package" size={22} color={colors.textMuted} />
-              </View>
-              <Text style={styles.emptyTitle} testID="invoice-items-empty">
-                No items added yet
-              </Text>
-              <Text style={styles.emptySubtitle}>Tap below to add catalog items or enter custom services.</Text>
+          {draft.mode === 'edit' ? (
+            // The pricing method is fixed once an invoice is saved (`Invoice.invoiceTypeId`'s
+            // doc comment) — `InvoiceUpdateInput` doesn't even accept a new one, so
+            // showing an interactive picker here would let the user "change" a value
+            // that's silently ignored at save time. A read-only summary instead.
+            <View style={styles.readonlyCard} testID="invoice-type-readonly">
+              <Text style={styles.customerLabel}>Pricing Method</Text>
+              <Text style={styles.customerName}>{getInvoiceTypeDefinition(draft.invoiceTypeId).label}</Text>
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <DropdownPicker
+                label="Pricing Method"
+                options={PRICING_METHOD_OPTIONS}
+                value={draft.invoiceTypeId}
+                onChange={handleInvoiceTypeChange}
+                testID="invoice-type-picker"
+              />
             </View>
           )}
 
-          {draft.items.map((line, index) => {
-            const calc = calculateLineTotal(toLineCalcInput(line), draft.invoiceTypeId);
-            return (
-              <InvoiceLineRow
-                key={index}
-                itemName={line.itemName}
-                quantity={line.quantity}
-                unit={line.unit}
-                measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
-                priceMode={line.priceMode}
-                unitPrice={line.unitPrice}
-                lineTotal={calc.lineTotal}
-                onPress={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
-                onEdit={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
-                onDelete={() => handleRemoveLine(index)}
-                testID={`invoice-line-${index}`}
-              />
-            );
-          })}
+          <View style={styles.itemsSection}>
+            <View style={styles.itemsHeaderRow}>
+              <View style={styles.itemsHeaderLeft}>
+                <Text style={styles.sectionTitle}>Invoice Items</Text>
+                <Text style={styles.itemsCountText}>
+                  ({draft.items.length} item{draft.items.length === 1 ? '' : 's'} added)
+                </Text>
+              </View>
+            </View>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add Line Item"
-            testID="action-add-item"
-            onPress={handleAddFromCatalog}
-            style={({ pressed }) => [styles.addItemButton, pressed && styles.pressed]}
-          >
-            <Feather name="plus-circle" size={18} color={colors.primary} />
-            <Text style={styles.addItemButtonText}>Add Line Item</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Add custom line"
-            testID="action-add-manual-line"
-            onPress={handleAddManualLine}
-            style={({ pressed }) => [styles.addManualButton, pressed && styles.pressed]}
-          >
-            <Feather name="edit-3" size={15} color={colors.textMuted} />
-            <Text style={styles.addManualButtonText}>Add custom line</Text>
-          </Pressable>
-        </View>
-      </KeyboardAvoidingScreen>
-    </View>
+            {draft.items.length === 0 && (
+              <View style={styles.emptyCard}>
+                <View style={styles.emptyIconCircle}>
+                  <Feather name="package" size={22} color={colors.textMuted} />
+                </View>
+                <Text style={styles.emptyTitle} testID="invoice-items-empty">
+                  No items added yet
+                </Text>
+                <Text style={styles.emptySubtitle}>Tap below to add catalog items or enter custom services.</Text>
+              </View>
+            )}
+
+            {draft.items.map((line, index) => {
+              const calc = calculateLineTotal(toLineCalcInput(line), draft.invoiceTypeId);
+              return (
+                <InvoiceLineRow
+                  key={index}
+                  itemName={line.itemName}
+                  quantity={line.quantity}
+                  unit={line.unit}
+                  measurementLabel={describeLineMeasurement(draft.invoiceTypeId, line)}
+                  priceMode={line.priceMode}
+                  unitPrice={line.unitPrice}
+                  lineTotal={calc.lineTotal}
+                  onPress={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
+                  onEdit={() => navigation.navigate('EditInvoiceLine', { lineIndex: index })}
+                  onDelete={() => handleRemoveLine(index)}
+                  testID={`invoice-line-${index}`}
+                />
+              );
+            })}
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add Line Item"
+              testID="action-add-item"
+              onPress={handleAddFromCatalog}
+              style={({ pressed }) => [styles.addItemButton, pressed && styles.pressed]}
+            >
+              <Feather name="plus-circle" size={18} color={colors.primary} />
+              <Text style={styles.addItemButtonText}>Add Line Item</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add custom line"
+              testID="action-add-manual-line"
+              onPress={handleAddManualLine}
+              style={({ pressed }) => [styles.addManualButton, pressed && styles.pressed]}
+            >
+              <Feather name="edit-3" size={15} color={colors.textMuted} />
+              <Text style={styles.addManualButtonText}>Add custom line</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingScreen>
+      </View>
+    </InvoiceCurrencyProvider>
   );
 }
 

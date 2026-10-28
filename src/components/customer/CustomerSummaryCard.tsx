@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { CustomerBalanceSummary } from '@/domain/customer/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -16,23 +16,23 @@ interface Props {
  * (see `data/customerActivity/`), never from a stored field on `Customer`.
  */
 export function CustomerSummaryCard({ summary, testID }: Props) {
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   return (
     <View style={styles.card} testID={testID}>
       <View style={styles.row}>
-        <SummaryTile label="Total billed" value={`${currencySymbol}${formatAmount(summary.totalBilled)}`} testID="summary-billed" />
-        <SummaryTile label="Total paid" value={`${currencySymbol}${formatAmount(summary.totalPaid)}`} testID="summary-paid" />
+        <SummaryTile label="Total billed" value={formatMoney(summary.totalBilled)} testID="summary-billed" />
+        <SummaryTile label="Total paid" value={formatMoney(summary.totalPaid)} testID="summary-paid" />
       </View>
       <View style={styles.row}>
         <SummaryTile
           label="Outstanding"
-          value={`${currencySymbol}${formatAmount(summary.outstanding)}`}
+          value={formatMoney(summary.outstanding)}
           emphasis={summary.outstanding > 0}
           testID="summary-outstanding"
         />
         <SummaryTile
           label="Overdue"
-          value={`${currencySymbol}${formatAmount(summary.overdueAmount)}`}
+          value={formatMoney(summary.overdueAmount)}
           danger={summary.overdueAmount > 0}
           testID="summary-overdue"
         />
@@ -63,10 +63,6 @@ function SummaryTile({
       </Text>
     </View>
   );
-}
-
-function formatAmount(value: number): string {
-  return value.toFixed(2);
 }
 
 const styles = StyleSheet.create({

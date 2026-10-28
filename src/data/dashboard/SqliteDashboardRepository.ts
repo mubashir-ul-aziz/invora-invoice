@@ -51,6 +51,7 @@ export class SqliteDashboardRepository implements DashboardRepository {
         issueDate: invoice.issueDate,
         dueDate: invoice.dueDate,
         createdAt: invoice.createdAt,
+        currency: invoice.currency,
         grandTotal: sql<number>`COALESCE(SUM(${invoiceItem.lineTotal}), 0)`,
       })
       .from(invoice)
@@ -78,6 +79,7 @@ export class SqliteDashboardRepository implements DashboardRepository {
       issueDate: row.issueDate,
       dueDate: row.dueDate,
       createdAt: new Date(row.createdAt).toISOString(),
+      currency: row.currency,
       grandTotal: Number(row.grandTotal),
       amountPaid: paidByInvoiceId.get(row.invoiceId) ?? 0,
     }));

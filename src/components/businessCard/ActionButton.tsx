@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
+import { Glyph, type GlyphName } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -15,8 +16,8 @@ interface Props {
    * `text` — no fill or border, for low-emphasis actions (e.g. "Try again").
    */
   variant?: 'primary' | 'secondary' | 'text';
-  /** Optional leading icon (Feather glyph name), for icon+text buttons. */
-  icon?: keyof typeof Feather.glyphMap;
+  /** Optional leading icon (Feather glyph name, or `'currency'` for the current currency's symbol — see `CurrencyIcon`), for icon+text buttons. */
+  icon?: GlyphName;
 }
 
 export function ActionButton({ label, onPress, disabled, testID, variant = 'secondary', icon }: Props) {
@@ -39,7 +40,7 @@ export function ActionButton({ label, onPress, disabled, testID, variant = 'seco
         pressed && !disabled && styles.pressed,
       ]}
     >
-      {!!icon && <Feather name={icon} size={15} color={iconColor} style={styles.icon} />}
+      {!!icon && <Glyph name={icon} size={15} color={iconColor} style={styles.icon} />}
       <Text
         style={
           variant === 'primary' ? styles.primaryLabel : variant === 'text' ? styles.textLabel : styles.secondaryLabel

@@ -172,7 +172,7 @@ describe('DashboardScreen', () => {
     const view = await renderScreen();
 
     await waitFor(() => expect(view.getByTestId('dashboard-summary')).toBeTruthy());
-    expect(within(view.getByTestId('summary-total-sales')).getByText('1000.00')).toBeTruthy();
+    expect(within(view.getByTestId('summary-total-sales')).getByText('1,000.00')).toBeTruthy();
     expect(within(view.getByTestId('summary-total-paid')).getByText('500.00')).toBeTruthy();
     expect(within(view.getByTestId('summary-total-outstanding')).getByText('500.00')).toBeTruthy();
     expect(within(view.getByTestId('summary-invoice-count')).getByText('1')).toBeTruthy();

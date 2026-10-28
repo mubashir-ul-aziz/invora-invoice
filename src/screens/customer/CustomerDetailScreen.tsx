@@ -18,7 +18,7 @@ import { openEmail, openGoogleMaps, openPhone, openWebsite, openWhatsApp } from 
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerActivityStore } from '@/state/customerActivityStore';
 import { useCustomerStore } from '@/state/customerStore';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney, useInvoiceFormatMoney } from '@/state/currencyContext';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
@@ -59,7 +59,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
   const subscription = useSubscription();
   const { guard: guardInvoiceCreation, modal: invoiceLimitModal } = useInvoiceLimitGuard(navigation);
   const [historyLockedVisible, setHistoryLockedVisible] = useState(false);
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [invoices, setInvoices] = useState<InvoiceWithStatus[]>([]);
@@ -241,7 +241,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
               style={[styles.balanceValue, summary.outstanding > 0 && styles.balanceValueDanger]}
               testID="summary-outstanding"
             >
-              {currencySymbol}{summary.outstanding.toFixed(2)}
+              {formatMoney(summary.outstanding)}
             </Text>
           </View>
           {overdueCount > 0 && (
@@ -276,7 +276,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
             <Feather name="file-text" size={16} color={colors.primary} />
           </View>
           <Text style={styles.statTileValue} testID="summary-billed">
-            {currencySymbol}{summary.totalBilled.toFixed(2)}
+            {formatMoney(summary.totalBilled)}
           </Text>
           <Text style={styles.statTileCaption} testID="summary-invoice-count">
             {summary.invoiceCount} Invoice{summary.invoiceCount === 1 ? '' : 's'} Issued
@@ -288,7 +288,7 @@ export function CustomerDetailScreen({ navigation, route }: Props) {
             <Feather name="check-circle" size={16} color="#1E7B41" />
           </View>
           <Text style={[styles.statTileValue, styles.statTileValueGreen]} testID="summary-paid">
-            {currencySymbol}{summary.totalPaid.toFixed(2)}
+            {formatMoney(summary.totalPaid)}
           </Text>
           <Text style={styles.statTileCaption}>
             {paidCount} Settled in Full
@@ -472,7 +472,7 @@ function InvoiceLedgerRow({
   locked?: boolean;
 }) {
   const { invoice, status, totals } = entry;
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useInvoiceFormatMoney(invoice.currency);
 
   return (
     <Pressable
@@ -501,7 +501,7 @@ function InvoiceLedgerRow({
       </View>
       <View style={styles.ledgerTrailing}>
         <Text style={[styles.ledgerAmount, status === 'overdue' && styles.ledgerCaptionDanger]}>
-          {currencySymbol}{totals.grandTotal.toFixed(2)}
+          {formatMoney(totals.grandTotal)}
         </Text>
         <Text style={styles.ledgerSecondaryCaption} numberOfLines={1}>
           {itemSummary(entry)}

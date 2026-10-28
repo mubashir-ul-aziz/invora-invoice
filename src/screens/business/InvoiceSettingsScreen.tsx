@@ -27,6 +27,7 @@ import {
 import type { RootStackParamList } from '@/navigation/types';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { toast } from '@/state/toastStore';
+import { CurrencyIcon } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceSettings'>;
@@ -203,7 +204,7 @@ export function InvoiceSettingsScreen({ navigation }: Props) {
       {/* Payment & Terms */}
       <View style={styles.card}>
         <View style={styles.cardHeaderRow}>
-          <Feather name="dollar-sign" size={16} color={colors.primary} />
+          <CurrencyIcon size={16} color={colors.primary} />
           <Text style={styles.cardTitle}>Payment &amp; Terms</Text>
         </View>
         <Controller

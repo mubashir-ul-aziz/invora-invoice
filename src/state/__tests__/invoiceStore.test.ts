@@ -67,6 +67,18 @@ describe('invoiceStore', () => {
     expect(profile?.nextInvoiceNumber).toBe(6);
   });
 
+  it('create freezes the business currency onto the invoice, and keeps an explicit one (duplicates)', async () => {
+    const business = new InMemoryBusinessRepository();
+    await business.saveProfile({ ...EMPTY_BUSINESS_PROFILE_INPUT, currency: 'EUR' });
+    const store = createInvoiceStore(new InMemoryInvoiceRepository(), business, new ZeroPaymentTotalsRepository());
+
+    const created = await store.getState().create(makeInput());
+    expect(created.currency).toBe('EUR');
+
+    const duplicated = await store.getState().create(makeInput({ currency: 'GBP' }));
+    expect(duplicated.currency).toBe('GBP');
+  });
+
   it('computes and filters by status using real payment totals', async () => {
     const invoices = new InMemoryInvoiceRepository();
     const store = createInvoiceStore(invoices, new InMemoryBusinessRepository(), new ZeroPaymentTotalsRepository());

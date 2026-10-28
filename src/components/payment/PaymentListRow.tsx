@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Payment, PaymentMethod } from '@/domain/payment/types';
 import { PAYMENT_METHOD_LABELS } from '@/domain/payment/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { Glyph, type GlyphName } from '@/components/shared/CurrencyIcon';
+import { useFormatMoney } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -16,8 +17,8 @@ interface Props {
 }
 
 /** Per-method icon + tint — same "one deterministic mapping per enum value" convention as `ItemListRow`'s `METHOD_STYLE`. Exported so other payment-method displays (e.g. `PaymentFormFields`'s method picker) reuse the same mapping. */
-export const METHOD_STYLE: Record<PaymentMethod, { icon: keyof typeof Feather.glyphMap; bg: string; fg: string }> = {
-  cash: { icon: 'dollar-sign', bg: '#DBFCEC', fg: '#006243' },
+export const METHOD_STYLE: Record<PaymentMethod, { icon: GlyphName; bg: string; fg: string }> = {
+  cash: { icon: 'currency', bg: '#DBFCEC', fg: '#006243' },
   bank_transfer: { icon: 'repeat', bg: '#DAE2FD', fg: '#3F465C' },
   card: { icon: 'credit-card', bg: '#E5EEFF', fg: colors.primary },
   paypal: { icon: 'globe', bg: '#DCE9FF', fg: '#003EA8' },
@@ -42,18 +43,18 @@ export const METHOD_STYLE: Record<PaymentMethod, { icon: keyof typeof Feather.gl
  */
 export function PaymentListRow({ payment, onPress, showInvoiceAndCustomer = true, testID }: Props) {
   const methodStyle = METHOD_STYLE[payment.method];
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Payment of ${currencySymbol}${payment.amount.toFixed(2)}`}
+      accessibilityLabel={`Payment of ${formatMoney(payment.amount)}`}
       testID={testID}
       onPress={onPress}
       disabled={!onPress}
       style={({ pressed }) => [styles.row, pressed && !!onPress && styles.pressed]}
     >
       <View style={[styles.icon, { backgroundColor: methodStyle.bg }]}>
-        <Feather name={methodStyle.icon} size={18} color={methodStyle.fg} />
+        <Glyph name={methodStyle.icon} size={18} color={methodStyle.fg} />
       </View>
       <View style={styles.info}>
         {showInvoiceAndCustomer && (
@@ -78,8 +79,8 @@ export function PaymentListRow({ payment, onPress, showInvoiceAndCustomer = true
       </View>
       <View style={styles.trailing}>
         <View style={styles.amountRow}>
-          <Text style={styles.amountSign}>+{currencySymbol}</Text>
-          <Text style={styles.amount}>{payment.amount.toFixed(2)}</Text>
+          <Text style={styles.amountSign}>+</Text>
+          <Text style={styles.amount}>{formatMoney(payment.amount)}</Text>
         </View>
         {!!onPress && (
           <View style={styles.editRow}>

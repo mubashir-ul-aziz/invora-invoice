@@ -109,11 +109,29 @@ describe('InvoiceDetailScreen invoice payment summary', () => {
     const view = await renderScreen(created.id);
 
     await waitFor(() => expect(view.getByTestId('invoice-detail-payment-summary')).toBeTruthy());
-    expect(view.getByTestId('payment-summary-total')).toHaveTextContent(/1000\.00/);
+    expect(view.getByTestId('payment-summary-total')).toHaveTextContent(/\$1,000\.00/);
     expect(view.getByTestId('payment-summary-paid')).toHaveTextContent(/500\.00/);
     expect(view.getByTestId('payment-summary-remaining')).toHaveTextContent(/500\.00/);
     expect(view.getByTestId('invoice-detail-status')).toHaveTextContent(/Partial/);
     expect(view.queryByTestId('invoice-detail-no-payments')).toBeNull();
+  });
+
+  it("shows every amount in the invoice's own saved currency, not the business default", async () => {
+    const invoices = new InMemoryInvoiceRepository();
+    const created = await invoices.create('INV-1', makeInput({ currency: 'EUR', items: [{ ...EMPTY_INVOICE_ITEM_INPUT, itemName: 'Widget', quantity: 30, unitPrice: 100 }] }));
+    mockInvoiceStore = createInvoiceStore(
+      invoices,
+      new InMemoryBusinessRepository(),
+      new PaymentBackedPaymentTotalsRepository(new InMemoryPaymentRepository()),
+    );
+    mockPaymentStore = createPaymentStore(new InMemoryPaymentRepository());
+
+    const view = await renderScreen(created.id);
+
+    await waitFor(() => expect(view.getByTestId('invoice-detail-payment-summary')).toBeTruthy());
+    expect(view.getByTestId('payment-summary-total')).toHaveTextContent('Invoice total€3,000.00');
+    expect(view.getByTestId('totals-grand-total')).toHaveTextContent('Grand total€3,000.00');
+    expect(view.queryByText(/\$/)).toBeNull();
   });
 
   it('shows an Overpaid line instead of a negative Remaining when payments exceed the total', async () => {

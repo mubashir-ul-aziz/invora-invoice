@@ -14,7 +14,7 @@ import {
 } from '@/components/pdf/PdfLineItemRow';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import { TemplatePreview } from '@/components/settings/TemplateCard';
-import { getCurrencySymbol } from '@/domain/business/currency';
+import { formatCurrency } from '@/domain/business/currency';
 import { INVOICE_TEMPLATE_OPTIONS, type InvoiceTemplate } from '@/domain/business/types';
 import type { InvoiceStatus } from '@/domain/invoice/types';
 import { getPdfItemColumns } from '@/domain/pdf/itemColumns';
@@ -128,7 +128,7 @@ export function InvoicePdfPreviewScreen({ navigation, route }: Props) {
         <View style={styles.headerStrip}>
           <View style={styles.headerTopRow}>
             <Text style={styles.headerNumber}>{data.invoiceNumber}</Text>
-            <Text style={styles.headerTotal}>{getCurrencySymbol(data.currency)}{data.totals.grandTotal.toFixed(2)}</Text>
+            <Text style={styles.headerTotal}>{formatCurrency(data.totals.grandTotal, data.currency)}</Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
             <View style={[styles.statusDot, { backgroundColor: statusFg }]} />

@@ -16,6 +16,7 @@ import type { ItemFormOutput, ItemFormValues } from '@/domain/item/validation';
 import { DEFAULT_LENGTH_UNIT, DEFAULT_WEIGHT_UNIT } from '@/domain/invoiceType/units';
 import { useInvoiceTypeStore } from '@/state/invoiceTypeStore';
 import { useCurrencySymbol } from '@/state/currencyContext';
+import { CurrencyIcon } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 /** Matches the exact `useForm<ItemFormValues, unknown, ItemFormOutput>()` shape both screens use. */
@@ -144,7 +145,7 @@ export function ItemFormFields({ control, errors, lockedInvoiceTypeId }: Props) 
         <View style={styles.cardHeaderRow}>
           <View style={styles.cardHeaderLeft}>
             <View style={styles.cardIcon}>
-              <Feather name="dollar-sign" size={16} color={colors.primary} />
+              <CurrencyIcon size={16} color={colors.primary} />
             </View>
             <Text style={styles.cardTitle}>Pricing &amp; Units</Text>
           </View>

@@ -26,7 +26,7 @@ import { PLAN_CONFIG } from '@/domain/subscription/plans';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { InvoiceCurrencyProvider, useInvoiceFormatMoney } from '@/state/currencyContext';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceStore } from '@/state/invoiceStore';
 import { toast } from '@/state/toastStore';
@@ -50,7 +50,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   const draft = useInvoiceDraftStore();
   const { create, update, getById } = useInvoiceStore();
   const { profile, load: loadProfile } = useBusinessProfileStore();
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useInvoiceFormatMoney(draft.currency);
   const [existingInvoiceNumber, setExistingInvoiceNumber] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState(true);
   const [limitError, setLimitError] = useState<InvoiceLimitError | null>(null);
@@ -96,6 +96,8 @@ export function InvoiceReviewScreen({ navigation }: Props) {
               customerName: draft.customer.name,
               invoiceTypeId: draft.invoiceTypeId,
               ...details,
+              // A duplicate keeps its source invoice's currency; a new invoice takes the business's (see `invoiceStore.create`).
+              currency: draft.currency ?? undefined,
               items: draft.items,
             });
       toast.success(
@@ -116,7 +118,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
   });
 
   return (
-    <>
+    <InvoiceCurrencyProvider currency={draft.currency}>
     <KeyboardAvoidingScreen
       style={styles.screen}
       contentContainerStyle={styles.content}
@@ -124,7 +126,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
       footer={
         <BottomActionBar
           primary={{
-            label: isSubmitting ? 'Saving…' : `Save & Issue Invoice (${currencySymbol}${totals.grandTotal.toFixed(2)})`,
+            label: isSubmitting ? 'Saving…' : `Save & Issue Invoice (${formatMoney(totals.grandTotal)})`,
             icon: 'send',
             onPress: onSubmit,
             disabled: isSubmitting,
@@ -264,7 +266,7 @@ export function InvoiceReviewScreen({ navigation }: Props) {
       }}
       testID="invoice-review-limit-modal"
     />
-    </>
+    </InvoiceCurrencyProvider>
   );
 }
 

@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import type { Item } from '@/domain/item/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -37,7 +37,7 @@ export const METHOD_STYLE: Record<InvoiceTypeId, { icon: keyof typeof Feather.gl
 export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) {
   const methodDef = getInvoiceTypeDefinition(item.invoiceTypeId);
   const methodStyle = METHOD_STYLE[item.invoiceTypeId];
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
 
   const detailParts = [item.sku ? `SKU ${item.sku}` : null, methodDef.label].filter(Boolean);
 
@@ -77,7 +77,7 @@ export function ItemListRow({ item, onPress, onEdit, onDelete, testID }: Props) 
       </View>
 
       <View style={styles.valueBlock}>
-        <Text style={styles.price}>{currencySymbol}{item.defaultPrice.toFixed(2)}</Text>
+        <Text style={styles.price}>{formatMoney(item.defaultPrice)}</Text>
       </View>
 
       <View style={styles.actions}>

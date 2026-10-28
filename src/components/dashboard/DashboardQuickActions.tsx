@@ -2,12 +2,14 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Glyph, type GlyphName } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 interface ActionSpec {
   label: string;
   sublabel: string;
-  icon: keyof typeof Feather.glyphMap;
+  /** Feather glyph, or `'currency'` for the current currency's symbol (see `CurrencyIcon`). */
+  icon: GlyphName;
   onPress: () => void;
   testID: string;
   primary?: boolean;
@@ -40,7 +42,7 @@ export function DashboardQuickActions({ onCreateInvoice, onAddCustomer, onRecord
     {
       label: 'Log Pay',
       sublabel: 'Record payment',
-      icon: 'dollar-sign',
+      icon: 'currency',
       onPress: onRecordPayment,
       testID: 'action-record-payment',
     },
@@ -58,7 +60,7 @@ export function DashboardQuickActions({ onCreateInvoice, onAddCustomer, onRecord
           style={({ pressed }) => [styles.tile, action.primary && styles.tilePrimary, pressed && styles.pressed]}
         >
           <View style={[styles.iconBox, action.primary && styles.iconBoxPrimary]}>
-            <Feather name={action.icon} size={18} color={action.primary ? colors.primaryText : colors.primary} />
+            <Glyph name={action.icon} size={18} color={action.primary ? colors.primaryText : colors.primary} />
           </View>
           <Text style={[styles.label, action.primary && styles.labelPrimary]} numberOfLines={1}>
             {action.label}

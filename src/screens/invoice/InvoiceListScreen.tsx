@@ -15,7 +15,7 @@ import { INVOICE_STATUS_LABELS } from '@/domain/invoice/status';
 import type { InvoiceStatus } from '@/domain/invoice/types';
 import { groupByDateSection } from '@/domain/shared/dateSections';
 import type { RootStackParamList } from '@/navigation/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceSettingsStore } from '@/state/invoiceSettingsStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
@@ -78,7 +78,7 @@ export function InvoiceListScreen({ navigation, route }: Props) {
   const { settings: invoiceSettings, load: loadInvoiceSettings } = useInvoiceSettingsStore();
   const subscription = useSubscription();
   const { guard: guardInvoiceCreation, modal: invoiceLimitModal } = useInvoiceLimitGuard(navigation);
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
@@ -222,7 +222,7 @@ export function InvoiceListScreen({ navigation, route }: Props) {
                   <View style={styles.summaryDot} />
                   <Text style={styles.summaryEyebrowText}>Total Outstanding</Text>
                 </View>
-                <Text style={styles.summaryValue}>{currencySymbol}{totalOutstanding.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>{formatMoney(totalOutstanding)}</Text>
                 <Text style={styles.summaryCaption}>
                   {outstandingEntries.length} pending or overdue invoice{outstandingEntries.length === 1 ? '' : 's'}
                 </Text>

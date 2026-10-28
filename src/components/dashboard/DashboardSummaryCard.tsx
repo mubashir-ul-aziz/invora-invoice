@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { formatAmount } from '@/domain/business/currency';
 import type { DashboardSummary } from '@/domain/dashboard/types';
 import { useCurrencySymbol } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
@@ -122,10 +123,6 @@ function MetricTile({
       {children}
     </View>
   );
-}
-
-function formatAmount(value: number): string {
-  return value.toFixed(2);
 }
 
 const styles = StyleSheet.create({

@@ -61,7 +61,8 @@ export function buildInvoicePdfData(args: BuildInvoicePdfDataArgs): InvoicePdfDa
     dueDate: invoice.dueDate,
     notes: invoice.notes,
     terms: invoice.terms,
-    currency: business?.currency || 'USD',
+    // The invoice's own saved currency; the business's only for invoices saved before `Invoice.currency` existed.
+    currency: invoice.currency || business?.currency || 'USD',
     fieldConfig: args.fieldConfig,
     items: invoice.items,
     totals: args.totals,

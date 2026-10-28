@@ -30,6 +30,12 @@ interface InvoiceDraftState {
   dueDate: string | null;
   notes: string | null;
   terms: string | null;
+  /**
+   * Currency of the invoice being edited/duplicated (`Invoice.currency`), so
+   * the line editor and Review show its amounts in that currency. Null for a
+   * brand-new invoice — it takes the business's currency when saved.
+   */
+  currency: string | null;
   items: InvoiceItemInput[];
 
   /** Begins a brand-new invoice. The customer is set separately, once picked. `dueDate`, when given, prefills from the business's default payment terms. */
@@ -50,7 +56,7 @@ interface InvoiceDraftState {
 
 const INITIAL_STATE: Pick<
   InvoiceDraftState,
-  'mode' | 'editingInvoiceId' | 'customer' | 'invoiceTypeId' | 'issueDate' | 'dueDate' | 'notes' | 'terms' | 'items'
+  'mode' | 'editingInvoiceId' | 'customer' | 'invoiceTypeId' | 'issueDate' | 'dueDate' | 'notes' | 'terms' | 'currency' | 'items'
 > = {
   mode: null,
   editingInvoiceId: null,
@@ -60,6 +66,7 @@ const INITIAL_STATE: Pick<
   dueDate: null,
   notes: null,
   terms: null,
+  currency: null,
   items: [],
 };
 
@@ -87,6 +94,7 @@ export const useInvoiceDraftStore = create<InvoiceDraftState>((set, get) => ({
       dueDate: invoice.dueDate,
       notes: invoice.notes,
       terms: invoice.terms,
+      currency: invoice.currency ?? null,
       items: invoice.items.map(invoiceItemInputFromSnapshot),
     });
   },
@@ -101,6 +109,7 @@ export const useInvoiceDraftStore = create<InvoiceDraftState>((set, get) => ({
       dueDate: null,
       notes: invoice.notes,
       terms: invoice.terms,
+      currency: invoice.currency ?? null,
       items: invoice.items.map(invoiceItemInputFromSnapshot),
     });
   },

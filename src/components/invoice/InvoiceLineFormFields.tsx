@@ -14,7 +14,8 @@ import type { UnitFieldKind } from '@/domain/invoiceType/customUnits';
 import { getFieldDefinition } from '@/domain/invoiceType/fieldCatalog';
 import { PRICING_METHOD_OPTIONS, getInvoiceTypeDefinition, type InvoiceTypeId } from '@/domain/invoiceType/invoiceTypeRegistry';
 import { getFieldLabel, type InvoiceFieldConfig } from '@/domain/invoiceType/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useCurrencySymbol, useFormatMoney } from '@/state/currencyContext';
+import { CurrencyIcon } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 /** Matches the exact `useForm<InvoiceLineFormValues, unknown, InvoiceLineFormOutput>()` shape the screen uses. */
@@ -126,7 +127,7 @@ export function InvoiceLineFormFields({
       {/* Pricing */}
       <View style={styles.card}>
         <View style={styles.cardHeaderRow}>
-          <Feather name="dollar-sign" size={16} color={colors.primary} />
+          <CurrencyIcon size={16} color={colors.primary} />
           <Text style={styles.cardTitle}>Pricing</Text>
         </View>
         <PriceModeField control={control} />
@@ -189,7 +190,7 @@ export function InvoiceLineFormFields({
 /** Live "Line Total Preview" — real math via the same `calculateLineTotal` the rest of the app freezes at save time. Previously this screen showed no running total at all. */
 function LineTotalPreview({ control, fieldConfig }: { control: InvoiceLineFormControl; fieldConfig: InvoiceFieldConfig }) {
   const values = useWatch({ control });
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   const toNum = (v: unknown): number | null => {
     if (typeof v !== 'string' || v.trim() === '') return null;
     const n = Number(v);
@@ -238,26 +239,26 @@ function LineTotalPreview({ control, fieldConfig }: { control: InvoiceLineFormCo
       {isTotalMode ? (
         <View style={styles.previewRow}>
           <Text style={styles.previewRowLabel}>Total Item Price (not multiplied by quantity)</Text>
-          <Text style={styles.previewRowValue} testID="invoice-line-preview-subtotal">{currencySymbol}{calc.subtotal.toFixed(2)}</Text>
+          <Text style={styles.previewRowValue} testID="invoice-line-preview-subtotal">{formatMoney(calc.subtotal)}</Text>
         </View>
       ) : (
         <View style={styles.previewRow}>
-          <Text style={styles.previewRowLabel}>{`× ${currencySymbol}${(toNum(values.unitPrice) ?? 0).toFixed(2)} unit price`}</Text>
-          <Text style={styles.previewRowValue} testID="invoice-line-preview-subtotal">{currencySymbol}{calc.subtotal.toFixed(2)}</Text>
+          <Text style={styles.previewRowLabel}>{`× ${formatMoney(toNum(values.unitPrice) ?? 0)} unit price`}</Text>
+          <Text style={styles.previewRowValue} testID="invoice-line-preview-subtotal">{formatMoney(calc.subtotal)}</Text>
         </View>
       )}
       {calc.discountAmount > 0 && (
         <View style={styles.previewRow}>
           <Text style={styles.previewRowLabel}>Discount</Text>
-          <Text style={styles.previewRowValue}>-{currencySymbol}{calc.discountAmount.toFixed(2)}</Text>
+          <Text style={styles.previewRowValue}>-{formatMoney(calc.discountAmount)}</Text>
         </View>
       )}
       <View style={styles.previewRow}>
-        <Text style={styles.previewRowLabel}>{calc.taxAmount > 0 ? `+${currencySymbol}${calc.taxAmount.toFixed(2)} VAT` : 'No VAT'}</Text>
+        <Text style={styles.previewRowLabel}>{calc.taxAmount > 0 ? `+${formatMoney(calc.taxAmount)} VAT` : 'No VAT'}</Text>
       </View>
       <View style={styles.previewGrossRow}>
         <Text style={styles.previewGrossLabel}>Line Total</Text>
-        <Text style={styles.previewGrossValue}>{currencySymbol}{calc.lineTotal.toFixed(2)}</Text>
+        <Text style={styles.previewGrossValue}>{formatMoney(calc.lineTotal)}</Text>
       </View>
     </View>
   );

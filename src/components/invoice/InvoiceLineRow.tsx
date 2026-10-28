@@ -3,7 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PriceMode } from '@/domain/invoice/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -56,7 +56,7 @@ export function InvoiceLineRow({
   onDelete,
   testID,
 }: Props) {
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   const quantityLabel = measurementLabel ?? (quantity != null ? `${formatNumber(quantity)}${unit ? ` ${unit}` : ''}` : null);
   const subtitle =
     priceMode === 'total'
@@ -64,8 +64,8 @@ export function InvoiceLineRow({
         ? `${quantityLabel} · Total item price`
         : 'Total item price'
       : quantityLabel
-        ? `${quantityLabel} × ${currencySymbol}${unitPrice.toFixed(2)}`
-        : `${currencySymbol}${unitPrice.toFixed(2)} each`;
+        ? `${quantityLabel} × ${formatMoney(unitPrice)}`
+        : `${formatMoney(unitPrice)} each`;
 
   return (
     <Pressable
@@ -81,7 +81,7 @@ export function InvoiceLineRow({
           {itemName || 'Untitled line'}
         </Text>
         <Text style={styles.total} numberOfLines={1}>
-          {currencySymbol}{lineTotal.toFixed(2)}
+          {formatMoney(lineTotal)}
         </Text>
       </View>
       <View style={styles.bottomRow}>

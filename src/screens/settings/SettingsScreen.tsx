@@ -124,7 +124,7 @@ export function SettingsScreen({ navigation }: Props) {
           testID="settings-row-invoice-numbering"
         />
         <SettingsRow
-          icon="dollar-sign"
+          icon="currency"
           label="Currency"
           description="The currency used on new invoices"
           onPress={() => navigation.navigate('InvoiceSettings')}

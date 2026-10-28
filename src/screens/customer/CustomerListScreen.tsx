@@ -13,7 +13,7 @@ import type { Customer, CustomerBalanceSummary } from '@/domain/customer/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerBalancesStore } from '@/state/customerBalancesStore';
 import { useCustomerStore } from '@/state/customerStore';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
@@ -59,7 +59,7 @@ export function CustomerListScreen({ navigation, route }: Props) {
   const onSelectCustomer = route.params?.onSelectCustomer;
   const { status, customers, filter, error, load, setFilter, remove } = useCustomerStore();
   const { balances, loadMany: loadBalances } = useCustomerBalancesStore();
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortMode, setSortMode] = useState<SortMode>('name');
@@ -325,7 +325,7 @@ export function CustomerListScreen({ navigation, route }: Props) {
           <View style={styles.summaryBar} testID="customer-summary-bar">
             <View style={styles.summaryColumn}>
               <Text style={styles.summaryLabel}>Total Outstanding</Text>
-              <Text style={styles.summaryValueDanger}>{currencySymbol}{totalOutstanding.toFixed(2)}</Text>
+              <Text style={styles.summaryValueDanger}>{formatMoney(totalOutstanding)}</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={[styles.summaryColumn, styles.summaryColumnEnd]}>

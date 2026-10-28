@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { formatAmount } from '@/domain/business/currency';
 import type { CustomerBalanceStatus } from '@/domain/customer/activity';
 import type { Customer, CustomerBalanceSummary } from '@/domain/customer/types';
 import { useCurrencySymbol } from '@/state/currencyContext';
@@ -43,10 +44,6 @@ export function initialsFor(name: string): string {
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-function formatAmount(value: number): string {
-  return value.toFixed(2);
 }
 
 const STATUS_BADGE: Record<CustomerBalanceStatus, { label: string; bg: string; fg: string; icon?: keyof typeof Feather.glyphMap }> = {

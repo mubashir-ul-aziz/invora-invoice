@@ -65,6 +65,7 @@ function toInvoice(row: typeof invoice.$inferSelect, lines: InvoiceItemSnapshot[
     dueDate: row.dueDate,
     notes: row.notes,
     terms: row.terms,
+    currency: row.currency,
     items: lines,
     createdAt: new Date(row.createdAt).toISOString(),
     updatedAt: new Date(row.updatedAt).toISOString(),
@@ -154,6 +155,7 @@ export class SqliteInvoiceRepository implements InvoiceRepository {
           dueDate: input.dueDate,
           notes: input.notes,
           terms: input.terms,
+          currency: input.currency ?? null,
           createdAt: now,
           updatedAt: now,
         })

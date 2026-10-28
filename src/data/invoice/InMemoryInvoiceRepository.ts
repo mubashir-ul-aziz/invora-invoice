@@ -98,6 +98,7 @@ export class InMemoryInvoiceRepository implements InvoiceRepository {
       dueDate: input.dueDate,
       notes: input.notes,
       terms: input.terms,
+      currency: input.currency ?? null,
       items: buildLineSnapshots(input.items, input.invoiceTypeId),
       createdAt: now,
       updatedAt: now,

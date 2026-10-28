@@ -11,7 +11,7 @@ import { PaymentListRow } from '@/components/payment/PaymentListRow';
 import { PaymentSummaryCard } from '@/components/payment/PaymentSummaryCard';
 import { OverflowMenu } from '@/components/shared/OverflowMenu';
 import type { Customer } from '@/domain/customer/types';
-import { getCurrencySymbol } from '@/domain/business/currency';
+import { formatCurrency, getCurrencySymbol } from '@/domain/business/currency';
 import type { Invoice } from '@/domain/invoice/types';
 import { describeLineMeasurement } from '@/domain/invoiceType/calculators';
 import { getInvoiceTypeDefinition } from '@/domain/invoiceType/invoiceTypeRegistry';
@@ -20,8 +20,7 @@ import type { Payment } from '@/domain/payment/types';
 import { formatTimestamp } from '@/domain/shared/formatting';
 import { openEmail, openGoogleMaps, openPhone, openWebsite } from '@/lib/linking';
 import type { RootStackParamList } from '@/navigation/types';
-import { useBusinessProfileStore } from '@/state/businessProfileStore';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { InvoiceCurrencyProvider, useCurrencyCode } from '@/state/currencyContext';
 import { useCustomerStore } from '@/state/customerStore';
 import { useInvoiceDraftStore } from '@/state/invoiceDraftStore';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
@@ -63,30 +62,24 @@ function customerFromInvoiceSnapshot(invoice: Invoice): Customer {
  * real and backend-wired before this restyle (payments, PDF/sharing, edit,
  * delete, duplicate, contact actions) — nothing here needed new wiring.
  * The Invoice Details grid's "Payment Terms" reuses the real
- * `invoice.terms` and "Currency" shows the business's own currency
- * (`BusinessProfile.currency`, set on Business/Invoice Settings) — `Invoice`
- * has no per-invoice currency field of its own, so this is the business-wide
- * value, same as every other money figure on this screen.
+ * `invoice.terms`. Every amount, the currency tag and the Record Payment
+ * icon use the invoice's own saved `Invoice.currency` (falling back to the
+ * business currency for invoices saved before that field existed) — the
+ * screen body is wrapped in `InvoiceCurrencyProvider` so nested rows/cards
+ * pick it up too.
  */
 export function InvoiceDetailScreen({ navigation, route }: Props) {
   const { invoiceId } = route.params;
   const { getDetail, remove } = useInvoiceStore();
   const { getById: getCustomerById } = useCustomerStore();
   const { listByInvoice } = usePaymentStore();
-  const { profile: businessProfile, load: loadBusinessProfile } = useBusinessProfileStore();
-  const currencySymbol = useCurrencySymbol();
+  const businessCurrency = useCurrencyCode();
   const { guard: guardInvoiceCreation, modal: invoiceLimitModal } = useInvoiceLimitGuard(navigation);
-  const currencyLabel = businessProfile ? `${businessProfile.currency} (${getCurrencySymbol(businessProfile.currency)})` : currencySymbol;
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [detail, setDetail] = useState<InvoiceWithStatus | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<InvoicePaymentSummary | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
-
-  useEffect(() => {
-    loadBusinessProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +185,9 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   }
 
   const { invoice, totals, status: invoiceStatus } = detail;
+  const currency = invoice.currency || businessCurrency;
+  const formatMoney = (amount: number) => formatCurrency(amount, currency);
+  const currencyLabel = currency ? `${currency.trim().toUpperCase()} (${getCurrencySymbol(currency)})` : getCurrencySymbol(currency);
   const initials = getInitials(invoice.customerName);
   const agingLabel = describeAging(invoice.dueDate, invoiceStatus);
   const settlementPercent =
@@ -200,307 +196,308 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
       : 0;
 
   return (
-    <View style={styles.screen} testID="invoice-detail-screen">
-      {/* Breadcrumb strip: real Pricing Method label (Stitch's mock shows a
-          fake "Commercial B2B" business-category tag with no backing field —
-          Pricing Method is the real, already-displayed equivalent). */}
-      <View style={styles.breadcrumbRow}>
-        <Text style={styles.breadcrumbText}>{getInvoiceTypeDefinition(invoice.invoiceTypeId).label}</Text>
-        <View style={styles.breadcrumbSpacer} />
-        <OverflowMenu
-          testID="invoice-detail-menu"
-          items={[
-            {
-              label: 'Edit invoice',
-              onPress: () => navigation.navigate('EditInvoice', { invoiceId }),
-              testID: 'action-edit-invoice',
-            },
-            { label: 'Duplicate', onPress: handleDuplicate, testID: 'action-duplicate-invoice' },
-            {
-              label: 'Download PDF',
-              onPress: () => navigation.navigate('InvoicePdfPreview', { invoiceId }),
-              testID: 'action-download-pdf',
-            },
-            { label: 'Delete invoice', onPress: handleDelete, destructive: true, testID: 'action-delete-invoice' },
-          ]}
-        />
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        {/* Hero Status card */}
-        <View style={styles.heroCard}>
-          {(invoiceStatus === 'overdue' || invoiceStatus === 'unpaid') && <View style={styles.heroTint} />}
-          <View style={styles.heroTopRow}>
-            <View>
-              <Text style={styles.heroEyebrow}>Issued Invoice</Text>
-              <Text style={styles.heroNumber}>{invoice.invoiceNumber}</Text>
-            </View>
-            <InvoiceStatusBadge status={invoiceStatus} testID="invoice-detail-status" />
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Open customer ${invoice.customerName}`}
-            testID="action-open-customer"
-            onPress={() => navigation.navigate('CustomerDetail', { customerId: invoice.customerId })}
-            style={({ pressed }) => [styles.customerTile, pressed && styles.pressed]}
-          >
-            <View style={styles.customerLeft}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-              <View style={styles.customerTextCol}>
-                <Text style={styles.customerLabel}>Customer</Text>
-                <Text style={styles.customerName} numberOfLines={1}>
-                  {invoice.customerName}
-                </Text>
-              </View>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMuted} />
-          </Pressable>
-
-          <View style={styles.metaGrid}>
-            <View style={styles.metaCol}>
-              <Text style={styles.metaLabel}>Issued On</Text>
-              <Text style={styles.metaValue}>{formatDate(invoice.issueDate)}</Text>
-            </View>
-            <View style={styles.metaCol}>
-              <Text style={styles.metaLabel}>Aging Timeline</Text>
-              <Text style={[styles.metaValue, invoiceStatus === 'overdue' && styles.metaValueOverdue]}>
-                {agingLabel}
-              </Text>
-            </View>
-          </View>
+    <InvoiceCurrencyProvider currency={currency}>
+      <View style={styles.screen} testID="invoice-detail-screen">
+        {/* Breadcrumb strip: real Pricing Method label (Stitch's mock shows a
+            fake "Commercial B2B" business-category tag with no backing field —
+            Pricing Method is the real, already-displayed equivalent). */}
+        <View style={styles.breadcrumbRow}>
+          <Text style={styles.breadcrumbText}>{getInvoiceTypeDefinition(invoice.invoiceTypeId).label}</Text>
+          <View style={styles.breadcrumbSpacer} />
+          <OverflowMenu
+            testID="invoice-detail-menu"
+            items={[
+              {
+                label: 'Edit invoice',
+                onPress: () => navigation.navigate('EditInvoice', { invoiceId }),
+                testID: 'action-edit-invoice',
+              },
+              { label: 'Duplicate', onPress: handleDuplicate, testID: 'action-duplicate-invoice' },
+              {
+                label: 'Download PDF',
+                onPress: () => navigation.navigate('InvoicePdfPreview', { invoiceId }),
+                testID: 'action-download-pdf',
+              },
+              { label: 'Delete invoice', onPress: handleDelete, destructive: true, testID: 'action-delete-invoice' },
+            ]}
+          />
         </View>
 
-        {/* Financial Balances card — same real numbers `PaymentSummaryCard` shows below, restated as a prominent callout + progress bar. */}
-        {!!paymentSummary && (
-          <View style={styles.balancesCard}>
-            <View style={styles.balancesHeaderRow}>
-              <Text style={styles.sectionTitle}>Financial Balances</Text>
-              <Text style={styles.currencyTag}>{currencyLabel}</Text>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+          {/* Hero Status card */}
+          <View style={styles.heroCard}>
+            {(invoiceStatus === 'overdue' || invoiceStatus === 'unpaid') && <View style={styles.heroTint} />}
+            <View style={styles.heroTopRow}>
+              <View>
+                <Text style={styles.heroEyebrow}>Issued Invoice</Text>
+                <Text style={styles.heroNumber}>{invoice.invoiceNumber}</Text>
+              </View>
+              <InvoiceStatusBadge status={invoiceStatus} testID="invoice-detail-status" />
             </View>
-            <View
-              style={[
-                styles.balanceCallout,
-                paymentSummary.overpaid > 0 || paymentSummary.remaining <= 0
-                  ? styles.balanceCalloutSettled
-                  : styles.balanceCalloutDue,
-              ]}
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open customer ${invoice.customerName}`}
+              testID="action-open-customer"
+              onPress={() => navigation.navigate('CustomerDetail', { customerId: invoice.customerId })}
+              style={({ pressed }) => [styles.customerTile, pressed && styles.pressed]}
             >
-              <Text
-                style={[
-                  styles.balanceCalloutLabel,
-                  paymentSummary.overpaid > 0 || paymentSummary.remaining <= 0
-                    ? styles.balanceCalloutLabelSettled
-                    : styles.balanceCalloutLabelDue,
-                ]}
-              >
-                {paymentSummary.overpaid > 0 ? 'Overpaid' : 'Remaining Balance Due'}
-              </Text>
-              <Text
-                style={[
-                  styles.balanceCalloutValue,
-                  paymentSummary.overpaid > 0 || paymentSummary.remaining <= 0
-                    ? styles.balanceCalloutValueSettled
-                    : styles.balanceCalloutValueDue,
-                ]}
-              >
-                {currencySymbol}
-                {(paymentSummary.overpaid > 0 ? paymentSummary.overpaid : paymentSummary.remaining).toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.balancesGrid}>
-              <View style={styles.balancesGridCell}>
-                <Text style={styles.metaLabel}>Total Invoiced</Text>
-                <Text style={styles.balancesGridValue}>{currencySymbol}{totals.grandTotal.toFixed(2)}</Text>
+              <View style={styles.customerLeft}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initials}</Text>
+                </View>
+                <View style={styles.customerTextCol}>
+                  <Text style={styles.customerLabel}>Customer</Text>
+                  <Text style={styles.customerName} numberOfLines={1}>
+                    {invoice.customerName}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.balancesGridCell}>
-                <Text style={styles.metaLabel}>Amount Paid</Text>
-                <Text style={[styles.balancesGridValue, styles.balancesGridValueMuted]}>
-                  {currencySymbol}{paymentSummary.amountPaid.toFixed(2)}
+              <Feather name="chevron-right" size={18} color={colors.textMuted} />
+            </Pressable>
+
+            <View style={styles.metaGrid}>
+              <View style={styles.metaCol}>
+                <Text style={styles.metaLabel}>Issued On</Text>
+                <Text style={styles.metaValue}>{formatDate(invoice.issueDate)}</Text>
+              </View>
+              <View style={styles.metaCol}>
+                <Text style={styles.metaLabel}>Aging Timeline</Text>
+                <Text style={[styles.metaValue, invoiceStatus === 'overdue' && styles.metaValueOverdue]}>
+                  {agingLabel}
                 </Text>
               </View>
             </View>
-            <View style={styles.progressSection}>
-              <View style={styles.progressLabelRow}>
-                <Text style={styles.metaLabel}>Settlement Progress</Text>
-                <Text style={styles.progressPercent}>{settlementPercent}% Settled</Text>
-              </View>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${settlementPercent}%` }]} />
-              </View>
-            </View>
           </View>
-        )}
 
-        {!!customer && (customer.phone || customer.email || customer.website || customer.address) && (
-          <View style={styles.row}>
-            {!!customer.phone && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Call"
-                testID="action-call"
-                onPress={() => openPhone(customer.phone!)}
-                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          {/* Financial Balances card — same real numbers `PaymentSummaryCard` shows below, restated as a prominent callout + progress bar. */}
+          {!!paymentSummary && (
+            <View style={styles.balancesCard}>
+              <View style={styles.balancesHeaderRow}>
+                <Text style={styles.sectionTitle}>Financial Balances</Text>
+                <Text style={styles.currencyTag}>{currencyLabel}</Text>
+              </View>
+              <View
+                style={[
+                  styles.balanceCallout,
+                  paymentSummary.overpaid > 0 || paymentSummary.remaining <= 0
+                    ? styles.balanceCalloutSettled
+                    : styles.balanceCalloutDue,
+                ]}
               >
-                <Feather name="phone" size={18} color={colors.textMuted} />
-              </Pressable>
-            )}
-            {!!customer.email && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Email"
-                testID="action-email"
-                onPress={() => openEmail(customer.email!)}
-                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-              >
-                <Feather name="mail" size={18} color={colors.textMuted} />
-              </Pressable>
-            )}
-            {!!customer.website && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Website"
-                testID="action-website"
-                onPress={() => openWebsite(customer.website!)}
-                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-              >
-                <Feather name="globe" size={18} color={colors.textMuted} />
-              </Pressable>
-            )}
-            {!!customer.address && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Directions"
-                testID="action-directions"
-                onPress={() => openGoogleMaps({ address: customer.address })}
-                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-              >
-                <Feather name="map-pin" size={18} color={colors.textMuted} />
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {/* Line Items card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.cardHeaderLeft}>
-              <Text style={styles.sectionTitle}>Line Items</Text>
-              <View style={styles.entriesBadge}>
-                <Text style={styles.entriesBadgeText}>
-                  {invoice.items.length} {invoice.items.length === 1 ? 'entry' : 'entries'}
+                <Text
+                  style={[
+                    styles.balanceCalloutLabel,
+                    paymentSummary.overpaid > 0 || paymentSummary.remaining <= 0
+                      ? styles.balanceCalloutLabelSettled
+                      : styles.balanceCalloutLabelDue,
+                  ]}
+                >
+                  {paymentSummary.overpaid > 0 ? 'Overpaid' : 'Remaining Balance Due'}
+                </Text>
+                <Text
+                  style={[
+                    styles.balanceCalloutValue,
+                    paymentSummary.overpaid > 0 || paymentSummary.remaining <= 0
+                      ? styles.balanceCalloutValueSettled
+                      : styles.balanceCalloutValueDue,
+                  ]}
+                >
+                  {formatMoney(paymentSummary.overpaid > 0 ? paymentSummary.overpaid : paymentSummary.remaining)}
                 </Text>
               </View>
+              <View style={styles.balancesGrid}>
+                <View style={styles.balancesGridCell}>
+                  <Text style={styles.metaLabel}>Total Invoiced</Text>
+                  <Text style={styles.balancesGridValue}>{formatMoney(totals.grandTotal)}</Text>
+                </View>
+                <View style={styles.balancesGridCell}>
+                  <Text style={styles.metaLabel}>Amount Paid</Text>
+                  <Text style={[styles.balancesGridValue, styles.balancesGridValueMuted]}>
+                    {formatMoney(paymentSummary.amountPaid)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.progressSection}>
+                <View style={styles.progressLabelRow}>
+                  <Text style={styles.metaLabel}>Settlement Progress</Text>
+                  <Text style={styles.progressPercent}>{settlementPercent}% Settled</Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${settlementPercent}%` }]} />
+                </View>
+              </View>
             </View>
-            <Text style={styles.readOnlyCaption}>Read-only view</Text>
-          </View>
-          <View style={styles.itemsSection}>
-            {invoice.items.map((line) => (
-              <InvoiceLineRow
-                key={line.id}
-                itemName={line.itemName}
-                quantity={line.quantity}
-                unit={line.unit}
-                measurementLabel={describeLineMeasurement(line.pricingMethodId ?? invoice.invoiceTypeId, line)}
-                priceMode={line.priceMode}
-                unitPrice={line.unitPrice}
-                lineTotal={line.lineTotal}
-                testID={`invoice-detail-line-${line.id}`}
-              />
-            ))}
-          </View>
-          <InvoiceTotalsSummary totals={totals} testID="invoice-detail-totals" />
-        </View>
+          )}
 
-        {/* Payment History card */}
-        {!!paymentSummary && (
+          {!!customer && (customer.phone || customer.email || customer.website || customer.address) && (
+            <View style={styles.row}>
+              {!!customer.phone && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Call"
+                  testID="action-call"
+                  onPress={() => openPhone(customer.phone!)}
+                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                >
+                  <Feather name="phone" size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
+              {!!customer.email && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Email"
+                  testID="action-email"
+                  onPress={() => openEmail(customer.email!)}
+                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                >
+                  <Feather name="mail" size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
+              {!!customer.website && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Website"
+                  testID="action-website"
+                  onPress={() => openWebsite(customer.website!)}
+                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                >
+                  <Feather name="globe" size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
+              {!!customer.address && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Directions"
+                  testID="action-directions"
+                  onPress={() => openGoogleMaps({ address: customer.address })}
+                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                >
+                  <Feather name="map-pin" size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {/* Line Items card */}
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
-              <Text style={styles.sectionTitle}>Payment History</Text>
-              <Text style={styles.readOnlyCaption}>Ledger log</Text>
-            </View>
-            <PaymentSummaryCard summary={paymentSummary} testID="invoice-detail-payment-summary" />
-            {payments.length === 0 && (
-              <View style={styles.emptyPaymentsCard}>
-                <View style={styles.emptyPaymentsIcon}>
-                  <Feather name="file-text" size={22} color={colors.textMuted} />
+              <View style={styles.cardHeaderLeft}>
+                <Text style={styles.sectionTitle}>Line Items</Text>
+                <View style={styles.entriesBadge}>
+                  <Text style={styles.entriesBadgeText}>
+                    {invoice.items.length} {invoice.items.length === 1 ? 'entry' : 'entries'}
+                  </Text>
                 </View>
-                <Text style={styles.emptyPaymentsTitle} testID="invoice-detail-no-payments">
-                  No payments recorded yet
-                </Text>
-                <Text style={styles.emptyPaymentsSubtitle}>
-                  Record the first settlement to balance the accounts receivable ledger.
-                </Text>
               </View>
-            )}
-            {payments.map((paymentRow) => (
-              <PaymentListRow
-                key={paymentRow.id}
-                payment={paymentRow}
-                showInvoiceAndCustomer={false}
-                onPress={() => navigation.navigate('EditPayment', { paymentId: paymentRow.id })}
-                testID={`invoice-detail-payment-${paymentRow.id}`}
-              />
-            ))}
+              <Text style={styles.readOnlyCaption}>Read-only view</Text>
+            </View>
+            <View style={styles.itemsSection}>
+              {invoice.items.map((line) => (
+                <InvoiceLineRow
+                  key={line.id}
+                  itemName={line.itemName}
+                  quantity={line.quantity}
+                  unit={line.unit}
+                  measurementLabel={describeLineMeasurement(line.pricingMethodId ?? invoice.invoiceTypeId, line)}
+                  priceMode={line.priceMode}
+                  unitPrice={line.unitPrice}
+                  lineTotal={line.lineTotal}
+                  testID={`invoice-detail-line-${line.id}`}
+                />
+              ))}
+            </View>
+            <InvoiceTotalsSummary totals={totals} testID="invoice-detail-totals" />
           </View>
-        )}
 
-        {/* Supplemental Invoice Details grid */}
-        <View style={styles.card}>
-          <View style={styles.balancesHeaderRow}>
-            <Text style={styles.sectionTitle}>Invoice Details</Text>
-            <Text style={styles.currencyTag}>{currencyLabel}</Text>
-          </View>
-          <View style={styles.detailsGrid}>
-            <View style={styles.detailsCellFull}>
-              <Text style={styles.metaLabel}>Payment Terms</Text>
-              <Text style={styles.metaValue}>{invoice.terms || 'Not set'}</Text>
+          {/* Payment History card */}
+          {!!paymentSummary && (
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.sectionTitle}>Payment History</Text>
+                <Text style={styles.readOnlyCaption}>Ledger log</Text>
+              </View>
+              <PaymentSummaryCard summary={paymentSummary} testID="invoice-detail-payment-summary" />
+              {payments.length === 0 && (
+                <View style={styles.emptyPaymentsCard}>
+                  <View style={styles.emptyPaymentsIcon}>
+                    <Feather name="file-text" size={22} color={colors.textMuted} />
+                  </View>
+                  <Text style={styles.emptyPaymentsTitle} testID="invoice-detail-no-payments">
+                    No payments recorded yet
+                  </Text>
+                  <Text style={styles.emptyPaymentsSubtitle}>
+                    Record the first settlement to balance the accounts receivable ledger.
+                  </Text>
+                </View>
+              )}
+              {payments.map((paymentRow) => (
+                <PaymentListRow
+                  key={paymentRow.id}
+                  payment={paymentRow}
+                  showInvoiceAndCustomer={false}
+                  onPress={() => navigation.navigate('EditPayment', { paymentId: paymentRow.id })}
+                  testID={`invoice-detail-payment-${paymentRow.id}`}
+                />
+              ))}
+            </View>
+          )}
+
+          {/* Supplemental Invoice Details grid */}
+          <View style={styles.card}>
+            <View style={styles.balancesHeaderRow}>
+              <Text style={styles.sectionTitle}>Invoice Details</Text>
+              <Text style={styles.currencyTag}>{currencyLabel}</Text>
+            </View>
+            <View style={styles.detailsGrid}>
+              <View style={styles.detailsCellFull}>
+                <Text style={styles.metaLabel}>Payment Terms</Text>
+                <Text style={styles.metaValue}>{invoice.terms || 'Not set'}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {!!invoice.notes && (
-          <View style={styles.textCard}>
-            <Text style={styles.textLabel}>Notes</Text>
-            <Text style={styles.textValue}>{invoice.notes}</Text>
+          {!!invoice.notes && (
+            <View style={styles.textCard}>
+              <Text style={styles.textLabel}>Notes</Text>
+              <Text style={styles.textValue}>{invoice.notes}</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Sticky bottom action bar: quick Edit icon + Share PDF + Record Payment (primary) — matches the Stitch layout. */}
+        <View style={styles.actionBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Edit invoice"
+            testID="action-edit-invoice-quick"
+            onPress={() => navigation.navigate('EditInvoice', { invoiceId })}
+            style={({ pressed }) => [styles.editIconButton, pressed && styles.pressed]}
+          >
+            <Feather name="edit-2" size={18} color={colors.textMuted} />
+          </Pressable>
+          <View style={styles.sharePdfWrap}>
+            <ActionButton
+              label="Share PDF"
+              icon="share"
+              onPress={() => navigation.navigate('InvoicePdfPreview', { invoiceId })}
+              testID="action-share"
+            />
           </View>
-        )}
-      </ScrollView>
-
-      {/* Sticky bottom action bar: quick Edit icon + Share PDF + Record Payment (primary) — matches the Stitch layout. */}
-      <View style={styles.actionBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Edit invoice"
-          testID="action-edit-invoice-quick"
-          onPress={() => navigation.navigate('EditInvoice', { invoiceId })}
-          style={({ pressed }) => [styles.editIconButton, pressed && styles.pressed]}
-        >
-          <Feather name="edit-2" size={18} color={colors.textMuted} />
-        </Pressable>
-        <View style={styles.sharePdfWrap}>
-          <ActionButton
-            label="Share PDF"
-            icon="share"
-            onPress={() => navigation.navigate('InvoicePdfPreview', { invoiceId })}
-            testID="action-share"
-          />
+          <View style={styles.recordPaymentWrap}>
+            <ActionButton
+              label="Record Payment"
+              icon="currency"
+              variant="primary"
+              disabled={!!paymentSummary && paymentSummary.remaining <= 0}
+              onPress={() => navigation.navigate('RecordPayment', { invoiceId })}
+              testID="action-record-payment"
+            />
+          </View>
         </View>
-        <View style={styles.recordPaymentWrap}>
-          <ActionButton
-            label="Record Payment"
-            icon="dollar-sign"
-            variant="primary"
-            disabled={!!paymentSummary && paymentSummary.remaining <= 0}
-            onPress={() => navigation.navigate('RecordPayment', { invoiceId })}
-            testID="action-record-payment"
-          />
-        </View>
+        {invoiceLimitModal}
       </View>
-      {invoiceLimitModal}
-    </View>
+    </InvoiceCurrencyProvider>
   );
 }
 

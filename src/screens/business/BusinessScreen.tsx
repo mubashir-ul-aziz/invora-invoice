@@ -11,6 +11,7 @@ import { navigateToTab } from '@/navigation/tabs';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessCardStore } from '@/state/businessCardStore';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
+import { Glyph, type GlyphName } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Business'>;
@@ -222,7 +223,7 @@ export function BusinessScreen({ navigation }: Props) {
           <QuickTile icon="package" label="Items" onPress={() => navigation.navigate('ItemList')} testID="action-items" />
           <QuickTile icon="users" label="Customers" onPress={() => navigateToTab(navigation, 'customers')} testID="action-customers" />
           <QuickTile icon="file-text" label="Invoices" onPress={() => navigateToTab(navigation, 'invoices')} testID="action-invoices" />
-          <QuickTile icon="dollar-sign" label="Payments" onPress={() => navigation.navigate('PaymentHistory')} testID="action-payments" />
+          <QuickTile icon="currency" label="Payments" onPress={() => navigation.navigate('PaymentHistory')} testID="action-payments" />
           <QuickTile icon="settings" label="Settings" onPress={() => navigateToTab(navigation, 'settings')} testID="action-settings" />
         </View>
       </View>
@@ -278,7 +279,7 @@ function QuickTile({
   onPress,
   testID,
 }: {
-  icon: keyof typeof Feather.glyphMap;
+  icon: GlyphName;
   label: string;
   onPress: () => void;
   testID?: string;
@@ -292,7 +293,7 @@ function QuickTile({
       style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
     >
       <View style={styles.quickTileIcon}>
-        <Feather name={icon} size={18} color={colors.primary} />
+        <Glyph name={icon} size={18} color={colors.primary} />
       </View>
       <Text style={styles.quickTileLabel} numberOfLines={1}>
         {label}

@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Glyph, type GlyphName } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
   /** Text shown next to a disabled row explaining why. Defaults to the Custom Invoice Type builder's own wording; Phase 10's Security screen passes its own (e.g. "Not supported on this device"). */
   disabledHint?: string;
   /** Optional leading icon square and a one-line description beneath the label — used by the Custom Invoice Type builder's Stitch-restyled rows. Callers that don't pass these (e.g. the Security screen's toggles) keep the plain label+switch layout. */
-  icon?: keyof typeof Feather.glyphMap;
+  icon?: GlyphName;
   description?: string;
   onToggle: () => void;
   testID?: string;
@@ -49,7 +50,7 @@ export function FieldToggleRow({
     >
       {!!icon && (
         <View style={styles.icon}>
-          <Feather name={icon} size={17} color={colors.primary} />
+          <Glyph name={icon} size={17} color={colors.primary} />
         </View>
       )}
       <View style={styles.textCol}>

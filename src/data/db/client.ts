@@ -6,6 +6,7 @@ import {
   BUSINESS_COLUMN_UPGRADES,
   CREATE_TABLES_SQL,
   CUSTOMER_COLUMN_UPGRADES,
+  INVOICE_COLUMN_UPGRADES,
   INVOICE_ITEM_COLUMN_UPGRADES,
   ITEM_COLUMN_UPGRADES,
   SUBSCRIPTION_STATE_COLUMN_UPGRADES,
@@ -42,6 +43,7 @@ export function getDatabase(): Promise<void> {
       await sqliteConnection.execAsync(CREATE_TABLES_SQL);
       await ensureBusinessColumns(sqliteConnection);
       await ensureAppSettingsColumns(sqliteConnection);
+      await ensureInvoiceColumns(sqliteConnection);
       await ensureInvoiceItemColumns(sqliteConnection);
       await ensureItemColumns(sqliteConnection);
       await ensureCustomerColumns(sqliteConnection);
@@ -85,6 +87,28 @@ async function ensureAppSettingsColumns(db: SQLite.SQLiteDatabase): Promise<void
       await db.execAsync(`ALTER TABLE app_settings ADD COLUMN ${column} ${definition};`);
     }
   }
+}
+
+/**
+ * Backfills `invoice` columns added after its first release (the per-invoice
+ * `currency` snapshot). Same idempotent `PRAGMA table_info` check as
+ * `ensureBusinessColumns()`. Any invoice still without a currency (saved
+ * before the column existed, or restored from an older backup) is then
+ * stamped with the business's currency — the one every amount on it was
+ * shown in until now — so its amounts keep their meaning; the stored
+ * amounts themselves are never touched.
+ */
+async function ensureInvoiceColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const existingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(invoice);');
+  const existingNames = new Set(existingColumns.map((col) => col.name));
+  for (const { column, definition } of INVOICE_COLUMN_UPGRADES) {
+    if (!existingNames.has(column)) {
+      await db.execAsync(`ALTER TABLE invoice ADD COLUMN ${column} ${definition};`);
+    }
+  }
+  await db.execAsync(
+    "UPDATE invoice SET currency = (SELECT currency FROM business LIMIT 1) WHERE currency IS NULL AND EXISTS (SELECT 1 FROM business);",
+  );
 }
 
 /**

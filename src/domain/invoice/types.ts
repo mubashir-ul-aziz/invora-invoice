@@ -156,6 +156,15 @@ export interface Invoice {
   dueDate: string | null;
   notes: string | null;
   terms: string | null;
+  /**
+   * 3-letter currency code (e.g. `"EUR"`) every amount on this invoice is
+   * in — snapshotted from `BusinessProfile.currency` when the invoice is
+   * created and never changed afterwards, so switching the business's
+   * currency later can't relabel an already-issued invoice. Optional/null
+   * only for invoices saved before this field existed (and fixtures that
+   * predate it); display code falls back to the business currency then.
+   */
+  currency?: string | null;
   items: InvoiceItemSnapshot[];
   createdAt: string;
   updatedAt: string;
@@ -176,6 +185,8 @@ export interface InvoiceInput {
   dueDate: string | null;
   notes: string | null;
   terms: string | null;
+  /** Omitted by the Create Invoice flow — `invoiceStore.create()` fills it in from the business's current currency. */
+  currency?: string | null;
   items: InvoiceItemInput[];
 }
 

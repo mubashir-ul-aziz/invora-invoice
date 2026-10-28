@@ -12,7 +12,7 @@ import type { InvoiceStatus } from '@/domain/invoice/types';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerActivityStore } from '@/state/customerActivityStore';
 import { useCustomerStore } from '@/state/customerStore';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerHistory'>;
@@ -230,7 +230,7 @@ export function CustomerHistoryScreen({ navigation, route }: Props) {
 }
 
 function OverviewBanner({ customer, summary }: { customer: Customer; summary: CustomerBalanceSummary }) {
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   return (
     <View style={styles.banner} testID="customer-history-banner">
       <View style={styles.bannerTopRow}>
@@ -249,7 +249,7 @@ function OverviewBanner({ customer, summary }: { customer: Customer; summary: Cu
         <View style={styles.metricCol}>
           <Text style={styles.metricLabel}>Total Settled</Text>
           <Text style={styles.metricValue} testID="customer-history-total-settled">
-            {currencySymbol}{summary.totalPaid.toFixed(2)}
+            {formatMoney(summary.totalPaid)}
           </Text>
         </View>
         <View style={styles.metricCol}>
@@ -258,7 +258,7 @@ function OverviewBanner({ customer, summary }: { customer: Customer; summary: Cu
             style={[styles.metricValue, styles.metricValuePrimary]}
             testID="customer-history-open-balance"
           >
-            {currencySymbol}{summary.outstanding.toFixed(2)}
+            {formatMoney(summary.outstanding)}
           </Text>
         </View>
       </View>
@@ -317,7 +317,7 @@ function HistoryEntryCard({
   const isInvoice = entry.type === 'invoice';
   const markerColor = isInvoice ? colors.primary : '#1E7B41';
   const markerIcon: keyof typeof Feather.glyphMap = isInvoice ? 'file-text' : 'credit-card';
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
 
   const statusBackground = isInvoice && isInvoiceStatus(entry.status) ? STATUS_BACKGROUND[entry.status] : '#E3F3E8';
   const statusColor = isInvoice && isInvoiceStatus(entry.status) ? STATUS_TEXT[entry.status] : '#1E7B41';
@@ -350,7 +350,7 @@ function HistoryEntryCard({
 
         <View style={styles.entryFooterRow}>
           <View style={styles.entryFooterLeft}>
-            <Text style={styles.entryAmount}>{currencySymbol}{entry.amount.toFixed(2)}</Text>
+            <Text style={styles.entryAmount}>{formatMoney(entry.amount)}</Text>
             {!!statusLabel && (
               <View style={[styles.statusPill, { backgroundColor: statusBackground }]}>
                 <Text style={[styles.statusPillText, { color: statusColor }]}>{statusLabel}</Text>

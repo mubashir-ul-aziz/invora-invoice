@@ -10,8 +10,9 @@ import { sumPayments } from '@/domain/payment/calculations';
 import { PAYMENT_METHOD_FILTER_OPTIONS } from '@/domain/payment/types';
 import type { Payment } from '@/domain/payment/types';
 import type { RootStackParamList } from '@/navigation/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { usePaymentStore } from '@/state/paymentStore';
+import { CurrencyIcon } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PaymentHistory'>;
@@ -46,7 +47,7 @@ export function PaymentHistoryScreen({ navigation }: Props) {
   }, []);
 
   const totalCollected = useMemo(() => sumPayments(entries), [entries]);
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
 
   const sections = useMemo(() => groupPaymentsByMonth(entries), [entries]);
 
@@ -76,12 +77,12 @@ export function PaymentHistoryScreen({ navigation }: Props) {
               <View>
                 <Text style={styles.heroLabel}>Total Collected</Text>
                 <Text style={styles.heroValue}>
-                  {currencySymbol}{totalCollected.toFixed(2)}
+                  {formatMoney(totalCollected)}
                   <Text style={styles.heroValueSuffix}> total</Text>
                 </Text>
               </View>
               <View style={styles.heroIcon}>
-                <Feather name="dollar-sign" size={20} color={colors.primary} />
+                <CurrencyIcon size={20} color={colors.primary} />
               </View>
             </View>
             <View style={styles.heroStatRow}>
@@ -163,7 +164,7 @@ export function PaymentHistoryScreen({ navigation }: Props) {
                 </Text>
               </View>
               <Text style={styles.sectionHeaderTotal}>
-                {currencySymbol}{sumPayments(section.data).toFixed(2)}
+                {formatMoney(sumPayments(section.data))}
                 <Text style={styles.sectionHeaderTotalSuffix}> subtotal</Text>
               </Text>
             </View>

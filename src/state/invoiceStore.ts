@@ -145,7 +145,9 @@ export function createInvoiceStore(
       const run = async () => {
         await creationGate?.assertCanCreate();
         const invoiceNumber = await businessRepository.reserveNextInvoiceNumber();
-        const created = await invoiceRepository.create(invoiceNumber, input);
+        // Freeze the business's current currency onto the invoice (see `Invoice.currency`).
+        const currency = input.currency ?? (await businessRepository.getProfile())?.currency ?? null;
+        const created = await invoiceRepository.create(invoiceNumber, { ...input, currency });
         try {
           await creationGate?.recordCreated();
         } catch {

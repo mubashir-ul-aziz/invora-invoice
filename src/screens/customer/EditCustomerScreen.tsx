@@ -20,7 +20,7 @@ import { openGoogleMaps } from '@/lib/linking';
 import type { RootStackParamList } from '@/navigation/types';
 import { useCustomerActivityStore } from '@/state/customerActivityStore';
 import { useCustomerStore } from '@/state/customerStore';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
@@ -64,7 +64,7 @@ export function EditCustomerScreen({ navigation, route }: Props) {
   const { customerId } = route.params;
   const { getById, update, remove } = useCustomerStore();
   const { summary, load: loadActivity } = useCustomerActivityStore();
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   const [status, setStatus] = useState<LoadStatus>('loading');
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -229,7 +229,7 @@ export function EditCustomerScreen({ navigation, route }: Props) {
           <View>
             <Text style={styles.heroStatLabel}>Lifetime Revenue</Text>
             <Text style={styles.heroStatValue} testID="hero-lifetime-revenue">
-              {currencySymbol}{summary.totalBilled.toFixed(2)}
+              {formatMoney(summary.totalBilled)}
             </Text>
           </View>
           <View style={styles.heroStatRight}>

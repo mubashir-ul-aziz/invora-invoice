@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { InvoiceTotals } from '@/domain/invoice/calculations';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useFormatMoney } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -18,21 +18,21 @@ interface Props {
  * and Invoice Detail (fed the frozen historical totals).
  */
 export function InvoiceTotalsSummary({ totals, testID }: Props) {
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   return (
     <View style={styles.card} testID={testID}>
-      <Row label="Subtotal" value={totals.subtotal} currencySymbol={currencySymbol} testID="totals-subtotal" />
+      <Row label="Subtotal" value={totals.subtotal} formatMoney={formatMoney} testID="totals-subtotal" />
       {totals.discountTotal > 0 && (
-        <Row label="Discount" value={-totals.discountTotal} currencySymbol={currencySymbol} testID="totals-discount" />
+        <Row label="Discount" value={-totals.discountTotal} formatMoney={formatMoney} testID="totals-discount" />
       )}
       {totals.taxTotal > 0 && (
-        <Row label="Tax" value={totals.taxTotal} currencySymbol={currencySymbol} testID="totals-tax" />
+        <Row label="Tax" value={totals.taxTotal} formatMoney={formatMoney} testID="totals-tax" />
       )}
       <View style={styles.divider} />
       <Row
         label="Grand total"
         value={totals.grandTotal}
-        currencySymbol={currencySymbol}
+        formatMoney={formatMoney}
         emphasis
         testID="totals-grand-total"
       />
@@ -43,28 +43,24 @@ export function InvoiceTotalsSummary({ totals, testID }: Props) {
 function Row({
   label,
   value,
-  currencySymbol,
+  formatMoney,
   emphasis,
   testID,
 }: {
   label: string;
   value: number;
-  currencySymbol: string;
+  formatMoney: (amount: number) => string;
   emphasis?: boolean;
   testID?: string;
 }) {
   return (
     <View style={styles.row} testID={testID}>
       <Text style={[styles.label, emphasis && styles.emphasisLabel]}>{label}</Text>
-      <Text style={[styles.value, emphasis && styles.emphasisValue]}>{formatAmount(value, currencySymbol)}</Text>
+      <Text style={[styles.value, emphasis && styles.emphasisValue]}>{formatMoney(value)}</Text>
     </View>
   );
 }
 
-function formatAmount(value: number, currencySymbol: string): string {
-  const sign = value < 0 ? '-' : '';
-  return `${sign}${currencySymbol}${Math.abs(value).toFixed(2)}`;
-}
 
 const styles = StyleSheet.create({
   card: {

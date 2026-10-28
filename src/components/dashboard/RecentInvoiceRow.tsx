@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
 import { LockedBadge } from '@/components/subscription/LockedBadge';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useInvoiceFormatMoney } from '@/state/currencyContext';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -39,7 +39,7 @@ export function RecentInvoiceRow({ entry, onPress, testID, locked }: Props) {
   const dateLabel = describeDate(entry);
   const showProgress = entry.status === 'partial' && entry.grandTotal > 0;
   const progressPercent = showProgress ? Math.min(100, (entry.amountPaid / entry.grandTotal) * 100) : 0;
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useInvoiceFormatMoney(entry.currency);
 
   return (
     <Pressable
@@ -72,10 +72,10 @@ export function RecentInvoiceRow({ entry, onPress, testID, locked }: Props) {
         )}
       </View>
       <View style={styles.trailing}>
-        <Text style={styles.total}>{currencySymbol}{entry.grandTotal.toFixed(2)}</Text>
+        <Text style={styles.total}>{formatMoney(entry.grandTotal)}</Text>
         <View style={[styles.badge, { backgroundColor: STATUS_BACKGROUND[entry.status] }]}>
           <Text style={[styles.badgeText, { color: STATUS_TEXT[entry.status] }]} numberOfLines={1}>
-            {badgeLabel(entry, currencySymbol)}
+            {badgeLabel(entry, formatMoney)}
           </Text>
         </View>
         {!!locked && <LockedBadge testID={testID ? `${testID}-locked` : undefined} />}
@@ -84,9 +84,9 @@ export function RecentInvoiceRow({ entry, onPress, testID, locked }: Props) {
   );
 }
 
-function badgeLabel(entry: DashboardRecentInvoice, currencySymbol: string): string {
+function badgeLabel(entry: DashboardRecentInvoice, formatMoney: (amount: number) => string): string {
   if (entry.status === 'partial') {
-    return `Part (${currencySymbol}${entry.amountPaid.toFixed(2)} pd)`;
+    return `Part (${formatMoney(entry.amountPaid)} pd)`;
   }
   return { unpaid: 'Unpaid', paid: 'Paid', overdue: 'Overdue' }[entry.status];
 }

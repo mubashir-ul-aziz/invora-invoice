@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Glyph, type GlyphName } from '@/components/shared/CurrencyIcon';
 import { colors } from '@/theme/colors';
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
   onPress: () => void;
   testID?: string;
   /** Optional leading icon square — used by the Stitch-restyled Business hub; other callers that don't pass it keep the plain label+chevron row. */
-  icon?: keyof typeof Feather.glyphMap;
+  icon?: GlyphName;
   /** Optional small trailing tag next to the label (e.g. "vCard"). */
   tag?: string;
 }
@@ -27,7 +28,7 @@ export function SettingsRow({ label, description, onPress, testID, icon, tag }: 
     >
       {!!icon && (
         <View style={styles.icon}>
-          <Feather name={icon} size={19} color={colors.primary} />
+          <Glyph name={icon} size={19} color={colors.primary} />
         </View>
       )}
       <View style={styles.text}>

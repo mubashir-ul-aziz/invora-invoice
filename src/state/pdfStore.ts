@@ -23,6 +23,7 @@ import type { Invoice } from '@/domain/invoice/types';
 import { resolveInvoiceFieldConfig } from '@/domain/invoiceType/types';
 import { sumPayments } from '@/domain/payment/calculations';
 import { buildInvoicePdfData } from '@/domain/pdf/buildInvoicePdfData';
+import { formatMoney } from '@/domain/pdf/money';
 import { renderInvoiceHtml } from '@/domain/pdf/renderInvoiceHtml';
 import type { InvoicePdfData } from '@/domain/pdf/types';
 import { resolveLogoDataUri } from '@/lib/fileToDataUri';
@@ -204,7 +205,7 @@ export function createPdfStore(overrides: Partial<PdfStoreDeps> = {}) {
     shareViaWhatsApp: async () => {
       const { invoice, data } = get();
       if (!invoice || !data) return;
-      const message = `Invoice ${invoice.invoiceNumber} — Total ${data.totals.grandTotal.toFixed(2)} ${data.currency}, Remaining ${data.payment.remaining.toFixed(2)} ${data.currency}. ${deps.invoiceShareLinkService.getShareLink(invoice)}`;
+      const message = `Invoice ${invoice.invoiceNumber} — Total ${formatMoney(data.totals.grandTotal, data.currency)}, Remaining ${formatMoney(data.payment.remaining, data.currency)}. ${deps.invoiceShareLinkService.getShareLink(invoice)}`;
       const target = data.customer.phone
         ? `https://wa.me/${normalizePhoneDigits(data.customer.phone).replace(/^\+/, '')}`
         : 'https://wa.me/';

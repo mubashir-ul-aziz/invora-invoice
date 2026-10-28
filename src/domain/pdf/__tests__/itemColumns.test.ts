@@ -62,7 +62,7 @@ describe('getPdfItemColumns', () => {
     const unitPrice = columns.find((c) => c.key === 'unitPrice')!;
     const total = columns.find((c) => c.key === 'total')!;
     expect(itemName.render(baseItem, 'USD')).toBe('Steel Pipe');
-    expect(unitPrice.render(baseItem, 'USD')).toBe('USD 100.00');
-    expect(total.render(baseItem, 'USD')).toBe('USD 200.00');
+    expect(unitPrice.render(baseItem, 'USD')).toBe('$100.00');
+    expect(total.render(baseItem, 'USD')).toBe('$200.00');
   });
 });

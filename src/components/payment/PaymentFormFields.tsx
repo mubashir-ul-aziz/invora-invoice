@@ -7,6 +7,7 @@ import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FormField } from '@/components/businessCard/FormField';
 import { DateField, parseIsoDateLocal } from '@/components/shared/DateField';
 import { METHOD_STYLE } from '@/components/payment/PaymentListRow';
+import { Glyph } from '@/components/shared/CurrencyIcon';
 import { PAYMENT_METHOD_LABELS, PAYMENT_METHOD_OPTIONS, type PaymentMethod } from '@/domain/payment/types';
 import type { PaymentFormOutput, PaymentFormValues } from '@/domain/payment/validation';
 import { useCurrencySymbol } from '@/state/currencyContext';
@@ -131,7 +132,7 @@ function MethodField({ control }: { control: PaymentFormControl }) {
             onPress={() => field.onChange(option.value)}
             style={[styles.methodButton, selected && { backgroundColor: style.bg }]}
           >
-            <Feather name={style.icon} size={20} color={selected ? style.fg : colors.textMuted} />
+            <Glyph name={style.icon} size={20} color={selected ? style.fg : colors.textMuted} />
             <Text style={[styles.methodLabel, selected && { color: style.fg, fontWeight: '700' }]} numberOfLines={1}>
               {option.label}
             </Text>

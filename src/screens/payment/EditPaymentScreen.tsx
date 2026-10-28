@@ -18,7 +18,7 @@ import type { InvoiceStatus } from '@/domain/invoice/types';
 import { formatTimestamp } from '@/domain/shared/formatting';
 import { paymentFormSchemaWithMinDate, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
 import type { RootStackParamList } from '@/navigation/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { InvoiceCurrencyProvider, useFormatMoney } from '@/state/currencyContext';
 import { useInvoiceStore } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
 import { toast } from '@/state/toastStore';
@@ -61,6 +61,7 @@ export function EditPaymentScreen({ navigation, route }: Props) {
   const [summary, setSummary] = useState<InvoicePaymentSummary | null>(null);
   const [invoiceIssueDate, setInvoiceIssueDate] = useState<string | null>(null);
   const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatus | null>(null);
+  const [invoiceCurrency, setInvoiceCurrency] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +84,7 @@ export function EditPaymentScreen({ navigation, route }: Props) {
           setSummary(summarizeInvoicePayments(detail.totals.grandTotal, allPayments));
           setInvoiceIssueDate(detail.invoice.issueDate);
           setInvoiceStatus(detail.status);
+          setInvoiceCurrency(detail.invoice.currency ?? null);
         }
         setPayment(found);
         setStatus('ready');
@@ -149,15 +151,17 @@ export function EditPaymentScreen({ navigation, route }: Props) {
   }
 
   return (
-    <EditPaymentForm
-      navigation={navigation}
-      payment={payment}
-      summary={summary}
-      invoiceIssueDate={invoiceIssueDate}
-      invoiceStatus={invoiceStatus}
-      update={update}
-      onDelete={handleDelete}
-    />
+    <InvoiceCurrencyProvider currency={invoiceCurrency}>
+      <EditPaymentForm
+        navigation={navigation}
+        payment={payment}
+        summary={summary}
+        invoiceIssueDate={invoiceIssueDate}
+        invoiceStatus={invoiceStatus}
+        update={update}
+        onDelete={handleDelete}
+      />
+    </InvoiceCurrencyProvider>
   );
 }
 
@@ -178,7 +182,7 @@ function EditPaymentForm({
   update: (id: string, input: PaymentUpdateInput) => Promise<Payment>;
   onDelete: () => void;
 }) {
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   // The edited amount replaces, not adds to, its own current contribution to
   // `amountPaid` — so the cap is the remaining balance plus what this payment
   // already counts for, not the remaining balance alone.
@@ -266,16 +270,16 @@ function EditPaymentForm({
           <View style={styles.ledgerGrid}>
             <View style={styles.ledgerCell}>
               <Text style={styles.ledgerCellLabel}>Invoiced</Text>
-              <Text style={styles.ledgerCellValue}>{currencySymbol}{summary.grandTotal.toFixed(2)}</Text>
+              <Text style={styles.ledgerCellValue}>{formatMoney(summary.grandTotal)}</Text>
             </View>
             <View style={[styles.ledgerCell, styles.ledgerCellPrimary]}>
               <Text style={styles.ledgerCellLabelPrimary}>Paid</Text>
-              <Text style={styles.ledgerCellValuePrimary}>{currencySymbol}{summary.amountPaid.toFixed(2)}</Text>
+              <Text style={styles.ledgerCellValuePrimary}>{formatMoney(summary.amountPaid)}</Text>
             </View>
             <View style={styles.ledgerCell}>
               <Text style={styles.ledgerCellLabel}>{summary.overpaid > 0 ? 'Overpaid' : 'Balance'}</Text>
               <Text style={[styles.ledgerCellValue, summary.remaining > 0 && styles.ledgerCellValueDue]}>
-                {currencySymbol}{(summary.overpaid > 0 ? summary.overpaid : summary.remaining).toFixed(2)}
+                {formatMoney(summary.overpaid > 0 ? summary.overpaid : summary.remaining)}
               </Text>
             </View>
           </View>
@@ -303,7 +307,7 @@ function EditPaymentForm({
       {!!summary && <PaymentSummaryCard summary={summary} testID="edit-payment-summary" />}
 
       <Text style={styles.originalNote}>
-        Original recorded receipt was {currencySymbol}{payment.amount.toFixed(2)} on {formatDate(payment.paymentDate)}.
+        Original recorded receipt was {formatMoney(payment.amount)} on {formatDate(payment.paymentDate)}.
       </Text>
 
       <PaymentFormFields control={control} errors={errors} minPaymentDate={invoiceIssueDate} maxAmount={maxAmount} />
@@ -317,7 +321,7 @@ function EditPaymentForm({
           <View style={styles.flexShrink}>
             <Text style={styles.dangerTitle}>Destructive Action</Text>
             <Text style={styles.dangerCaption}>
-              Deleting this payment reopens the invoice's remaining balance by {currencySymbol}{payment.amount.toFixed(2)}.
+              Deleting this payment reopens the invoice's remaining balance by {formatMoney(payment.amount)}.
             </Text>
           </View>
         </View>

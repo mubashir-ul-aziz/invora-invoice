@@ -8,6 +8,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { FieldToggleRow } from '@/components/invoiceType/FieldToggleRow';
 import { BottomActionBar } from '@/components/shared/BottomActionBar';
+import type { GlyphName } from '@/components/shared/CurrencyIcon';
 import { KeyboardAvoidingScreen } from '@/components/shared/KeyboardAvoidingScreen';
 import { CUSTOM_BUILDER_FIELD_KEYS, FIELD_DEFINITIONS, type FieldKey } from '@/domain/invoiceType/fieldCatalog';
 import { selectionToCustomFormDefaults } from '@/domain/invoiceType/formMapping';
@@ -24,7 +25,7 @@ import { colors } from '@/theme/colors';
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomInvoiceType'>;
 
 /** Icon + one-line description per field — decorative, matches the Stitch design's per-row icon/description. */
-const FIELD_META: Record<FieldKey, { icon: keyof typeof Feather.glyphMap; description: string }> = {
+const FIELD_META: Record<FieldKey, { icon: GlyphName; description: string }> = {
   itemName: { icon: 'tag', description: 'Primary product or service headline' },
   description: { icon: 'align-left', description: 'Detailed specifications and notes' },
   sku: { icon: 'hash', description: 'Inventory identifier or serial number' },
@@ -37,7 +38,7 @@ const FIELD_META: Record<FieldKey, { icon: keyof typeof Feather.glyphMap; descri
   weightUnit: { icon: 'anchor', description: '' },
   lengthUnit: { icon: 'move', description: '' },
   timeUnit: { icon: 'clock', description: '' },
-  unitPrice: { icon: 'dollar-sign', description: 'Base cost per specified unit' },
+  unitPrice: { icon: 'currency', description: 'Base cost per specified unit' },
   discount: { icon: 'percent', description: 'Line-level percentage reduction' },
   tax: { icon: 'clipboard', description: 'Specific tax category or exemption' },
 };

@@ -36,6 +36,7 @@ export class InMemoryDashboardRepository implements DashboardRepository {
         issueDate: invoice.issueDate,
         dueDate: invoice.dueDate,
         createdAt: invoice.createdAt,
+        currency: invoice.currency,
         grandTotal,
         amountPaid,
       };

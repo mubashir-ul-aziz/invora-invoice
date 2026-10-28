@@ -132,6 +132,22 @@ describe('buildInvoicePdfData', () => {
     expect(data.payments.map((p) => p.reference)).toEqual(['REF-1', 'REF-2']);
   });
 
+  it("uses the invoice's own saved currency over the business's current one", () => {
+    const data = buildInvoicePdfData({
+      template: 'classic',
+      invoice: { ...invoice, currency: 'EUR' },
+      totals: sumInvoiceTotals([line]),
+      status: 'unpaid',
+      payments: [],
+      business,
+      customer: null,
+      fieldConfig,
+      logoDataUri: null,
+    });
+
+    expect(data.currency).toBe('EUR');
+  });
+
   it('falls back to a placeholder business name and the invoice\'s own customer-name snapshot when both are missing', () => {
     const totals = sumInvoiceTotals([line]);
     const data = buildInvoicePdfData({

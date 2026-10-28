@@ -58,7 +58,7 @@ describe('PaymentHistoryScreen', () => {
     const view = await renderScreen();
 
     await waitFor(() => expect(view.getByText('INV-1 · Acme Co')).toBeTruthy());
-    expect(view.getByText('300.00')).toBeTruthy();
+    expect(view.getByText('$300.00')).toBeTruthy();
   });
 
   it('filters the list by search text', async () => {

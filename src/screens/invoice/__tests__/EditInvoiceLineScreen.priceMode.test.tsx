@@ -44,7 +44,7 @@ describe('EditInvoiceLineScreen price mode toggle', () => {
     await fireEvent.changeText(view.getByTestId('field-width'), '10');
     await fireEvent.changeText(view.getByTestId('field-unitPrice'), '10');
 
-    await waitFor(() => expect(view.getByTestId('invoice-line-preview-subtotal')).toHaveTextContent(/2000.00/));
+    await waitFor(() => expect(view.getByTestId('invoice-line-preview-subtotal')).toHaveTextContent(/2,000.00/));
     expect(view.getByTestId('invoice-line-preview-quantity')).toHaveTextContent(/200/);
   });
 

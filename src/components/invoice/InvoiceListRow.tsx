@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { InvoiceStatusBadge, STATUS_BACKGROUND, STATUS_TEXT } from '@/components/invoice/InvoiceStatusBadge';
 import { LockedBadge } from '@/components/subscription/LockedBadge';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { useInvoiceFormatMoney } from '@/state/currencyContext';
 import type { InvoiceWithStatus } from '@/state/invoiceStore';
 import { colors } from '@/theme/colors';
 
@@ -42,7 +42,7 @@ export function InvoiceListRow({ entry, onPress, testID, locked }: Props) {
   const iconStyle = { backgroundColor: STATUS_BACKGROUND[status], color: STATUS_TEXT[status] };
   const remaining = Math.max(0, totals.grandTotal - amountPaid);
   const showProgress = status !== 'paid' && amountPaid > 0 && totals.grandTotal > 0;
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useInvoiceFormatMoney(invoice.currency);
 
   return (
     <Pressable
@@ -79,15 +79,15 @@ export function InvoiceListRow({ entry, onPress, testID, locked }: Props) {
                   />
                 </View>
                 <Text style={styles.progressCaption}>
-                  Paid {currencySymbol}{amountPaid.toFixed(2)} of {currencySymbol}{totals.grandTotal.toFixed(2)}
+                  Paid {formatMoney(amountPaid)} of {formatMoney(totals.grandTotal)}
                 </Text>
               </>
             )}
           </View>
         </View>
         <View style={styles.trailing}>
-          <Text style={styles.total}>{currencySymbol}{totals.grandTotal.toFixed(2)}</Text>
-          {showProgress && <Text style={styles.remainsCaption}>{currencySymbol}{remaining.toFixed(2)} remains</Text>}
+          <Text style={styles.total}>{formatMoney(totals.grandTotal)}</Text>
+          {showProgress && <Text style={styles.remainsCaption}>{formatMoney(remaining)} remains</Text>}
           <InvoiceStatusBadge
             status={status}
             testID={testID ? `${testID}-status` : undefined}

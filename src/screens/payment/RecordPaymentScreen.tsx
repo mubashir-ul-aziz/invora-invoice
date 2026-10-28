@@ -16,7 +16,7 @@ import { paymentToFormDefaults, todayIsoDate } from '@/domain/payment/formMappin
 import { paymentFormSchemaWithMinDate, type PaymentFormOutput, type PaymentFormValues } from '@/domain/payment/validation';
 import type { PaymentInput } from '@/domain/payment/types';
 import type { RootStackParamList } from '@/navigation/types';
-import { useCurrencySymbol } from '@/state/currencyContext';
+import { InvoiceCurrencyProvider, useFormatMoney } from '@/state/currencyContext';
 import { useInvoiceStore, type InvoiceWithStatus } from '@/state/invoiceStore';
 import { usePaymentStore } from '@/state/paymentStore';
 import { toast } from '@/state/toastStore';
@@ -118,13 +118,15 @@ export function RecordPaymentScreen({ navigation, route }: Props) {
   }
 
   return (
-    <RecordPaymentForm
-      navigation={navigation}
-      invoiceId={invoiceId}
-      detail={detail}
-      summary={summary}
-      create={create}
-    />
+    <InvoiceCurrencyProvider currency={detail.invoice.currency}>
+      <RecordPaymentForm
+        navigation={navigation}
+        invoiceId={invoiceId}
+        detail={detail}
+        summary={summary}
+        create={create}
+      />
+    </InvoiceCurrencyProvider>
   );
 }
 
@@ -141,7 +143,7 @@ function RecordPaymentForm({
   summary: InvoicePaymentSummary;
   create: (input: PaymentInput) => Promise<unknown>;
 }) {
-  const currencySymbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   const {
     control,
     handleSubmit,
@@ -188,7 +190,8 @@ function RecordPaymentForm({
     }
   });
 
-  const amountLabel = typeof liveAmount === 'string' && liveAmount.trim() ? liveAmount.trim() : '0.00';
+  const parsedAmount = typeof liveAmount === 'string' ? Number(liveAmount.trim()) : NaN;
+  const amountLabel = formatMoney(Number.isFinite(parsedAmount) ? parsedAmount : 0);
 
   return (
     <KeyboardAvoidingScreen
@@ -198,7 +201,7 @@ function RecordPaymentForm({
       footer={
         <BottomActionBar
           primary={{
-            label: isSubmitting ? 'Saving…' : `Record ${currencySymbol}${amountLabel} Payment`,
+            label: isSubmitting ? 'Saving…' : `Record ${amountLabel} Payment`,
             icon: 'check',
             onPress: onSubmit,
             disabled: isSubmitting,
@@ -224,14 +227,14 @@ function RecordPaymentForm({
         <View style={styles.balanceGrid}>
           <View>
             <Text style={styles.balanceLabel}>Total Invoiced</Text>
-            <Text style={styles.balanceValue}>{currencySymbol}{summary.grandTotal.toFixed(2)}</Text>
+            <Text style={styles.balanceValue}>{formatMoney(summary.grandTotal)}</Text>
           </View>
           <View style={styles.balanceRight}>
             <Text style={[styles.balanceLabel, summary.remaining > 0 && styles.balanceLabelDue]}>
               {summary.overpaid > 0 ? 'Overpaid' : 'Outstanding Balance'}
             </Text>
             <Text style={[styles.balanceValue, summary.remaining > 0 && styles.balanceValueDue]}>
-              {currencySymbol}{(summary.overpaid > 0 ? summary.overpaid : summary.remaining).toFixed(2)}
+              {formatMoney(summary.overpaid > 0 ? summary.overpaid : summary.remaining)}
             </Text>
           </View>
         </View>
