@@ -250,9 +250,16 @@ export function PricingScreen({ route }: Props) {
         <View style={styles.currentTop}>
           <View style={styles.flexShrink}>
             <Text style={styles.eyebrow}>CURRENT PLAN</Text>
-            <Text style={styles.currentPlan} testID="pricing-current-plan">
-              {sub.planConfig.label}
-            </Text>
+            <View style={styles.currentPlanRow}>
+              <Text style={styles.currentPlan} testID="pricing-current-plan">
+                {sub.planConfig.label}
+              </Text>
+              {sub.isPaid && !!sub.subscription.billingPeriod && (
+                <Text style={styles.currentPeriod} testID="pricing-current-period">
+                  {sub.subscription.billingPeriod === 'yearly' ? 'Yearly' : 'Monthly'}
+                </Text>
+              )}
+            </View>
           </View>
           <View style={[styles.statusPill, { backgroundColor: tone.background }]} testID="pricing-status">
             <Text style={[styles.statusText, { color: tone.text }]}>{statusInfo.label}</Text>
@@ -530,7 +537,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
   currentTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
   eyebrow: { fontSize: typography.label.fontSize, fontWeight: typography.label.weight, color: colors.textMuted, letterSpacing: 0.6 },
+  currentPlanRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
   currentPlan: { fontSize: typography.h1.fontSize, fontWeight: typography.h1.weight, color: colors.text },
+  currentPeriod: { fontSize: typography.caption.fontSize, fontWeight: '600', color: colors.textMuted },
   statusPill: { borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, maxWidth: '55%' },
   statusText: { fontSize: typography.label.fontSize, fontWeight: '700' },
   detail: { fontSize: typography.caption.fontSize, color: colors.textMuted, lineHeight: 17, flexShrink: 1 },
