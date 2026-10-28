@@ -241,78 +241,96 @@ export function InvoiceListScreen({ navigation, route }: Props) {
             </View>
           </View>
         )}
-
-        {!onSelectInvoice && (
-          <ActionButton
-            label="+ New invoice"
-            variant="primary"
-            onPress={handleCreate}
-            testID="action-create-invoice"
-          />
-        )}
       </View>
 
-      {(status === 'loading' || status === 'idle') && (
-        <View style={styles.centered} testID="invoice-list-loading">
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      )}
-
-      {status === 'error' && (
-        <View style={styles.centered} testID="invoice-list-error">
-          <Text style={styles.errorText}>Couldn't load invoices.</Text>
-          <Text style={styles.errorDetail}>{error}</Text>
-          <ActionButton label="Try again" onPress={load} />
-        </View>
-      )}
-
-      {status === 'ready' && entries.length === 0 && (
-        <View style={styles.centered} testID="invoice-list-empty">
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconCircle}>
-              <Feather name="zap" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>Need to bill a client?</Text>
-            <Text style={styles.emptySubtitle}>
-              Tap "+ New invoice" above to draft a quick quote or send an instant invoice.
-            </Text>
+      {/* Wraps everything between the control bar and the bottom nav, so the floating button sits just above the nav. */}
+      <View style={styles.body}>
+        {(status === 'loading' || status === 'idle') && (
+          <View style={styles.centered} testID="invoice-list-loading">
+            <ActivityIndicator color={colors.primary} />
           </View>
-        </View>
-      )}
+        )}
 
-      {status === 'ready' && entries.length > 0 && visibleEntries.length === 0 && (
-        <View style={styles.centered} testID="invoice-list-no-filter-matches">
-          <Feather name="file-text" size={26} color={colors.textMuted} />
-          <Text style={styles.emptyText}>No invoices match your search or filter.</Text>
-          <ActionButton
-            label="Show all invoices"
-            onPress={() => {
-              setStatusFilter('all');
-              setFilter({ searchText: '' });
-            }}
-          />
-        </View>
-      )}
+        {status === 'error' && (
+          <View style={styles.centered} testID="invoice-list-error">
+            <Text style={styles.errorText}>Couldn't load invoices.</Text>
+            <Text style={styles.errorDetail}>{error}</Text>
+            <ActionButton label="Try again" onPress={load} />
+          </View>
+        )}
 
-      {status === 'ready' && visibleEntries.length > 0 && (
-        <SectionList
-          testID="invoice-list"
-          sections={sections}
-          keyExtractor={(entry) => entry.invoice.id}
-          stickySectionHeadersEnabled
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          renderSectionHeader={({ section }) => <DateSectionHeader label={section.title} />}
-          renderItem={({ item: entry }) => (
-            <InvoiceListRow
-              entry={entry}
-              onPress={() => handleOpenInvoice(entry)}
-              locked={!subscription.canAccessHistoricalInvoice(entry.invoice.createdAt)}
-              testID={`invoice-row-${entry.invoice.id}`}
+        {status === 'ready' && entries.length === 0 && (
+          <View style={styles.centered} testID="invoice-list-empty">
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIconCircle}>
+                <Feather name="zap" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>Need to bill a client?</Text>
+              <Text style={styles.emptySubtitle}>
+                Tap "+ New invoice" below to draft a quick quote or send an instant invoice.
+              </Text>
+              {!onSelectInvoice && (
+                <View style={styles.emptyAction}>
+                  <ActionButton
+                    label="+ New invoice"
+                    variant="primary"
+                    onPress={handleCreate}
+                    testID="action-create-invoice"
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {status === 'ready' && entries.length > 0 && visibleEntries.length === 0 && (
+          <View style={styles.centered} testID="invoice-list-no-filter-matches">
+            <Feather name="file-text" size={26} color={colors.textMuted} />
+            <Text style={styles.emptyText}>No invoices match your search or filter.</Text>
+            <ActionButton
+              label="Show all invoices"
+              onPress={() => {
+                setStatusFilter('all');
+                setFilter({ searchText: '' });
+              }}
             />
-          )}
-        />
-      )}
+          </View>
+        )}
+
+        {status === 'ready' && visibleEntries.length > 0 && (
+          <SectionList
+            testID="invoice-list"
+            sections={sections}
+            keyExtractor={(entry) => entry.invoice.id}
+            stickySectionHeadersEnabled
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            renderSectionHeader={({ section }) => <DateSectionHeader label={section.title} />}
+            renderItem={({ item: entry }) => (
+              <InvoiceListRow
+                entry={entry}
+                onPress={() => handleOpenInvoice(entry)}
+                locked={!subscription.canAccessHistoricalInvoice(entry.invoice.createdAt)}
+                testID={`invoice-row-${entry.invoice.id}`}
+              />
+            )}
+          />
+        )}
+
+        {/* With no invoices yet, the button lives inside the empty-state card instead. */}
+        {!onSelectInvoice && status === 'ready' && entries.length > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create new invoice"
+            testID="action-create-invoice"
+            onPress={handleCreate}
+            style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+          >
+            <Feather name="plus" size={18} color={colors.primaryText} />
+            <Text style={styles.fabText}>New Invoice</Text>
+          </Pressable>
+        )}
+      </View>
 
       {!onSelectInvoice && (
         <DashboardBottomNav
@@ -427,6 +445,28 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   emptySubtitle: { fontSize: 13, color: colors.textMuted, textAlign: 'center', maxWidth: 270 },
-  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
+  emptyAction: { alignSelf: 'stretch', marginTop: 10 },
+  body: { flex: 1 },
+  // Extra bottom padding keeps the last card scrollable out from under the floating button.
+  listContent: { paddingHorizontal: 16, paddingBottom: 96 },
   separator: { height: 8 },
+  fab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 24,
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  fabPressed: { opacity: 0.85 },
+  fabText: { color: colors.primaryText, fontWeight: '700', fontSize: 14 },
 });
