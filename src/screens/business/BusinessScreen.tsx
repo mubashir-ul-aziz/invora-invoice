@@ -7,6 +7,7 @@ import { SettingsRow } from '@/components/business/SettingsRow';
 import { ActionButton } from '@/components/businessCard/ActionButton';
 import { formatNextInvoiceNumber } from '@/domain/business/types';
 import { openEmail, openPhone, openWebsite } from '@/lib/linking';
+import { navigateToTab } from '@/navigation/tabs';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessCardStore } from '@/state/businessCardStore';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
@@ -216,13 +217,13 @@ export function BusinessScreen({ navigation }: Props) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Access</Text>
         <View style={styles.quickGrid}>
-          <QuickTile icon="grid" label="Dashboard" onPress={() => navigation.navigate('Dashboard')} testID="action-dashboard" />
+          <QuickTile icon="grid" label="Dashboard" onPress={() => navigateToTab(navigation, 'dashboard')} testID="action-dashboard" />
           <QuickTile icon="credit-card" label="Business card" onPress={() => navigation.navigate('DigitalCard')} testID="action-digital-card" />
           <QuickTile icon="package" label="Items" onPress={() => navigation.navigate('ItemList')} testID="action-items" />
-          <QuickTile icon="users" label="Customers" onPress={() => navigation.navigate('CustomerList')} testID="action-customers" />
-          <QuickTile icon="file-text" label="Invoices" onPress={() => navigation.navigate('InvoiceList')} testID="action-invoices" />
+          <QuickTile icon="users" label="Customers" onPress={() => navigateToTab(navigation, 'customers')} testID="action-customers" />
+          <QuickTile icon="file-text" label="Invoices" onPress={() => navigateToTab(navigation, 'invoices')} testID="action-invoices" />
           <QuickTile icon="dollar-sign" label="Payments" onPress={() => navigation.navigate('PaymentHistory')} testID="action-payments" />
-          <QuickTile icon="settings" label="Settings" onPress={() => navigation.navigate('Settings')} testID="action-settings" />
+          <QuickTile icon="settings" label="Settings" onPress={() => navigateToTab(navigation, 'settings')} testID="action-settings" />
         </View>
       </View>
     </ScrollView>

@@ -40,7 +40,11 @@ jest.mock('@/state/businessCardStore', () => {
 
 import { BusinessScreen } from '../BusinessScreen';
 
-const navigation = { navigate: jest.fn(), goBack: jest.fn() };
+const navigation = { navigate: jest.fn(), goBack: jest.fn(), dispatch: jest.fn() };
+
+/** The action `navigateToTab` dispatches for a main tab. */
+const tabAction = (name: string, screen: string) =>
+  expect.objectContaining({ type: 'NAVIGATE', payload: expect.objectContaining({ name, params: { screen, pop: true } }) });
 
 function renderScreen() {
   return render(<BusinessScreen navigation={navigation as never} route={{} as never} />);
@@ -90,20 +94,21 @@ describe('BusinessScreen', () => {
     fireEvent.press(view.getByTestId('action-items'));
     expect(navigation.navigate).toHaveBeenCalledWith('ItemList');
 
-    fireEvent.press(view.getByTestId('action-customers'));
-    expect(navigation.navigate).toHaveBeenCalledWith('CustomerList');
-
-    fireEvent.press(view.getByTestId('action-invoices'));
-    expect(navigation.navigate).toHaveBeenCalledWith('InvoiceList');
-
     fireEvent.press(view.getByTestId('action-payments'));
     expect(navigation.navigate).toHaveBeenCalledWith('PaymentHistory');
 
+    // Shortcuts to the main tabs switch tabs rather than pushing duplicate screens.
+    fireEvent.press(view.getByTestId('action-customers'));
+    expect(navigation.dispatch).toHaveBeenCalledWith(tabAction('CustomersTab', 'CustomerList'));
+
+    fireEvent.press(view.getByTestId('action-invoices'));
+    expect(navigation.dispatch).toHaveBeenCalledWith(tabAction('InvoicesTab', 'InvoiceList'));
+
     fireEvent.press(view.getByTestId('action-dashboard'));
-    expect(navigation.navigate).toHaveBeenCalledWith('Dashboard');
+    expect(navigation.dispatch).toHaveBeenCalledWith(tabAction('DashboardTab', 'Dashboard'));
 
     fireEvent.press(view.getByTestId('action-settings'));
-    expect(navigation.navigate).toHaveBeenCalledWith('Settings');
+    expect(navigation.dispatch).toHaveBeenCalledWith(tabAction('SettingsTab', 'Settings'));
   });
 });
 

@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
-import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
 import { CustomerListRow } from '@/components/customer/CustomerListRow';
 import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
 import { FilterChip, FilterChipRow } from '@/components/shared/FilterChips';
@@ -481,15 +480,6 @@ export function CustomerListScreen({ navigation, route }: Props) {
           />
         )}
       </View>
-
-      {!onSelectCustomer && (
-        <DashboardBottomNav
-          activeTab="customers"
-          onDashboard={() => navigation.navigate('Dashboard')}
-          onInvoices={() => navigation.navigate('InvoiceList')}
-          onSettings={() => navigation.navigate('Settings')}
-        />
-      )}
     </View>
   );
 }

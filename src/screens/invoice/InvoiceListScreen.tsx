@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
-import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
 import { InvoiceListRow } from '@/components/invoice/InvoiceListRow';
 import { DateSectionHeader } from '@/components/shared/DateSectionHeader';
 import { EmptyStateCard } from '@/components/shared/EmptyStateCard';
@@ -314,15 +313,6 @@ export function InvoiceListScreen({ navigation, route }: Props) {
           />
         )}
       </View>
-
-      {!onSelectInvoice && (
-        <DashboardBottomNav
-          activeTab="invoices"
-          onDashboard={() => navigation.navigate('Dashboard')}
-          onCustomers={() => navigation.navigate('CustomerList')}
-          onSettings={() => navigation.navigate('Settings')}
-        />
-      )}
       {invoiceLimitModal}
     </View>
   );

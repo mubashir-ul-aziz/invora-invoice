@@ -61,6 +61,7 @@ const navigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
   popToTop: jest.fn(),
+  dispatch: jest.fn(),
   addListener: jest.fn(() => jest.fn()),
 };
 
@@ -224,18 +225,19 @@ describe('DashboardScreen', () => {
     });
   });
 
-  it('navigates to Invoices, Customers, and Settings', async () => {
+  it('"See all" switches to the Invoices tab instead of pushing another list', async () => {
     mockDashboardStore = createDashboardStore(new InMemoryDashboardRepository());
     const view = await renderScreen();
 
-    await waitFor(() => expect(view.getByTestId('action-invoices')).toBeTruthy());
-    fireEvent.press(view.getByTestId('action-invoices'));
-    expect(navigation.navigate).toHaveBeenCalledWith('InvoiceList');
+    await waitFor(() => expect(view.getByTestId('action-see-all-invoices')).toBeTruthy());
+    fireEvent.press(view.getByTestId('action-see-all-invoices'));
 
-    fireEvent.press(view.getByTestId('action-customers'));
-    expect(navigation.navigate).toHaveBeenCalledWith('CustomerList');
-
-    fireEvent.press(view.getByTestId('action-settings'));
-    expect(navigation.navigate).toHaveBeenCalledWith('Settings');
+    expect(navigation.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'NAVIGATE',
+        payload: expect.objectContaining({ name: 'InvoicesTab', params: { screen: 'InvoiceList', pop: true } }),
+      }),
+    );
+    expect(navigation.navigate).not.toHaveBeenCalledWith('InvoiceList');
   });
 });

@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from '@/components/businessCard/ActionButton';
-import { DashboardBottomNav } from '@/components/dashboard/DashboardBottomNav';
 import { DashboardGreetingHeader } from '@/components/dashboard/DashboardGreetingHeader';
 import { DashboardQuickActions } from '@/components/dashboard/DashboardQuickActions';
 import { DashboardStatusBreakdown } from '@/components/dashboard/DashboardStatusBreakdown';
@@ -15,6 +14,7 @@ import { useInvoiceLimitGuard } from '@/components/subscription/useInvoiceLimitG
 import { PAYMENT_TERMS_OPTIONS } from '@/domain/business/types';
 import type { DashboardRecentInvoice } from '@/domain/dashboard/types';
 import { addDaysIso, todayIsoDate } from '@/domain/invoice/formMapping';
+import { navigateToTab } from '@/navigation/tabs';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
 import { useDashboardStore } from '@/state/dashboardStore';
@@ -156,7 +156,8 @@ export function DashboardScreen({ navigation }: Props) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="See all invoices"
-              onPress={() => navigation.navigate('InvoiceList')}
+              onPress={() => navigateToTab(navigation, 'invoices')}
+              testID="action-see-all-invoices"
               style={styles.seeAll}
             >
               <Text style={styles.seeAllText}>See all</Text>
@@ -183,12 +184,6 @@ export function DashboardScreen({ navigation }: Props) {
           )}
         </View>
       </ScrollView>
-
-      <DashboardBottomNav
-        onInvoices={() => navigation.navigate('InvoiceList')}
-        onCustomers={() => navigation.navigate('CustomerList')}
-        onSettings={() => navigation.navigate('Settings')}
-      />
       {invoiceLimitModal}
     </View>
   );

@@ -1,3 +1,4 @@
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
@@ -42,9 +43,12 @@ import { SecurityScreen } from '@/screens/settings/SecurityScreen';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 
 import { byInvoiceId, byPaymentId, withCustomerHistoryGuard, withInvoiceAccessGuard } from './guards';
+import { MainTabBar } from './MainTabBar';
+import { MAIN_TABS, type MainTabParamList } from './tabs';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // Historical-access guards (Free plan: an invoice opens for 24h after it is
 // created; customer history needs a paid plan). Applied here, once, so every
@@ -56,10 +60,39 @@ const GuardedEditPayment = withInvoiceAccessGuard(EditPaymentScreen, byPaymentId
 const GuardedInvoicePdfPreview = withInvoiceAccessGuard(InvoicePdfPreviewScreen, byInvoiceId);
 const GuardedCustomerHistory = withCustomerHistoryGuard(CustomerHistoryScreen);
 
+/**
+ * App shell: a bottom tab navigator (Dashboard / Invoices / Customers /
+ * Settings, see `tabs.ts`) whose tabs each host a stack of every screen. The
+ * tabs stay mounted while you switch between them, so each keeps its own
+ * history and screen state (filters, search, scroll), and the one shared
+ * `MainTabBar` highlights the tab you're in on every screen.
+ */
 export function RootNavigator() {
   return (
+    <Tab.Navigator
+      initialRouteName="DashboardTab"
+      backBehavior="firstRoute"
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <MainTabBar {...props} />}
+    >
+      {MAIN_TABS.map((tab) => (
+        <Tab.Screen key={tab.key} name={tab.route} options={{ title: tab.label }}>
+          {() => <TabStack initialRouteName={tab.rootScreen} />}
+        </Tab.Screen>
+      ))}
+    </Tab.Navigator>
+  );
+}
+
+/**
+ * One tab's stack. Every tab registers every screen so existing
+ * `navigation.navigate('InvoiceDetail', …)` calls push onto the current tab
+ * instead of jumping tabs; use `navigateToTab` to go to another tab's root.
+ */
+function TabStack({ initialRouteName }: { initialRouteName: keyof RootStackParamList }) {
+  return (
     <Stack.Navigator
-      initialRouteName="Dashboard"
+      initialRouteName={initialRouteName}
       screenOptions={{ header: (props) => <AppHeader {...props} /> }}
     >
       <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
