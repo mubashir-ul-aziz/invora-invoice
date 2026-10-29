@@ -168,6 +168,7 @@ export function SettingsScreen({ navigation }: Props) {
           description="Optional paid cloud backup, storage usage, and upgrade"
           onPress={() => navigation.navigate('CloudBackup')}
           testID="settings-row-cloud-backup"
+          tag="Coming soon"
         />
       </Section>
 

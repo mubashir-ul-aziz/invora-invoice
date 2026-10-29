@@ -85,6 +85,9 @@ export function CloudBackupScreen({ navigation }: Props) {
             <Feather name="cloud" size={18} color={colors.primary} />
           </View>
           <Text style={styles.cardTitle}>Cloud backup</Text>
+          <View style={[styles.statusPill, styles.statusPillOff]} testID="cloud-backup-coming-soon">
+            <Text style={[styles.statusPillText, styles.statusPillTextOff]}>Coming soon</Text>
+          </View>
           <View style={[styles.statusPill, settings.cloudBackupEnabled ? styles.statusPillOn : styles.statusPillOff]}>
             <Text
               style={[

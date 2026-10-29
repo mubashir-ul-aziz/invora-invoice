@@ -243,6 +243,9 @@ export function BackupScreen({}: Props) {
             <Feather name="cloud" size={18} color={colors.primary} />
           </View>
           <Text style={styles.cardTitle}>Automatic Google Drive Backup</Text>
+          <View style={[styles.statusPill, styles.statusPillOff]} testID="backup-drive-coming-soon">
+            <Text style={[styles.statusPillText, styles.statusPillTextOff]}>Coming soon</Text>
+          </View>
           <View style={[styles.statusPill, signedIn ? styles.statusPillOn : styles.statusPillOff]}>
             <Text style={[styles.statusPillText, signedIn ? styles.statusPillTextOn : styles.statusPillTextOff]}>
               {signedIn ? 'Connected' : 'Not connected'}
