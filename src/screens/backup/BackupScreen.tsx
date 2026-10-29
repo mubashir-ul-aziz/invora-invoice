@@ -243,13 +243,15 @@ export function BackupScreen({}: Props) {
             <Feather name="cloud" size={18} color={colors.primary} />
           </View>
           <Text style={styles.cardTitle}>Automatic Google Drive Backup</Text>
-          <View style={[styles.statusPill, styles.statusPillOff]} testID="backup-drive-coming-soon">
-            <Text style={[styles.statusPillText, styles.statusPillTextOff]}>Coming soon</Text>
-          </View>
-          <View style={[styles.statusPill, signedIn ? styles.statusPillOn : styles.statusPillOff]}>
-            <Text style={[styles.statusPillText, signedIn ? styles.statusPillTextOn : styles.statusPillTextOff]}>
-              {signedIn ? 'Connected' : 'Not connected'}
-            </Text>
+          <View style={styles.pillStack}>
+            <View style={[styles.statusPill, styles.statusPillOff]} testID="backup-drive-coming-soon">
+              <Text style={[styles.statusPillText, styles.statusPillTextOff]}>Coming soon</Text>
+            </View>
+            <View style={[styles.statusPill, signedIn ? styles.statusPillOn : styles.statusPillOff]}>
+              <Text style={[styles.statusPillText, signedIn ? styles.statusPillTextOn : styles.statusPillTextOff]}>
+                {signedIn ? 'Connected' : 'Not connected'}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -490,6 +492,7 @@ const styles = StyleSheet.create({
   cardBody: { fontSize: 13, color: colors.textMuted },
   hint: { fontSize: 11, color: colors.textMuted, lineHeight: 16 },
 
+  pillStack: { alignItems: 'flex-end', gap: 4 },
   statusPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   statusPillOn: { backgroundColor: SUCCESS_BG },
   statusPillOff: { backgroundColor: colors.background },
