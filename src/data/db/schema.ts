@@ -390,9 +390,10 @@ export const backupLog = sqliteTable(
   {
     id: text('id').primaryKey(),
     direction: text('direction', { enum: ['backup', 'restore'] }).notNull(),
-    trigger: text('trigger', { enum: ['manual', 'automatic'] }).notNull(),
+    /** `'safety'` = the automatic copy of the current data taken right before a restore. */
+    trigger: text('trigger', { enum: ['manual', 'automatic', 'safety'] }).notNull(),
     status: text('status', { enum: ['success', 'failure'] }).notNull(),
-    /** Where the backup content came from/went to: `'google_drive'` (Phase 11) or `'cloud'` (Phase 12) — kept as text (not a Drizzle-level enum) from the start specifically so this second destination was additive, not a migration. */
+    /** Where the backup content came from/went to: `'google_drive'` (Phase 11), `'cloud'` (Phase 12) or `'local'` (an exported/imported `.json` file) — kept as text (not a Drizzle-level enum) from the start specifically so new destinations are additive, not a migration. */
     destination: text('destination').notNull().default('google_drive'),
     startedAt: integer('started_at').notNull(),
     finishedAt: integer('finished_at'),
@@ -402,6 +403,12 @@ export const backupLog = sqliteTable(
     /** JSON-encoded `BackupCounts` (row counts per table) — a quick "what was in this backup" summary without re-parsing the full payload. */
     itemCounts: text('item_counts'),
     errorMessage: text('error_message'),
+    /** The backup file's name (`metriqo-backup-….json`). Added after this table's first release — see `BACKUP_LOG_COLUMN_UPGRADES`. */
+    fileName: text('file_name'),
+    /** `'local'` backups only: the durable file in this app's document storage that Share/Restore/Delete act on. */
+    fileUri: text('file_uri'),
+    /** `'google_drive'` backups only: the Drive file id, so a history row can be restored, shared or deleted. */
+    remoteFileId: text('remote_file_id'),
   },
   (table) => ({
     startedAtIdx: index('backup_log_started_at_idx').on(table.startedAt),
@@ -450,6 +457,16 @@ export const subscriptionState = sqliteTable('subscription_state', {
    * `identifyUser()` call completes.
    */
   revenueCatUserId: text('revenue_cat_user_id'),
+  /**
+   * RevenueCat's own timestamp (`requestDateMillis`) of the last *fresh*
+   * CustomerInfo — an answer the SDK fetched from RevenueCat just now, not
+   * its offline cache. Drives the 24-hour verification requirement (see
+   * `domain/subscription/verificationPolicy.ts`). A cached answer or a
+   * failed request never moves it. Never part of a backup.
+   */
+  lastVerifiedAt: integer('last_verified_at'),
+  /** When this install first ran with the verification requirement — the start of its first 24-hour window, before any verification has succeeded. */
+  firstLaunchAt: integer('first_launch_at'),
   signature: text('signature'),
   updatedAt: integer('updated_at').notNull(),
 });
@@ -656,7 +673,10 @@ export const CREATE_TABLES_SQL = `
     format_version INTEGER,
     size_bytes INTEGER,
     item_counts TEXT,
-    error_message TEXT
+    error_message TEXT,
+    file_name TEXT,
+    file_uri TEXT,
+    remote_file_id TEXT
   );
   CREATE INDEX IF NOT EXISTS backup_log_started_at_idx ON backup_log (started_at);
   CREATE TABLE IF NOT EXISTS subscription_state (
@@ -673,6 +693,8 @@ export const CREATE_TABLES_SQL = `
     usage_period_key TEXT,
     usage_count INTEGER,
     revenue_cat_user_id TEXT,
+    last_verified_at INTEGER,
+    first_launch_at INTEGER,
     signature TEXT,
     updated_at INTEGER NOT NULL
   );
@@ -771,6 +793,20 @@ export const CUSTOMER_COLUMN_UPGRADES: { column: string; definition: string }[] 
  */
 export const SUBSCRIPTION_STATE_COLUMN_UPGRADES: { column: string; definition: string }[] = [
   { column: 'revenue_cat_user_id', definition: 'TEXT' },
+  { column: 'last_verified_at', definition: 'INTEGER' },
+  { column: 'first_launch_at', definition: 'INTEGER' },
+];
+
+/**
+ * Columns added to `backup_log` after its first release (the file name /
+ * local path / Drive file id that let a history row be shared, restored or
+ * deleted). Same additive/idempotent mechanism as `BUSINESS_COLUMN_UPGRADES`
+ * — see `ensureBackupLogColumns()` in `db/client.ts`.
+ */
+export const BACKUP_LOG_COLUMN_UPGRADES: { column: string; definition: string }[] = [
+  { column: 'file_name', definition: 'TEXT' },
+  { column: 'file_uri', definition: 'TEXT' },
+  { column: 'remote_file_id', definition: 'TEXT' },
 ];
 
 export const APP_SETTINGS_COLUMN_UPGRADES: { column: string; definition: string }[] = [

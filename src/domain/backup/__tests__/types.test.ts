@@ -11,7 +11,6 @@ describe('countBackupTables', () => {
       invoices: 0,
       invoiceItems: 0,
       payments: 0,
-      appSettings: 0,
     });
   });
 
@@ -20,7 +19,6 @@ describe('countBackupTables', () => {
       business: [{ id: 'default' }],
       items: [{ id: 'i1' }, { id: 'i2' }],
       customers: [{ id: 'c1' }],
-      appSettings: [{ id: 'default' }],
     });
     expect(countBackupTables(tables)).toEqual({
       business: 1,
@@ -30,7 +28,6 @@ describe('countBackupTables', () => {
       invoices: 0,
       invoiceItems: 0,
       payments: 0,
-      appSettings: 1,
     });
   });
 });

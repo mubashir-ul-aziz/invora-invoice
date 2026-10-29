@@ -63,6 +63,10 @@ export interface SubscriptionCacheRecord extends NormalizedSubscription {
   usage: UsageLedger | null;
   /** The Invora `local_user_id` this entitlement was last verified under — see `SubscriptionService.identifyUser()`. Null until the first successful identify. */
   revenueCatUserId: string | null;
+  /** RevenueCat's timestamp of the last *fresh* CustomerInfo — the 24-hour verification anchor (`verificationPolicy.ts`). Never set from a cached answer or a failure. */
+  lastVerifiedAt: number | null;
+  /** When the 24-hour policy first ran on this install — the window's start until a verification succeeds. */
+  firstLaunchAt: number | null;
 }
 
 export const EMPTY_CACHE_RECORD: SubscriptionCacheRecord = {
@@ -70,6 +74,8 @@ export const EMPTY_CACHE_RECORD: SubscriptionCacheRecord = {
   clockHighWaterMs: 0,
   usage: null,
   revenueCatUserId: null,
+  lastVerifiedAt: null,
+  firstLaunchAt: null,
 };
 
 /** Why the effective plan is what it is — surfaced for diagnostics and the status banner. */
@@ -108,6 +114,13 @@ export interface SubscriptionSnapshot {
   managementUrl: string | null;
   /** Which store RevenueCat says the active entitlement came from (`PLAY_STORE`, `TEST_STORE`, …); null when unknown/none. */
   activeStore: string | null;
+  /** Inputs to the 24-hour verification requirement (`evaluateVerification`), re-evaluated against the clock by the UI. */
+  verification: {
+    /** False when RevenueCat isn't usable in this build — the requirement is then off. */
+    enforced: boolean;
+    lastVerifiedAt: number | null;
+    firstLaunchAt: number | null;
+  };
 }
 
 /** The snapshot before anything has loaded: Free, nothing trusted. */
@@ -120,4 +133,5 @@ export const INITIAL_SNAPSHOT: SubscriptionSnapshot = {
   clockHighWaterMs: 0,
   managementUrl: null,
   activeStore: null,
+  verification: { enforced: false, lastVerifiedAt: null, firstLaunchAt: null },
 };

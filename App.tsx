@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AutoBackupRunner } from '@/components/backup/AutoBackupRunner';
+import { PlanVerificationGate } from '@/components/subscription/PlanVerificationGate';
 import { SubscriptionRunner } from '@/components/subscription/SubscriptionRunner';
 import { AppLockGate } from '@/components/security/AppLockGate';
 import { ToastHost } from '@/components/shared/ToastHost';
@@ -40,9 +41,11 @@ export default function App() {
         <AppLockGate>
           <AutoBackupRunner>
             <SubscriptionRunner>
-              <CurrencyProvider>
-                <RootNavigator />
-              </CurrencyProvider>
+              <PlanVerificationGate>
+                <CurrencyProvider>
+                  <RootNavigator />
+                </CurrencyProvider>
+              </PlanVerificationGate>
             </SubscriptionRunner>
           </AutoBackupRunner>
           {/* After the navigator so it draws above every screen; inside the lock gate so nothing shows over the lock screen. */}

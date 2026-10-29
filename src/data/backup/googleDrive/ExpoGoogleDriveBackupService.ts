@@ -24,8 +24,12 @@ const GOOGLE_DISCOVERY = {
  * `drive.appdata` scopes access to *only* the hidden App Data folder — the
  * app can never see or touch the rest of the user's Drive, matching
  * `MVP_BUILD_PLAN.md`'s "Google Drive backup ... (App Data folder)".
+ * `openid email` only lets the Backup screen show which Google account is
+ * connected; it grants no access to Drive or anything else.
  */
-const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.appdata'];
+const DRIVE_SCOPES = ['openid', 'email', 'https://www.googleapis.com/auth/drive.appdata'];
+
+const USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
 
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -39,6 +43,8 @@ interface StoredTokens {
   refreshToken: string | null;
   /** Epoch ms. */
   expiresAt: number | null;
+  /** The connected account's email; absent on sessions from before the email scope was requested. */
+  email?: string | null;
 }
 
 /**
@@ -87,12 +93,29 @@ export class ExpoGoogleDriveBackupService implements GoogleDriveBackupService {
     await SecureStore.deleteItemAsync(TOKENS_STORAGE_KEY);
   }
 
-  private toStoredTokens(response: TokenResponse, fallbackRefreshToken: string | null): StoredTokens {
+  private toStoredTokens(
+    response: TokenResponse,
+    fallbackRefreshToken: string | null,
+    email: string | null = null,
+  ): StoredTokens {
     return {
       accessToken: response.accessToken,
       refreshToken: response.refreshToken ?? fallbackRefreshToken,
       expiresAt: response.expiresIn ? Date.now() + response.expiresIn * 1000 : null,
+      email,
     };
+  }
+
+  /** Best-effort: the email is display-only, so a failure here never fails sign-in. */
+  private async fetchEmail(accessToken: string): Promise<string | null> {
+    try {
+      const response = await fetch(USERINFO_URL, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!response.ok) return null;
+      const json = (await response.json()) as { email?: unknown };
+      return typeof json.email === 'string' ? json.email : null;
+    } catch {
+      return null;
+    }
   }
 
   private async ensureOnline(): Promise<void> {
@@ -130,7 +153,7 @@ export class ExpoGoogleDriveBackupService implements GoogleDriveBackupService {
     }
     try {
       const refreshed = await refreshAsync({ clientId, refreshToken: tokens.refreshToken }, GOOGLE_DISCOVERY);
-      const next = this.toStoredTokens(refreshed, tokens.refreshToken);
+      const next = this.toStoredTokens(refreshed, tokens.refreshToken, tokens.email ?? null);
       await this.saveTokens(next);
       return next.accessToken;
     } catch {
@@ -178,7 +201,16 @@ export class ExpoGoogleDriveBackupService implements GoogleDriveBackupService {
       GOOGLE_DISCOVERY,
     );
 
-    await this.saveTokens(this.toStoredTokens(tokenResponse, null));
+    const email = await this.fetchEmail(tokenResponse.accessToken);
+    await this.saveTokens(this.toStoredTokens(tokenResponse, null, email));
+  }
+
+  async getAccountEmail(): Promise<string | null> {
+    try {
+      return (await this.loadTokens())?.email ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async signOut(): Promise<void> {

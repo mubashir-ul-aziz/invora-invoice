@@ -3,6 +3,7 @@ import type {
   PaywallOutcome,
   PurchaseOutcome,
   RestoreOutcome,
+  VerifyOutcome,
 } from '@/data/subscription/SubscriptionService';
 import { describeSubscriptionStatus } from '@/domain/subscription/entitlementMapping';
 import { formatDate } from '@/domain/subscription/formatting';
@@ -119,6 +120,34 @@ export function restoreOutcomeMessage(outcome: RestoreOutcome): OutcomeMessage {
  * Wording for the RevenueCat-hosted Paywall's result. `null` when nothing
  * should be shown — the user just dismissed it, or it had nothing to offer.
  */
+/**
+ * "Refresh Plan" wording. Anything short of a fresh RevenueCat answer is
+ * reported as *pending* verification — never as an expired plan.
+ */
+export function verifyOutcomeMessage(outcome: VerifyOutcome): OutcomeMessage {
+  switch (outcome.status) {
+    case 'verified': {
+      const label = PLAN_CONFIG[outcome.snapshot.plan].label;
+      return { type: 'success', title: 'Plan verified', message: `Your ${label} plan was confirmed with Google Play just now.` };
+    }
+    case 'offline':
+      return {
+        type: 'error',
+        title: "You're offline",
+        message: "Connect to Wi-Fi or mobile data and try again. Your plan is waiting to be verified — it hasn't expired.",
+      };
+    case 'unreachable':
+      return {
+        type: 'error',
+        title: "Couldn't verify your plan",
+        message:
+          "The subscription server couldn't be reached. Check your connection and that your device's date and time are set automatically, then try again. Your plan hasn't expired.",
+      };
+    default:
+      return { type: 'error', title: 'Verification unavailable', message: unavailableMessage(outcome.reason) };
+  }
+}
+
 export function paywallOutcomeMessage(outcome: PaywallOutcome): OutcomeMessage | null {
   switch (outcome.status) {
     case 'purchased': {

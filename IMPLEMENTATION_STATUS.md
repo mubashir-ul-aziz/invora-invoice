@@ -5192,3 +5192,84 @@ Supersedes the API-key and "no local prices" points of the addendum above.
   Test Store purchases show a note to manage them in the RevenueCat dashboard.
 - Tests: `purchaseFlow.test.ts` (scenarios A–P), `revenueCatConfig.test.ts`
   (R, S), updated `PricingScreen`/store/service tests (J, K, L, Q).
+
+---
+
+## Backup export/import, shared format v2, and 24-hour plan verification
+
+**Status:** Complete (2026-10-29). Not yet verified on a physical device.
+
+**What was built:**
+- **One backup format (v2) for Drive, cloud and local files** —
+  `BackupPayloadService` builds it (embeds the logo image as base64 in
+  `assets.logo`, clears the device-only `business.logoUri`), validates it and
+  applies it. Version 1 files still restore (`normalizeV1()`: `app_settings`
+  dropped, missing invoice currencies backfilled from the business, the old
+  logo path kept only if that file still exists).
+- **Excluded from every backup and never touched by a restore:**
+  `app_settings` (App Lock, biometrics, auto/cloud backup flags and status),
+  `subscription_state`, `user_identity`, `backup_log`, SecureStore contents.
+  Portable preferences (invoice prefix/number, tax, terms, template, invoice
+  type, custom fields/units, currency) live on the `business` row and travel
+  with it.
+- **Validator** (`domain/backup/validation.ts`) checks size (50 MB), JSON,
+  version, checksum (now over `tables` + `assets`), every field's type/range,
+  and relationships (ids unique, one business, invoice numbers unique, every
+  invoice/line/payment/social link points at an existing parent) before the
+  database is touched. Unknown keys are dropped.
+- **Export Backup** (`LocalBackupService`) writes
+  `metriqo-backup-YYYY-MM-DD-HHmmss.json` to `<documentDirectory>/backups/`
+  (write-then-move, never a half file), logs it, then offers Share (system
+  sheet) or, on Android, Save to folder (Storage Access Framework). Closing
+  the share sheet is never reported as a successful save.
+- **Import / restore** (`BackupRestoreService`): `prepare()` reads + validates
+  + previews (business, date, counts) without changing anything; `restore()`
+  writes a durable `metriqo-safety-backup-….json` first (aborts if that
+  fails), then replaces the data in the existing single transaction. The new
+  logo file is deleted again if the transaction fails. Same flow for an
+  imported file, a local history entry, or a Drive backup.
+- **Backup & Restore screen** — Drive card (connected email, toggle, last
+  success, status, platform-limitation note), Export/Import, and the merged
+  persistent history (Drive automatic/manual, exported, safety, restores)
+  with Download/Share, Restore, Delete per entry. Delete names whether it
+  removes a local file or a Drive file. The separate `BackupHistory` screen
+  and route were removed (history is inline now).
+- **Subscription after restore** — the restore never carries plan data;
+  `subscriptionStore.refreshAfterRestore()` re-checks RevenueCat and the usage
+  meter. Account screen gained **Refresh Plan** (`SubscriptionService.verifyNow()`,
+  fresh CustomerInfo) next to **Restore Purchases**.
+- **24-hour verification** (`domain/subscription/verificationPolicy.ts`,
+  `PlanVerificationGate`) — after 24 h without a fresh RevenueCat answer the
+  app shows "Connect to the internet to verify your plan" (Verify now,
+  Restore Purchases, Export Backup only). `lastVerifiedAt` is RevenueCat's
+  `requestDateMillis` of a *fresh* answer; cached answers and failures never
+  move it. First window starts at `firstLaunchAt`. Clock rollback beyond
+  20 min below the high-water mark requires verification. Not enforced when
+  RevenueCat isn't configured in the build.
+
+**Database changes (additive, idempotent `ALTER TABLE … ADD COLUMN`):**
+- `backup_log`: `file_name`, `file_uri`, `remote_file_id`
+  (`BACKUP_LOG_COLUMN_UPGRADES`, `ensureBackupLogColumns()`); `trigger` may
+  now be `'safety'`, `destination` may be `'local'`.
+- `subscription_state`: `last_verified_at`, `first_launch_at`. Appended to the
+  signed serialization only when set, so existing signatures stay valid.
+
+**Dependencies:** `expo-document-picker` (~57.0.3, via `npx expo install`).
+Google Drive sign-in now also requests `openid email` (display only) — users
+signed in before this see "Connected" without an email until they sign in again.
+
+**Known limitations:**
+- No true background backup: automatic Drive backups still run only when the
+  app is opened/foregrounded, online, and 24 h have passed.
+- Local backups and safety backups are never auto-pruned; the user deletes
+  them from the history. Uninstalling the app removes them (app storage).
+- Cloud backup restore uses the shared format but does not take a safety
+  backup first (cloud backend is still not deployed).
+- Cross-device usage: the monthly invoice counter lives in
+  `subscription_state` on each device. Importing keeps this device's counter
+  (it can only go up), but a different device has its own counter, and
+  restored invoices created this month count toward this device's month.
+- The 24-hour rule is local enforcement: clearing app data, reinstalling or a
+  rooted device can bypass it. A device clock more than 15 min off RevenueCat
+  time never counts as verified (the gate tells the user to fix date/time).
+- iOS has no "Save to folder" option — the share sheet's "Save to Files" is used.

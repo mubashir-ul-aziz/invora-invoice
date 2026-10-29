@@ -1,7 +1,7 @@
 import type { BackupTables } from '@/domain/backup/types';
 
 import { getDatabase, getDrizzle } from '../db/client';
-import { appSettings, business, customer, invoice, invoiceItem, item, payment, socialLink } from '../db/schema';
+import { business, customer, invoice, invoiceItem, item, payment, socialLink } from '../db/schema';
 import type { BackupRepository } from './BackupRepository';
 
 /** Keeps every `INSERT ... VALUES (...), (...), ...` well under SQLite's bound-parameter limit even for a business with thousands of invoice lines — see "Test: Backup with large data". */
@@ -28,7 +28,6 @@ export class SqliteBackupRepository implements BackupRepository {
       invoiceRows,
       invoiceItemRows,
       paymentRows,
-      appSettingsRows,
     ] = await Promise.all([
       db.select().from(business),
       db.select().from(socialLink),
@@ -37,7 +36,6 @@ export class SqliteBackupRepository implements BackupRepository {
       db.select().from(invoice),
       db.select().from(invoiceItem),
       db.select().from(payment),
-      db.select().from(appSettings),
     ]);
 
     return {
@@ -48,7 +46,6 @@ export class SqliteBackupRepository implements BackupRepository {
       invoices: invoiceRows,
       invoiceItems: invoiceItemRows,
       payments: paymentRows,
-      appSettings: appSettingsRows,
     };
   }
 
@@ -87,11 +84,12 @@ export class SqliteBackupRepository implements BackupRepository {
       tx.delete(customer).run();
       tx.delete(item).run();
       tx.delete(business).run();
-      tx.delete(appSettings).run();
+      // `app_settings`, `backup_log`, `subscription_state` and `user_identity`
+      // are never touched: they're this device's settings, history, plan
+      // cache and RevenueCat identity, not business data.
 
       // Parents before children, mirroring the deletes above in reverse.
       insertInChunks(tables.business, (chunk) => tx.insert(business).values(chunk).run());
-      insertInChunks(tables.appSettings, (chunk) => tx.insert(appSettings).values(chunk).run());
       insertInChunks(tables.customers, (chunk) => tx.insert(customer).values(chunk).run());
       insertInChunks(tables.items, (chunk) => tx.insert(item).values(chunk).run());
       insertInChunks(tables.socialLinks, (chunk) => tx.insert(socialLink).values(chunk).run());

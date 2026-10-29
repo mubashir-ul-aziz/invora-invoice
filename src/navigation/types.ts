@@ -104,7 +104,6 @@ export type RootStackParamList = {
   /** "Backup & Restore" (Phase 11) — Google Drive sign-in, Automatic Backup toggle, "Backup Now", and the status summary. */
   Backup: undefined;
   /** "Backup History" (Phase 11) — Drive backups available to restore + the local backup/restore attempt log. */
-  BackupHistory: undefined;
   /** "Cloud Backup" (Phase 12, optional/paid) — enabled/disabled toggle, storage usage/limits, last backup status, and "Backup Now". Google Drive backup (Phase 11) is unaffected — this is a second, independent backup destination, per `MVP_BUILD_PLAN.md` §4. */
   CloudBackup: undefined;
   /** "Cloud Backup History" (Phase 12) — cloud backups available to restore + the same `backup_log` history, filtered to `destination: 'cloud'`. */

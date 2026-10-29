@@ -11,7 +11,6 @@ function emptyTables(): BackupTables {
     invoices: [],
     invoiceItems: [],
     payments: [],
-    appSettings: [],
   };
 }
 
@@ -42,7 +41,11 @@ export class InMemoryBackupRepository implements BackupRepository {
     return cloneTables(this.tables);
   }
 
+  /** How many times `restoreAll()` was called — lets tests prove a rejected file never reached the database. */
+  restoreCalls = 0;
+
   async restoreAll(tables: BackupTables): Promise<void> {
+    this.restoreCalls += 1;
     const previous = cloneTables(this.tables);
     // Apply first (like a transaction's writes before COMMIT)...
     this.tables = cloneTables(tables);

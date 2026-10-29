@@ -23,12 +23,12 @@ type Filter = 'all' | BackupTrigger;
  * Lists every backup available to restore from cloud storage, and the
  * `backup_log` rows for this destination only (`entry.destination ===
  * 'cloud'` — the store already filters, see `cloudBackupStore.ts`). Mirrors
- * `BackupHistoryScreen` (Phase 11) exactly; restoring always goes through
+ * the Google Drive history (Phase 11, now part of `BackupScreen`); restoring always goes through
  * `cloudBackupStore.restore()` → `CloudBackupService.restoreBackup()`, which
  * decrypts and validates the file before ever touching the local database.
  *
  * Restyled to match the Stitch "Cloud Backup History" design's stat-ribbon +
- * filter-chip + grouped-row layout, same treatment as `BackupHistoryScreen`.
+ * filter-chip + grouped-row layout, same treatment the Google Drive history had.
  * As with that screen, every element here maps to real store data:
  * - The stat ribbon's snapshot count and total size come from the real
  *   `remoteBackups` list.

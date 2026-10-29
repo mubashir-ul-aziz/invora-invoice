@@ -8,7 +8,7 @@ import { EMPTY_CACHE_RECORD, type SubscriptionCacheRecord } from './types';
  * so the signature check fails and the cache is discarded.
  */
 export function serializeCacheRecord(record: SubscriptionCacheRecord): string {
-  return JSON.stringify([
+  const fields: unknown[] = [
     record.plan,
     record.isActive ? 1 : 0,
     record.expiresAt,
@@ -21,7 +21,13 @@ export function serializeCacheRecord(record: SubscriptionCacheRecord): string {
     record.usage?.periodKey ?? null,
     record.usage?.count ?? null,
     record.revenueCatUserId,
-  ]);
+  ];
+  // Appended only once set, so rows signed before these fields existed keep
+  // verifying. Clearing them by hand changes the bytes and fails the check.
+  if (record.lastVerifiedAt !== null || record.firstLaunchAt !== null) {
+    fields.push(record.lastVerifiedAt, record.firstLaunchAt);
+  }
+  return JSON.stringify(fields);
 }
 
 function isFiniteOrNull(value: unknown): value is number | null {
@@ -38,9 +44,16 @@ export function sanitizeCacheRecord(candidate: SubscriptionCacheRecord): Subscri
     !isFiniteOrNull(candidate.lastSyncedAt) ||
     !Number.isFinite(candidate.clockHighWaterMs) ||
     (candidate.source !== 'revenuecat' && candidate.source !== 'default') ||
-    (candidate.revenueCatUserId !== null && typeof candidate.revenueCatUserId !== 'string')
+    (candidate.revenueCatUserId !== null && typeof candidate.revenueCatUserId !== 'string') ||
+    !isFiniteOrNull(candidate.lastVerifiedAt ?? null) ||
+    !isFiniteOrNull(candidate.firstLaunchAt ?? null)
   ) {
     return EMPTY_CACHE_RECORD;
   }
-  return { ...candidate, billingPeriod: period };
+  return {
+    ...candidate,
+    billingPeriod: period,
+    lastVerifiedAt: candidate.lastVerifiedAt ?? null,
+    firstLaunchAt: candidate.firstLaunchAt ?? null,
+  };
 }

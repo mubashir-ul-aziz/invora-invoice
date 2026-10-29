@@ -1,27 +1,12 @@
-import { emptyBackupTables, tablesWith } from '@/domain/backup/testFixtures';
-import { BACKUP_RETENTION_COUNT, type BackupTables } from '@/domain/backup/types';
-import { buildBackupPayload } from '@/domain/backup/validation';
+import { tablesWith } from '@/domain/backup/testFixtures';
+import { BACKUP_FORMAT_VERSION, BACKUP_RETENTION_COUNT, type BackupTables } from '@/domain/backup/types';
+import { validateBackupPayload } from '@/domain/backup/validation';
 
-import { BackupService } from '../BackupService';
-import { InMemoryBackupLogRepository } from '../InMemoryBackupLogRepository';
-import { InMemoryBackupRepository } from '../InMemoryBackupRepository';
-import { InMemoryBackupSettingsRepository } from '../InMemoryBackupSettingsRepository';
-import { FakeGoogleDriveBackupService } from '../googleDrive/FakeGoogleDriveBackupService';
+import { createBackupHarness } from '../testHarness';
 
 function makeService(opts: { seed?: BackupTables; clock?: () => number } = {}) {
-  const backupRepository = new InMemoryBackupRepository(opts.seed);
-  const logRepository = new InMemoryBackupLogRepository();
-  const settingsRepository = new InMemoryBackupSettingsRepository();
-  const driveService = new FakeGoogleDriveBackupService();
-  const service = new BackupService(
-    backupRepository,
-    logRepository,
-    settingsRepository,
-    driveService,
-    '1.0.0',
-    opts.clock ?? Date.now,
-  );
-  return { service, backupRepository, logRepository, settingsRepository, driveService };
+  const harness = createBackupHarness(opts);
+  return { ...harness, service: harness.backupService };
 }
 
 describe('BackupService.backupNow', () => {
@@ -50,7 +35,6 @@ describe('BackupService.backupNow', () => {
       invoices: 0,
       invoiceItems: 0,
       payments: 0,
-      appSettings: 0,
     });
     await expect(driveService.listBackups()).resolves.toHaveLength(1);
   });
@@ -131,100 +115,33 @@ describe('BackupService.backupNow', () => {
   });
 });
 
-describe('BackupService.restoreBackup', () => {
-  it('restores successfully and replaces existing local data (Test: existing local data, restore)', async () => {
-    const existing = tablesWith({ customers: [{ id: 'old', name: 'Old' }] });
-    const { service, driveService, backupRepository } = makeService({ seed: existing });
+describe('BackupService — Drive files in the history', () => {
+  it('records the Drive file id and name, and uploads the shared current-version format', async () => {
+    const { service, driveService } = makeService({ clock: () => new Date(2026, 9, 29, 14, 30, 5).getTime() });
     await driveService.signIn();
 
-    // Back up a *different* dataset directly via the drive service, simulating a backup made from another device/earlier state.
-    const incoming = tablesWith({ customers: [{ id: 'new', name: 'New' }] });
-    const payload = buildBackupPayload(incoming, '1.0.0');
-    const uploaded = await driveService.uploadBackup('seed.json', JSON.stringify(payload));
+    const entry = await service.backupNow('automatic');
 
-    const entry = await service.restoreBackup(uploaded.id);
-
-    expect(entry.status).toBe('success');
-    await expect(backupRepository.exportAll()).resolves.toEqual(incoming);
+    const [file] = await driveService.listBackups();
+    expect(entry.remoteFileId).toBe(file.id);
+    expect(entry.fileName).toBe('metriqo-backup-2026-10-29-143005.json');
+    const content = await driveService.downloadBackup(file.id);
+    expect(validateBackupPayload(content).formatVersion).toBe(BACKUP_FORMAT_VERSION);
   });
 
-  it('fails cleanly and leaves local data untouched when the backup is corrupted (Test: corrupted backup)', async () => {
-    const existing = tablesWith({ customers: [{ id: 'keep', name: 'Keep Me' }] });
-    const { service, driveService, backupRepository } = makeService({ seed: existing });
-    await driveService.signIn();
-
-    const uploaded = driveService.seedFile('{"formatVersion":1,"tables":{}, "checksum": "not-real"}');
-
-    const entry = await service.restoreBackup(uploaded.id);
-
-    expect(entry.status).toBe('failure');
-    await expect(backupRepository.exportAll()).resolves.toEqual(existing);
-  });
-
-  it('fails cleanly on an incompatible format version, leaving local data untouched', async () => {
-    const existing = tablesWith({ customers: [{ id: 'keep', name: 'Keep Me' }] });
-    const { service, driveService, backupRepository } = makeService({ seed: existing });
-    await driveService.signIn();
-
-    const payload = buildBackupPayload(tablesWith(), '1.0.0');
-    // Only `formatVersion` changes — `tables` (and so `checksum`) stay valid,
-    // isolating this test to the version check rather than the checksum one.
-    const incompatible = { ...payload, formatVersion: 999 };
-    const uploaded = driveService.seedFile(JSON.stringify(incompatible));
-
-    const entry = await service.restoreBackup(uploaded.id);
-
-    expect(entry.status).toBe('failure');
-    await expect(backupRepository.exportAll()).resolves.toEqual(existing);
-  });
-
-  it('a failed restore (repository throws mid-write) leaves existing data intact (Test: failed restore)', async () => {
-    const existing = tablesWith({ customers: [{ id: 'keep', name: 'Keep Me' }] });
-    const { service, driveService, backupRepository } = makeService({ seed: existing });
-    await driveService.signIn();
-
-    const payload = buildBackupPayload(tablesWith({ customers: [{ id: 'new', name: 'New' }] }), '1.0.0');
-    const uploaded = await driveService.uploadBackup('good.json', JSON.stringify(payload));
-
-    backupRepository.simulateFailureOnRestore = new Error('disk full mid-restore');
-
-    const entry = await service.restoreBackup(uploaded.id);
-
-    expect(entry.status).toBe('failure');
-    expect(entry.errorMessage).toMatch(/disk full/);
-    await expect(backupRepository.exportAll()).resolves.toEqual(existing);
-  });
-
-  it('fails cleanly when not signed in', async () => {
-    const { service } = makeService();
-    const entry = await service.restoreBackup('some-file-id');
-    expect(entry.status).toBe('failure');
-    expect(entry.errorMessage).toMatch(/sign in/i);
-  });
-
-  it('fails cleanly when offline', async () => {
-    const { service, driveService } = makeService();
-    await driveService.signIn();
-    driveService.simulateOffline = true;
-    const entry = await service.restoreBackup('some-file-id');
-    expect(entry.status).toBe('failure');
-    expect(entry.errorMessage).toMatch(/offline/i);
-  });
-
-  it('fails cleanly when Google Drive is unavailable', async () => {
-    const { service, driveService } = makeService();
-    await driveService.signIn();
-    driveService.simulateUnavailable = true;
-    const entry = await service.restoreBackup('some-file-id');
-    expect(entry.status).toBe('failure');
-    expect(entry.errorMessage).toMatch(/drive/i);
-  });
-
-  it('every restore attempt (success or failure) is recorded in history', async () => {
+  it('deletes a Drive backup and its history row', async () => {
     const { service, driveService, logRepository } = makeService();
     await driveService.signIn();
-    await service.restoreBackup('does-not-exist');
-    await expect(logRepository.list()).resolves.toHaveLength(1);
-    await expect(logRepository.list()).resolves.toMatchObject([{ direction: 'restore', status: 'failure' }]);
+    const entry = await service.backupNow('manual');
+
+    await service.deleteRemoteBackup(entry.remoteFileId!, entry.id);
+
+    await expect(driveService.listBackups()).resolves.toHaveLength(0);
+    await expect(logRepository.get(entry.id)).resolves.toBeNull();
+  });
+
+  it('refuses to download when signed out', async () => {
+    const { service } = makeService();
+    await expect(service.downloadBackup('anything')).rejects.toThrow(/sign in/i);
   });
 });

@@ -1,9 +1,8 @@
-import { buildBackupPayload, validateBackupPayload } from '@/domain/backup/validation';
 import { countBackupTables, type BackupLogEntry, type BackupTrigger } from '@/domain/backup/types';
 import { CLOUD_BACKUP_RETENTION_COUNT, type CloudBackupFile, type CloudStorageUsage } from '@/domain/cloudBackup/types';
 
 import type { BackupLogRepository } from '../backup/BackupLogRepository';
-import type { BackupRepository } from '../backup/BackupRepository';
+import type { BackupPayloadService } from '../backup/BackupPayloadService';
 import type { CloudBackupApi } from './CloudBackupApi';
 import type { CloudBackupSettingsRepository } from './CloudBackupSettingsRepository';
 import type { BackupEncryptionService } from './encryption/BackupEncryptionService';
@@ -50,12 +49,11 @@ function errorMessageOf(err: unknown): string {
  */
 export class CloudBackupService {
   constructor(
-    private readonly backupRepository: BackupRepository,
+    private readonly payloads: BackupPayloadService,
     private readonly logRepository: BackupLogRepository,
     private readonly settingsRepository: CloudBackupSettingsRepository,
     private readonly api: CloudBackupApi,
     private readonly encryption: BackupEncryptionService,
-    private readonly appVersion: string,
     private readonly now: () => number = Date.now,
   ) {}
 
@@ -85,10 +83,7 @@ export class CloudBackupService {
         throw new Error('Turn on cloud backup before backing up.');
       }
 
-      const tables = await this.backupRepository.exportAll();
-      const payload = buildBackupPayload(tables, this.appVersion, startedAt);
-      const content = JSON.stringify(payload);
-      const counts = countBackupTables(tables);
+      const { payload, content, counts } = await this.payloads.create(startedAt);
       const envelope = await this.encryption.encrypt(content);
 
       await this.api.uploadBackup(backupFileName(startedAt), envelope);
@@ -153,8 +148,9 @@ export class CloudBackupService {
 
       const envelope = await this.api.downloadBackup(fileId);
       const raw = await this.encryption.decrypt(envelope); // corrupted/undecryptable envelope throws here — local DB untouched.
-      const payload = validateBackupPayload(raw); // throws BackupValidationError — local DB untouched.
-      await this.backupRepository.restoreAll(payload.tables); // atomic — see SqliteBackupRepository.
+      const inspected = this.payloads.inspect(raw); // throws BackupValidationError — local DB untouched.
+      await this.payloads.apply(inspected); // atomic — see SqliteBackupRepository.
+      const { payload } = inspected;
 
       const finishedAt = this.now();
       return await this.logRepository.add({

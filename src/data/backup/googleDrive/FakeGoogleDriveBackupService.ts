@@ -22,6 +22,8 @@ export class FakeGoogleDriveBackupService implements GoogleDriveBackupService {
   simulateOffline = false;
   /** When true, every method throws `DriveUnavailableError` — simulates a Drive-side outage/failure while the device itself is online. */
   simulateUnavailable = false;
+  /** The email `signIn()` connects as; null models a session whose email is unknown. */
+  accountEmail: string | null = 'owner@example.com';
 
   private guard(): void {
     if (this.simulateOffline) {
@@ -49,6 +51,10 @@ export class FakeGoogleDriveBackupService implements GoogleDriveBackupService {
 
   async signOut(): Promise<void> {
     this.signedIn = false;
+  }
+
+  async getAccountEmail(): Promise<string | null> {
+    return this.signedIn ? this.accountEmail : null;
   }
 
   async uploadBackup(fileName: string, content: string): Promise<DriveBackupFile> {

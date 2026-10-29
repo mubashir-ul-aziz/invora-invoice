@@ -27,6 +27,9 @@ function toEntry(row: typeof backupLog.$inferSelect): BackupLogEntry {
     sizeBytes: row.sizeBytes,
     counts: row.itemCounts ? (JSON.parse(row.itemCounts) as BackupCounts) : null,
     errorMessage: row.errorMessage,
+    fileName: row.fileName ?? null,
+    fileUri: row.fileUri ?? null,
+    remoteFileId: row.remoteFileId ?? null,
   };
 }
 
@@ -37,6 +40,13 @@ export class SqliteBackupLogRepository implements BackupLogRepository {
     const db = getDrizzle();
     const rows = await db.select().from(backupLog).orderBy(desc(backupLog.startedAt));
     return rows.map(toEntry);
+  }
+
+  async get(id: string): Promise<BackupLogEntry | null> {
+    await getDatabase();
+    const db = getDrizzle();
+    const rows = await db.select().from(backupLog).where(eq(backupLog.id, id));
+    return rows[0] ? toEntry(rows[0]) : null;
   }
 
   async add(entry: BackupLogEntryInput): Promise<BackupLogEntry> {
@@ -56,6 +66,9 @@ export class SqliteBackupLogRepository implements BackupLogRepository {
       sizeBytes: entry.sizeBytes,
       itemCounts: entry.counts ? JSON.stringify(entry.counts) : null,
       errorMessage: entry.errorMessage,
+      fileName: entry.fileName ?? null,
+      fileUri: entry.fileUri ?? null,
+      remoteFileId: entry.remoteFileId ?? null,
     });
 
     const rows = await db.select().from(backupLog).where(eq(backupLog.id, id));
@@ -64,5 +77,11 @@ export class SqliteBackupLogRepository implements BackupLogRepository {
       throw new Error('Failed to read back the backup log entry after creating it.');
     }
     return toEntry(row);
+  }
+
+  async remove(id: string): Promise<void> {
+    await getDatabase();
+    const db = getDrizzle();
+    await db.delete(backupLog).where(eq(backupLog.id, id));
   }
 }

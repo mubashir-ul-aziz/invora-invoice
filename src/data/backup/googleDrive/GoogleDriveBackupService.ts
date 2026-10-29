@@ -46,6 +46,8 @@ export interface GoogleDriveBackupService {
   /** Runs the Google OAuth flow (see `ExpoGoogleDriveBackupService`'s doc comment for the real, browser-based implementation). Resolves once signed in; throws if the user cancels or the device is offline. */
   signIn(): Promise<void>;
   signOut(): Promise<void>;
+  /** The connected Google account's email, or null when signed out or unknown (a session from before the email scope was requested — signing in again fills it in). Never throws. */
+  getAccountEmail(): Promise<string | null>;
   /** Uploads `content` as a new file named `fileName` into the App Data folder. */
   uploadBackup(fileName: string, content: string): Promise<DriveBackupFile>;
   /** Every backup file in the App Data folder, newest first. */

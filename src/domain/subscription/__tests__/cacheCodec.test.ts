@@ -13,6 +13,8 @@ const record: SubscriptionCacheRecord = {
   clockHighWaterMs: 1_900_000_000_000,
   usage: { periodKey: '2026-09', count: 3 },
   revenueCatUserId: 'guest-1',
+  lastVerifiedAt: null,
+  firstLaunchAt: null,
 };
 
 describe('serializeCacheRecord', () => {

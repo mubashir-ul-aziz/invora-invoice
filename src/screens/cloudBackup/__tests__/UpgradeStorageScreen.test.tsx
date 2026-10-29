@@ -3,6 +3,8 @@ import React from 'react';
 
 import { InMemoryBackupLogRepository } from '@/data/backup/InMemoryBackupLogRepository';
 import { InMemoryBackupRepository } from '@/data/backup/InMemoryBackupRepository';
+import { BackupPayloadService } from '@/data/backup/BackupPayloadService';
+import { InMemoryBackupAssetStore } from '@/data/backup/files/InMemoryBackupAssetStore';
 import { CloudBackupService } from '@/data/cloudBackup/CloudBackupService';
 import { FakeCloudBackupApi } from '@/data/cloudBackup/FakeCloudBackupApi';
 import { InMemoryCloudBackupSettingsRepository } from '@/data/cloudBackup/InMemoryCloudBackupSettingsRepository';
@@ -36,13 +38,12 @@ function makeStore() {
   const settingsRepository = new InMemoryCloudBackupSettingsRepository();
   const logRepository = new InMemoryBackupLogRepository();
   const cloudBackupService = new CloudBackupService(
-    new InMemoryBackupRepository(),
+    new BackupPayloadService(new InMemoryBackupRepository(), new InMemoryBackupAssetStore(), '1.0.0'),
     logRepository,
     settingsRepository,
     api,
     new FakeBackupEncryptionService(),
-    '1.0.0',
-  );
+    );
   return createCloudBackupStore({
     cloudBackupService,
     settingsRepository,

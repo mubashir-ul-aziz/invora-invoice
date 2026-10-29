@@ -3,6 +3,7 @@ import { drizzle, type ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 
 import {
   APP_SETTINGS_COLUMN_UPGRADES,
+  BACKUP_LOG_COLUMN_UPGRADES,
   BUSINESS_COLUMN_UPGRADES,
   CREATE_TABLES_SQL,
   CUSTOMER_COLUMN_UPGRADES,
@@ -48,6 +49,7 @@ export function getDatabase(): Promise<void> {
       await ensureItemColumns(sqliteConnection);
       await ensureCustomerColumns(sqliteConnection);
       await ensureSubscriptionStateColumns(sqliteConnection);
+      await ensureBackupLogColumns(sqliteConnection);
       drizzleDb = drizzle(sqliteConnection, { schema });
     })();
   }
@@ -175,6 +177,22 @@ async function ensureSubscriptionStateColumns(db: SQLite.SQLiteDatabase): Promis
   for (const { column, definition } of SUBSCRIPTION_STATE_COLUMN_UPGRADES) {
     if (!existingNames.has(column)) {
       await db.execAsync(`ALTER TABLE subscription_state ADD COLUMN ${column} ${definition};`);
+    }
+  }
+}
+
+/**
+ * Backfills `backup_log` columns added after its first release (file name,
+ * local file path, Drive file id). Same idempotent `PRAGMA table_info` check
+ * as `ensureBusinessColumns()`. Rows logged before this simply have them
+ * null, and the history list shows them without file actions.
+ */
+async function ensureBackupLogColumns(db: SQLite.SQLiteDatabase): Promise<void> {
+  const existingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(backup_log);');
+  const existingNames = new Set(existingColumns.map((col) => col.name));
+  for (const { column, definition } of BACKUP_LOG_COLUMN_UPGRADES) {
+    if (!existingNames.has(column)) {
+      await db.execAsync(`ALTER TABLE backup_log ADD COLUMN ${column} ${definition};`);
     }
   }
 }

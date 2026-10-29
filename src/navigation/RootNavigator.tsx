@@ -32,7 +32,6 @@ import { EditPaymentScreen } from '@/screens/payment/EditPaymentScreen';
 import { PaymentHistoryScreen } from '@/screens/payment/PaymentHistoryScreen';
 import { RecordPaymentScreen } from '@/screens/payment/RecordPaymentScreen';
 import { InvoicePdfPreviewScreen } from '@/screens/pdf/InvoicePdfPreviewScreen';
-import { BackupHistoryScreen } from '@/screens/backup/BackupHistoryScreen';
 import { BackupScreen } from '@/screens/backup/BackupScreen';
 import { CloudBackupHistoryScreen } from '@/screens/cloudBackup/CloudBackupHistoryScreen';
 import { CloudBackupScreen } from '@/screens/cloudBackup/CloudBackupScreen';
@@ -227,11 +226,6 @@ function TabStack({ initialRouteName }: { initialRouteName: keyof RootStackParam
       <Stack.Screen name="Security" component={SecurityScreen} options={{ title: 'Security' }} />
       <Stack.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
       <Stack.Screen name="Backup" component={BackupScreen} options={{ title: 'Backup & Restore' }} />
-      <Stack.Screen
-        name="BackupHistory"
-        component={BackupHistoryScreen}
-        options={{ title: 'Backup History' }}
-      />
       <Stack.Screen name="CloudBackup" component={CloudBackupScreen} options={{ title: 'Cloud Backup' }} />
       <Stack.Screen
         name="CloudBackupHistory"

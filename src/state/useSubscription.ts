@@ -102,6 +102,8 @@ export function useSubscription() {
     activeStore: snapshot.activeStore,
     purchasing: state.purchasing,
     purchasePending: state.purchasePending,
+    verifying: state.verifying,
+    verification: snapshot.verification,
     presentingCustomerCenter: state.presentingCustomerCenter,
 
     // --- decisions -------------------------------------------------------
@@ -119,6 +121,7 @@ export function useSubscription() {
     loadOfferings: state.loadOfferings,
     purchase: state.purchase,
     restore: state.restore,
+    verifyPlan: state.verifyPlan,
     openManageSubscription: state.openManageSubscription,
     presentPaywall: state.presentPaywall,
     presentCustomerCenter: state.presentCustomerCenter,

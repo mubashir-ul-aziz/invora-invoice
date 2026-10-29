@@ -30,7 +30,16 @@ import { ExpoBiometricService } from './security/ExpoBiometricService';
 import type { BiometricService } from './security/BiometricService';
 import { SqliteSecurityRepository } from './security/SqliteSecurityRepository';
 import type { SecurityRepository } from './security/SecurityRepository';
+import { BackupPayloadService } from './backup/BackupPayloadService';
+import { BackupRestoreService } from './backup/BackupRestoreService';
 import { BackupService } from './backup/BackupService';
+import { LocalBackupService } from './backup/LocalBackupService';
+import type { BackupAssetStore } from './backup/files/BackupAssetStore';
+import type { BackupFileExchange } from './backup/files/BackupFileExchange';
+import { ExpoBackupAssetStore } from './backup/files/ExpoBackupAssetStore';
+import { ExpoBackupFileExchange } from './backup/files/ExpoBackupFileExchange';
+import { ExpoLocalBackupFileStore } from './backup/files/ExpoLocalBackupFileStore';
+import type { LocalBackupFileStore } from './backup/files/LocalBackupFileStore';
 import type { BackupLogRepository } from './backup/BackupLogRepository';
 import { SqliteBackupLogRepository } from './backup/SqliteBackupLogRepository';
 import type { BackupRepository } from './backup/BackupRepository';
@@ -92,6 +101,12 @@ let backupLogRepository: BackupLogRepository | null = null;
 let backupSettingsRepository: BackupSettingsRepository | null = null;
 let googleDriveBackupService: GoogleDriveBackupService | null = null;
 let backupService: BackupService | null = null;
+let backupAssetStore: BackupAssetStore | null = null;
+let localBackupFileStore: LocalBackupFileStore | null = null;
+let backupFileExchange: BackupFileExchange | null = null;
+let backupPayloadService: BackupPayloadService | null = null;
+let localBackupService: LocalBackupService | null = null;
+let backupRestoreService: BackupRestoreService | null = null;
 let cloudBackupSettingsRepository: CloudBackupSettingsRepository | null = null;
 let cloudBackupApi: CloudBackupApi | null = null;
 let backupEncryptionService: BackupEncryptionService | null = null;
@@ -262,18 +277,72 @@ export function getGoogleDriveBackupService(): GoogleDriveBackupService {
   return googleDriveBackupService;
 }
 
-/** See the doc comment on `BackupService` — the composition root for every dependency Phase 11's store/screens need. */
-export function getBackupService(): BackupService {
-  if (!backupService) {
-    backupService = new BackupService(
+export function getBackupAssetStore(): BackupAssetStore {
+  if (!backupAssetStore) {
+    backupAssetStore = new ExpoBackupAssetStore();
+  }
+  return backupAssetStore;
+}
+
+export function getLocalBackupFileStore(): LocalBackupFileStore {
+  if (!localBackupFileStore) {
+    localBackupFileStore = new ExpoLocalBackupFileStore();
+  }
+  return localBackupFileStore;
+}
+
+export function getBackupFileExchange(): BackupFileExchange {
+  if (!backupFileExchange) {
+    backupFileExchange = new ExpoBackupFileExchange();
+  }
+  return backupFileExchange;
+}
+
+/** See the doc comment on `BackupPayloadService` — the one backup format every destination shares. */
+export function getBackupPayloadService(): BackupPayloadService {
+  if (!backupPayloadService) {
+    backupPayloadService = new BackupPayloadService(
       getBackupRepository(),
-      getBackupLogRepository(),
-      getBackupSettingsRepository(),
-      getGoogleDriveBackupService(),
+      getBackupAssetStore(),
       Constants.expoConfig?.version ?? '1.0.0',
     );
   }
+  return backupPayloadService;
+}
+
+/** See the doc comment on `BackupService` — Google Drive backups. */
+export function getBackupService(): BackupService {
+  if (!backupService) {
+    backupService = new BackupService(
+      getBackupPayloadService(),
+      getBackupLogRepository(),
+      getBackupSettingsRepository(),
+      getGoogleDriveBackupService(),
+    );
+  }
   return backupService;
+}
+
+/** See the doc comment on `LocalBackupService` — exports and safety backups in app storage. */
+export function getLocalBackupService(): LocalBackupService {
+  if (!localBackupService) {
+    localBackupService = new LocalBackupService(getBackupPayloadService(), getLocalBackupFileStore(), getBackupLogRepository());
+  }
+  return localBackupService;
+}
+
+/** See the doc comment on `BackupRestoreService` — the one restore flow for every backup source. */
+export function getBackupRestoreService(): BackupRestoreService {
+  if (!backupRestoreService) {
+    backupRestoreService = new BackupRestoreService(
+      getBackupPayloadService(),
+      getLocalBackupService(),
+      getBackupService(),
+      getBackupFileExchange(),
+      getBackupLogRepository(),
+    );
+  }
+  return backupRestoreService;
 }
 
 /** See the doc comment on `CloudBackupSettingsRepository` (Phase 12 — Optional Cloud Backup). */
@@ -303,19 +372,18 @@ export function getBackupEncryptionService(): BackupEncryptionService {
 /**
  * See the doc comment on `CloudBackupService` — the composition root for
  * every dependency Phase 12's store/screens need. Deliberately reuses
- * `getBackupRepository()`/`getBackupLogRepository()` (Phase 11) instead of
+ * `getBackupPayloadService()`/`getBackupLogRepository()` (Phase 11) instead of
  * constructing cloud-specific equivalents — see `CloudBackupService`'s doc
  * comment for why.
  */
 export function getCloudBackupService(): CloudBackupService {
   if (!cloudBackupService) {
     cloudBackupService = new CloudBackupService(
-      getBackupRepository(),
+      getBackupPayloadService(),
       getBackupLogRepository(),
       getCloudBackupSettingsRepository(),
       getCloudBackupApi(),
       getBackupEncryptionService(),
-      Constants.expoConfig?.version ?? '1.0.0',
     );
   }
   return cloudBackupService;

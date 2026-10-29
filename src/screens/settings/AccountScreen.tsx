@@ -9,7 +9,8 @@ import type { RootStackParamList } from '@/navigation/types';
 import { useBusinessProfileStore } from '@/state/businessProfileStore';
 import { useCloudBackupStore } from '@/state/cloudBackupStore';
 import { useSubscription } from '@/state/useSubscription';
-import { restoreOutcomeMessage } from '@/screens/subscription/outcomeMessages';
+import { formatBackupTimestamp } from '@/domain/backup/formatting';
+import { restoreOutcomeMessage, verifyOutcomeMessage } from '@/screens/subscription/outcomeMessages';
 import { toast } from '@/state/toastStore';
 import { colors } from '@/theme/colors';
 
@@ -47,6 +48,11 @@ export function AccountScreen({ navigation }: Props) {
     const message = restoreOutcomeMessage(await subscription.restore());
     toast.show(message.type, message);
   };
+  const handleRefreshPlan = async () => {
+    const message = verifyOutcomeMessage(await subscription.verifyPlan());
+    toast.show(message.type, message);
+  };
+  const lastVerifiedAt = subscription.verification.lastVerifiedAt;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="account-screen">
@@ -124,6 +130,31 @@ export function AccountScreen({ navigation }: Props) {
       <View style={styles.card}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Refresh plan"
+          accessibilityState={{ disabled: subscription.verifying }}
+          disabled={subscription.verifying}
+          testID="action-refresh-plan"
+          onPress={handleRefreshPlan}
+          style={({ pressed }) => [styles.restoreRow, pressed && styles.pressed]}
+        >
+          <View style={styles.restoreIcon}>
+            <Feather name="refresh-cw" size={17} color={colors.primary} />
+          </View>
+          <View style={styles.flexShrink}>
+            <Text style={styles.restoreLabel}>{subscription.verifying ? 'Refreshing plan…' : 'Refresh Plan'}</Text>
+            <Text style={styles.restoreCaption} testID="account-last-verified">
+              {lastVerifiedAt
+                ? `Last verified ${formatBackupTimestamp(new Date(lastVerifiedAt).toISOString())}`
+                : 'Not verified on this device yet'}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={16} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Restore purchases"
           testID="action-restore-purchases"
           onPress={handleRestore}
@@ -134,7 +165,7 @@ export function AccountScreen({ navigation }: Props) {
           </View>
           <View style={styles.flexShrink}>
             <Text style={styles.restoreLabel}>Restore Purchases</Text>
-            <Text style={styles.restoreCaption}>Check your store account for an active Metriqo subscription</Text>
+            <Text style={styles.restoreCaption}>Recover a Metriqo subscription bought with your Google Play account — e.g. on a new install</Text>
           </View>
           <Feather name="chevron-right" size={16} color={colors.textMuted} />
         </Pressable>

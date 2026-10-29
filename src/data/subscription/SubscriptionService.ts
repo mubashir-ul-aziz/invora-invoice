@@ -138,7 +138,17 @@ function devLog(message: string): void {
 /** Don't rewrite the clock high-water mark more often than this. */
 const CLOCK_WRITE_INTERVAL_MS = 60 * 1000;
 
-export type SyncTrigger = 'startup' | 'foreground' | 'connectivity' | 'screen' | 'listener' | 'expiry';
+export type SyncTrigger =
+  | 'startup'
+  | 'foreground'
+  | 'connectivity'
+  | 'screen'
+  | 'listener'
+  | 'expiry'
+  /** The user tapped "Refresh Plan" / "Verify now". */
+  | 'manual'
+  /** Right after a backup was restored — the plan must come from RevenueCat, never from the backup. */
+  | 'backup_restore';
 
 export type PurchaseOutcome =
   /** Google Play + RevenueCat confirmed an active entitlement for the chosen plan. */
@@ -186,6 +196,20 @@ export type CustomerCenterOutcome =
   | { status: 'shown' }
   | { status: 'unavailable' }
   | { status: 'failed'; message: string };
+
+/**
+ * Result of an explicit "Refresh Plan". Anything but `verified` means the
+ * plan could not be confirmed *right now* — it is pending, never a
+ * confirmed expiry, and the last verified plan stays in force under the
+ * offline policy.
+ */
+export type VerifyOutcome =
+  | { status: 'verified'; snapshot: SubscriptionSnapshot }
+  /** No internet connection. */
+  | { status: 'offline'; snapshot: SubscriptionSnapshot }
+  /** Online, but RevenueCat couldn't be reached or only the SDK's cached answer came back (e.g. the device clock is far off). */
+  | { status: 'unreachable'; snapshot: SubscriptionSnapshot }
+  | { status: 'unavailable'; reason?: string | null };
 
 export type IdentifyOutcome =
   | { status: 'identified'; snapshot: SubscriptionSnapshot }
@@ -298,15 +322,49 @@ export class SubscriptionService {
       clockHighWaterMs: record.clockHighWaterMs,
       managementUrl: this.managementUrl,
       activeStore: this.activeStore,
+      verification: {
+        enforced: this.adapter.isAvailable(),
+        lastVerifiedAt: record.lastVerifiedAt,
+        firstLaunchAt: record.firstLaunchAt,
+      },
     };
     this.listeners.forEach((listener) => listener(this.snapshot));
     return this.snapshot;
   }
 
-  /** Cold start: publishes whatever the cache holds (or Free) immediately, before any network call. */
+  /**
+   * Cold start: publishes whatever the cache holds (or Free) immediately,
+   * before any network call. The first time ever, also records
+   * `firstLaunchAt` — the start of the first 24-hour verification window.
+   */
   async loadCached(): Promise<SubscriptionSnapshot> {
     this.verified = false;
-    return this.publish(await this.cache.read());
+    let record = await this.cache.read();
+    if (record.firstLaunchAt === null) {
+      const now = this.now();
+      record = await this.cache.update((current) =>
+        current.firstLaunchAt === null ? { ...current, firstLaunchAt: now } : current,
+      );
+    }
+    return this.publish(record);
+  }
+
+  /**
+   * "Refresh Plan": asks RevenueCat for a fresh CustomerInfo (bypassing the
+   * SDK cache, same as every `refresh()`), and reports whether it actually
+   * verified. Never opens Google Play and never waits on a fixed delay.
+   */
+  async verifyNow(): Promise<VerifyOutcome> {
+    if (!this.adapter.isAvailable()) {
+      return { status: 'unavailable', reason: this.adapter.getUnavailableReason() };
+    }
+    if (!(await this.connectivity.isOnline())) {
+      this.verified = false;
+      this.isOffline = true;
+      return { status: 'offline', snapshot: this.publish(await this.cache.read()) };
+    }
+    const snapshot = await this.refresh('manual');
+    return this.verified ? { status: 'verified', snapshot } : { status: 'unreachable', snapshot };
   }
 
   /**
@@ -385,6 +443,9 @@ export class SubscriptionService {
       clockHighWaterMs: fresh ? serverNow : Math.max(current.clockHighWaterMs, now),
       usage: current.usage,
       revenueCatUserId: identity === undefined ? current.revenueCatUserId : identity,
+      // Only a fresh answer counts as a verification (24-hour policy); the SDK's cached answer never does.
+      lastVerifiedAt: fresh ? serverNow : current.lastVerifiedAt,
+      firstLaunchAt: current.firstLaunchAt,
     }));
 
     this.verified = fresh;

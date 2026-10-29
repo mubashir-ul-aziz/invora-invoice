@@ -1,47 +1,33 @@
-import { buildBackupPayload, validateBackupPayload } from '@/domain/backup/validation';
-import {
-  BACKUP_RETENTION_COUNT,
-  countBackupTables,
-  type BackupLogEntry,
-  type BackupTrigger,
-  type DriveBackupFile,
-} from '@/domain/backup/types';
+import { backupFileName } from '@/domain/backup/formatting';
+import { BACKUP_RETENTION_COUNT, type BackupLogEntry, type BackupTrigger, type DriveBackupFile } from '@/domain/backup/types';
 
 import type { BackupLogRepository } from './BackupLogRepository';
-import type { BackupRepository } from './BackupRepository';
+import type { BackupPayloadService } from './BackupPayloadService';
 import type { BackupSettingsRepository } from './BackupSettingsRepository';
 import type { GoogleDriveBackupService } from './googleDrive/GoogleDriveBackupService';
-
-const BACKUP_FILE_PREFIX = 'metriqo-backup-';
-
-function backupFileName(createdAt: number): string {
-  return `${BACKUP_FILE_PREFIX}${new Date(createdAt).toISOString().replace(/[:.]/g, '-')}.json`;
-}
 
 function errorMessageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
 /**
- * The use-case layer Phase 11's screens/store actually call —
- * `BackupScreen`/`backupStore` never talk to `BackupRepository` or
- * `GoogleDriveBackupService` directly, same "screens depend only on
- * interfaces" rule every other phase followed. Owns the two operations the
- * brief names (manual "Backup Now" / "Restore Backup", plus the automatic
- * trigger reusing the same `backupNow()`), and everything the "PROTECT
- * AGAINST" list requires: every attempt is logged (success *and* failure),
- * a corrupted/incompatible/malformed backup is rejected before
- * `BackupRepository.restoreAll()` is ever called (see
- * `validateBackupPayload()`), and old remote backups are only pruned *after*
- * a new one is confirmed uploaded.
+ * The Google Drive half of backup (Phase 11): "Back up to Drive" (manual and
+ * the automatic trigger, which reuse the same `backupNow()`), listing,
+ * downloading and deleting Drive backups. Every backup attempt is logged
+ * (success *and* failure) with the Drive file id, so the history can restore,
+ * share or delete it later, and old Drive backups are only pruned *after* a
+ * new one is confirmed uploaded.
+ *
+ * Restoring is not done here: every restore — from Drive, a local file or an
+ * imported file — goes through `BackupRestoreService`, which validates the
+ * file, takes a safety backup first, and only then replaces the data.
  */
 export class BackupService {
   constructor(
-    private readonly backupRepository: BackupRepository,
+    private readonly payloads: BackupPayloadService,
     private readonly logRepository: BackupLogRepository,
     private readonly settingsRepository: BackupSettingsRepository,
     private readonly driveService: GoogleDriveBackupService,
-    private readonly appVersion: string,
     private readonly now: () => number = Date.now,
   ) {}
 
@@ -50,11 +36,10 @@ export class BackupService {
   }
 
   /**
-   * Exports every table, wraps it in a versioned+checksummed envelope, and
-   * uploads it to the Drive App Data folder. Always ends by recording a
-   * `BackupLogEntry` and updating `BackupSettings` — on failure, the local
-   * database is never touched (this only ever *reads* it), so "Backup Now"
-   * failing is always safe by construction, unlike restore.
+   * Builds the shared backup payload and uploads it to the Drive App Data
+   * folder. Always ends by recording a `BackupLogEntry` and updating
+   * `BackupSettings` — on failure, the local database is never touched (this
+   * only ever *reads* it), so "Backup Now" failing is always safe.
    */
   async backupNow(trigger: BackupTrigger): Promise<BackupLogEntry> {
     const startedAt = this.now();
@@ -64,12 +49,9 @@ export class BackupService {
         throw new Error('Sign in with Google Drive before backing up.');
       }
 
-      const tables = await this.backupRepository.exportAll();
-      const payload = buildBackupPayload(tables, this.appVersion, startedAt);
-      const content = JSON.stringify(payload);
-      const counts = countBackupTables(tables);
-
-      await this.driveService.uploadBackup(backupFileName(startedAt), content);
+      const created = await this.payloads.create(startedAt);
+      const fileName = backupFileName(startedAt);
+      const uploaded = await this.driveService.uploadBackup(fileName, created.content);
       await this.pruneOldBackups();
 
       const finishedAt = this.now();
@@ -85,10 +67,12 @@ export class BackupService {
         destination: 'google_drive',
         startedAt: new Date(startedAt).toISOString(),
         finishedAt: new Date(finishedAt).toISOString(),
-        formatVersion: payload.formatVersion,
-        sizeBytes: content.length,
-        counts,
+        formatVersion: created.payload.formatVersion,
+        sizeBytes: created.sizeBytes,
+        counts: created.counts,
         errorMessage: null,
+        fileName: uploaded.name || fileName,
+        remoteFileId: uploaded.id,
       });
     } catch (err) {
       const message = errorMessageOf(err);
@@ -98,7 +82,7 @@ export class BackupService {
         finishedAt: new Date(finishedAt).toISOString(),
         errorMessage: message,
       });
-      const entry = await this.logRepository.add({
+      return this.logRepository.add({
         direction: 'backup',
         trigger,
         status: 'failure',
@@ -110,59 +94,22 @@ export class BackupService {
         counts: null,
         errorMessage: message,
       });
-      return entry;
     }
   }
 
-  /**
-   * Downloads and validates the chosen backup file, then — only once it's
-   * proven structurally sound, version-compatible, and checksum-intact —
-   * replaces the local database via `BackupRepository.restoreAll()`, which
-   * is itself atomic (see its doc comment). If validation fails, or
-   * `restoreAll()` itself throws, the local database is left exactly as it
-   * was: this method never calls `restoreAll()` with unvalidated data, and
-   * `restoreAll()` never partially applies a restore — see the "IMPORTANT
-   * SAFETY RULE" in `MVP_BUILD_PLAN.md`.
-   */
-  async restoreBackup(fileId: string, trigger: BackupTrigger = 'manual'): Promise<BackupLogEntry> {
-    const startedAt = this.now();
-    try {
-      const signedIn = await this.driveService.isSignedIn();
-      if (!signedIn) {
-        throw new Error('Sign in with Google Drive before restoring.');
-      }
+  /** The raw content of one Drive backup. Throws the Drive service's typed errors (offline, not signed in, unavailable). */
+  async downloadBackup(fileId: string): Promise<string> {
+    if (!(await this.driveService.isSignedIn())) {
+      throw new Error('Sign in with Google Drive to use this backup.');
+    }
+    return this.driveService.downloadBackup(fileId);
+  }
 
-      const raw = await this.driveService.downloadBackup(fileId);
-      const payload = validateBackupPayload(raw); // throws BackupValidationError — local DB untouched.
-      await this.backupRepository.restoreAll(payload.tables); // atomic — see SqliteBackupRepository.
-
-      const finishedAt = this.now();
-      return await this.logRepository.add({
-        direction: 'restore',
-        trigger,
-        status: 'success',
-        destination: 'google_drive',
-        startedAt: new Date(startedAt).toISOString(),
-        finishedAt: new Date(finishedAt).toISOString(),
-        formatVersion: payload.formatVersion,
-        sizeBytes: raw.length,
-        counts: countBackupTables(payload.tables),
-        errorMessage: null,
-      });
-    } catch (err) {
-      const message = errorMessageOf(err);
-      return this.logRepository.add({
-        direction: 'restore',
-        trigger,
-        status: 'failure',
-        destination: 'google_drive',
-        startedAt: new Date(startedAt).toISOString(),
-        finishedAt: new Date(this.now()).toISOString(),
-        formatVersion: null,
-        sizeBytes: null,
-        counts: null,
-        errorMessage: message,
-      });
+  /** Deletes a backup file from Google Drive, and its history row if there is one. */
+  async deleteRemoteBackup(fileId: string, logEntryId: string | null): Promise<void> {
+    await this.driveService.deleteBackup(fileId);
+    if (logEntryId) {
+      await this.logRepository.remove(logEntryId);
     }
   }
 

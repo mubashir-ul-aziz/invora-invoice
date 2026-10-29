@@ -1,10 +1,12 @@
-import { tablesWith } from '@/domain/backup/testFixtures';
-import { type BackupTables } from '@/domain/backup/types';
-import { buildBackupPayload } from '@/domain/backup/validation';
+import { realisticBackupTables, tablesWith } from '@/domain/backup/testFixtures';
+import { EMPTY_BACKUP_ASSETS, type BackupTables } from '@/domain/backup/types';
+import { buildBackupPayload, serializeBackupPayload } from '@/domain/backup/validation';
 import { CLOUD_BACKUP_RETENTION_COUNT, getCloudStoragePlan } from '@/domain/cloudBackup/types';
 
 import { InMemoryBackupLogRepository } from '../../backup/InMemoryBackupLogRepository';
 import { InMemoryBackupRepository } from '../../backup/InMemoryBackupRepository';
+import { BackupPayloadService } from '../../backup/BackupPayloadService';
+import { InMemoryBackupAssetStore } from '../../backup/files/InMemoryBackupAssetStore';
 import { CloudBackupService } from '../CloudBackupService';
 import { CloudStorageLimitExceededError } from '../CloudBackupApi';
 import { FakeCloudBackupApi } from '../FakeCloudBackupApi';
@@ -18,12 +20,11 @@ function makeService(opts: { seed?: BackupTables; clock?: () => number } = {}) {
   const api = new FakeCloudBackupApi();
   const encryption = new FakeBackupEncryptionService();
   const service = new CloudBackupService(
-    backupRepository,
+    new BackupPayloadService(backupRepository, new InMemoryBackupAssetStore(), '1.0.0'),
     logRepository,
     settingsRepository,
     api,
     encryption,
-    '1.0.0',
     opts.clock ?? Date.now,
   );
   return { service, backupRepository, logRepository, settingsRepository, api, encryption };
@@ -60,7 +61,6 @@ describe('CloudBackupService.backupNow', () => {
       invoices: 0,
       invoiceItems: 0,
       payments: 0,
-      appSettings: 0,
     });
     await expect(api.listBackups()).resolves.toHaveLength(1);
   });
@@ -201,9 +201,9 @@ describe('CloudBackupService.restoreBackup', () => {
     const { service, settingsRepository, backupRepository, api, encryption } = makeService({ seed: existing });
     await enable(settingsRepository);
 
-    const incoming = tablesWith({ customers: [{ id: 'new', name: 'New' }] });
-    const payload = buildBackupPayload(incoming, '1.0.0');
-    const envelope = await encryption.encrypt(JSON.stringify(payload));
+    const incoming = realisticBackupTables();
+    const payload = buildBackupPayload(incoming, EMPTY_BACKUP_ASSETS, '1.0.0');
+    const envelope = await encryption.encrypt(serializeBackupPayload(payload));
     const uploaded = await api.uploadBackup('seed.json.enc', envelope);
 
     const entry = await service.restoreBackup(uploaded.id);
@@ -231,9 +231,9 @@ describe('CloudBackupService.restoreBackup', () => {
     const { service, settingsRepository, backupRepository, api, encryption } = makeService({ seed: existing });
     await enable(settingsRepository);
 
-    const payload = buildBackupPayload(tablesWith(), '1.0.0');
+    const payload = buildBackupPayload(tablesWith(), EMPTY_BACKUP_ASSETS, '1.0.0');
     const incompatible = { ...payload, formatVersion: 999 };
-    const envelope = await encryption.encrypt(JSON.stringify(incompatible));
+    const envelope = await encryption.encrypt(serializeBackupPayload(incompatible));
     const uploaded = api.seedFile(envelope);
 
     const entry = await service.restoreBackup(uploaded.id);
@@ -247,8 +247,8 @@ describe('CloudBackupService.restoreBackup', () => {
     const { service, settingsRepository, backupRepository, api, encryption } = makeService({ seed: existing });
     await enable(settingsRepository);
 
-    const payload = buildBackupPayload(tablesWith({ customers: [{ id: 'new', name: 'New' }] }), '1.0.0');
-    const envelope = await encryption.encrypt(JSON.stringify(payload));
+    const payload = buildBackupPayload(realisticBackupTables(), EMPTY_BACKUP_ASSETS, '1.0.0');
+    const envelope = await encryption.encrypt(serializeBackupPayload(payload));
     const uploaded = await api.uploadBackup('good.json.enc', envelope);
 
     backupRepository.simulateFailureOnRestore = new Error('disk full mid-restore');

@@ -1,5 +1,7 @@
 import { InMemoryBackupLogRepository } from '@/data/backup/InMemoryBackupLogRepository';
 import { InMemoryBackupRepository } from '@/data/backup/InMemoryBackupRepository';
+import { BackupPayloadService } from '@/data/backup/BackupPayloadService';
+import { InMemoryBackupAssetStore } from '@/data/backup/files/InMemoryBackupAssetStore';
 import { CloudBackupService } from '@/data/cloudBackup/CloudBackupService';
 import { FakeCloudBackupApi } from '@/data/cloudBackup/FakeCloudBackupApi';
 import { InMemoryCloudBackupSettingsRepository } from '@/data/cloudBackup/InMemoryCloudBackupSettingsRepository';
@@ -16,13 +18,12 @@ function makeStore() {
   const encryption = new FakeBackupEncryptionService();
   const upgradeService = new PlaceholderCloudUpgradeService();
   const cloudBackupService = new CloudBackupService(
-    backupRepository,
+    new BackupPayloadService(backupRepository, new InMemoryBackupAssetStore(), '1.0.0'),
     logRepository,
     settingsRepository,
     api,
     encryption,
-    '1.0.0',
-  );
+    );
   const store = createCloudBackupStore({ cloudBackupService, settingsRepository, logRepository, upgradeService });
   return { store, api, settingsRepository, logRepository, upgradeService };
 }

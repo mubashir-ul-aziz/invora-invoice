@@ -29,8 +29,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
  * every field the brief names is still one tap away.
  *
  * The Backup row (Phase 11) now routes to a real `BackupScreen` — Google
- * Drive sign-in, Automatic Backup, Backup Now, and a link into
- * `BackupHistoryScreen` — instead of the "coming in a future update" alert
+ * Drive sign-in, Automatic Backup, Export/Import, and the backup history
+ * with Share/Restore/Delete — instead of the "coming in a future update" alert
  * Phase 10 shipped in its place. The Cloud Backup row (Phase 12) is a
  * second, independent destination alongside it — see `CloudBackupScreen`.
  *

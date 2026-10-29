@@ -11,6 +11,7 @@ import type {
   RestoreOutcome,
   SubscriptionService,
   SyncTrigger,
+  VerifyOutcome,
 } from '@/data/subscription/SubscriptionService';
 import { openWebsite } from '@/lib/linking';
 import type { InvoiceCreationDecision, InvoiceUsage } from '@/domain/subscription/invoiceAccess';
@@ -71,12 +72,22 @@ interface SubscriptionState {
   offeringsIssue: OfferingsIssue | null;
   /** Last known invoice usage; null until first loaded. */
   usage: InvoiceUsage | null;
+  /** A "Refresh Plan" verification is in flight. */
+  verifying: boolean;
 
   /** Reads the cache, starts background listeners, then syncs with RevenueCat. Safe to call once at startup. */
   init: () => Promise<void>;
   /** Refreshes from RevenueCat (startup, foreground, connectivity, opening the pricing screen). Never throws. */
   refresh: (trigger?: SyncTrigger) => Promise<void>;
   refreshUsage: () => Promise<void>;
+  /** "Refresh Plan": requests fresh CustomerInfo from RevenueCat and says whether the plan was actually verified. Never throws. */
+  verifyPlan: () => Promise<VerifyOutcome>;
+  /**
+   * After a backup restore: the plan is re-read from RevenueCat (never from
+   * the backup) and the invoice-usage meter recomputed against the restored
+   * invoices. Offline, the current verified state simply stays in force.
+   */
+  refreshAfterRestore: () => Promise<void>;
   /** A fresh, authoritative "may the user create another invoice?" answer (also updates `usage`). */
   checkCanCreateInvoice: () => Promise<InvoiceCreationDecision>;
   loadOfferings: (force?: boolean) => Promise<void>;
@@ -154,6 +165,7 @@ export function createSubscriptionStore(
       offeringsError: null,
       offeringsIssue: null,
       usage: null,
+      verifying: false,
 
       init: async () => {
         if (initialized) {
@@ -204,6 +216,26 @@ export function createSubscriptionStore(
         } catch {
           // Leave the last known usage in place; the hard limit check happens at creation time anyway.
         }
+      },
+
+      verifyPlan: async () => {
+        apply({ verifying: true });
+        try {
+          const outcome = await getService().verifyNow();
+          apply({ verifying: false });
+          if (outcome.status === 'verified') {
+            await get().refreshUsage();
+          }
+          return outcome;
+        } catch {
+          apply({ verifying: false });
+          return { status: 'unreachable', snapshot: get().snapshot };
+        }
+      },
+
+      refreshAfterRestore: async () => {
+        await get().refresh('backup_restore');
+        await get().refreshUsage();
       },
 
       checkCanCreateInvoice: async () => {
