@@ -3,7 +3,7 @@
     "name": "Metriqo Invoice",
     "slug": "metriqo-invoice",
     "scheme": "metriqo",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/metriqo-app-logo.png",
     "userInterfaceStyle": "light",
