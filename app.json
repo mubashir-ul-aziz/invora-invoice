@@ -5,7 +5,7 @@
     "scheme": "metriqo",
     "version": "1.0.3",
     "orientation": "portrait",
-    "icon": "./assets/metriqo-app-logo.png",
+    "icon": "./assets/metirqo-app-logo-light.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
@@ -17,7 +17,7 @@
     "android": {
       "package": "com.metriqo.invoice",
       "adaptiveIcon": {
-        "backgroundColor": "#0F1B3D",
+        "backgroundColor": "#ECF2FF",
         "foregroundImage": "./assets/metriqo-app-logo-android.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -27,7 +27,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/metriqo-app-logo.png"
+      "favicon": "./assets/metirqo-app-logo-light.png"
     },
     "plugins": [
       "expo-sqlite",
