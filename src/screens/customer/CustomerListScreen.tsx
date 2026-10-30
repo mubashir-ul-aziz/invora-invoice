@@ -497,8 +497,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.surface,
     borderRadius: 999,
-    paddingHorizontal: 14,
-    height: 44,
+    padding: 14,
   },
   searchInput: { flex: 1, fontSize: 14, color: colors.text, padding: 0 },
   sortButton: {

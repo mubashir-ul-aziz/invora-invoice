@@ -60,7 +60,7 @@ export function EmptyStateCard({
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
   card: {
     width: '100%',
     backgroundColor: colors.surface,

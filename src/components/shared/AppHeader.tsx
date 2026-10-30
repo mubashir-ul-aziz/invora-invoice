@@ -6,9 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme/colors';
 
-/** Content height, excluding the safe-area top inset — a compact, modern mobile header. */
-export const HEADER_CONTENT_HEIGHT = 56;
-
 /**
  * Single header used across every screen in the stack (wired in via
  * `screenOptions.header` on `RootNavigator`) so title placement, the back
@@ -31,7 +28,7 @@ export function AppHeader({ navigation, route, options, back }: NativeStackHeade
               accessibilityRole="button"
               accessibilityLabel="Go back"
               testID="header-back"
-              style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              style={({ pressed }) => [styles.iconButton, styles.backButton, pressed && styles.iconButtonPressed]}
             >
               <Feather name="chevron-left" size={24} color={colors.text} />
             </Pressable>
@@ -79,19 +76,17 @@ export function HeaderIconButton({
 const styles = StyleSheet.create({
   wrapper: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   bar: {
-    height: HEADER_CONTENT_HEIGHT,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
   },
-  side: { minWidth: 44, alignItems: 'flex-start', justifyContent: 'center' },
+  side: { alignItems: 'flex-start', justifyContent: 'center' },
   sideRight: { alignItems: 'flex-end' },
   title: {
     flex: 1,
     fontSize: 17,
     fontWeight: '600',
     color: colors.text,
-    marginLeft: 4,
   },
   iconButton: {
     width: 40,
@@ -100,5 +95,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconButtonPressed: { backgroundColor: colors.background },
+  // Pulls the back button left so the chevron's visible stroke (inset 16px
+  // inside the 40px button) lines up with the 16px screen content gutter.
+  backButton: { marginLeft: -16 },
+  iconButtonPressed:{ backgroundColor: colors.background },
 });
